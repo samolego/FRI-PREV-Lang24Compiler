@@ -1,0 +1,33 @@
+plugins {
+	id 'java'
+	id 'application'
+	id 'antlr'
+}
+
+version = project.project_version
+group = ""
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+    antlr "org.antlr:antlr4:$project.antlr_version"
+}
+
+sourceSets {
+    main {
+		java {
+			srcDirs = ['src']
+		}
+	}
+}
+
+generateGrammarSource {
+    outputDirectory = file("src/lang24/phase/lexan")
+}
+
+application {
+	// Define the main class for your application.
+	mainClassName = 'lang24.Compiler'
+}
