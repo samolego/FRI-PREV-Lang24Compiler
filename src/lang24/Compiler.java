@@ -88,7 +88,6 @@ public class Compiler {
                     } else {
                         // Repeated specification of a command line option.
                         Report.warning("Command line option '" + opt + "' ignored.");
-                        continue;
                     }
                 } else {
                     // Source file name.
@@ -96,7 +95,6 @@ public class Compiler {
                         cmdLineOptValues.put("--src-file-name", opt);
                     } else {
                         Report.warning("Source file '" + opt + "' ignored.");
-                        continue;
                     }
                 }
             }

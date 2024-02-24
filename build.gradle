@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    antlr "org.antlr:antlr4:$project.antlr_version"
+    antlr("org.antlr:antlr4:$project.antlr_version")
 }
 
 sourceSets {
@@ -20,14 +20,26 @@ sourceSets {
 		java {
 			srcDirs = ['src']
 		}
+		antlr {
+			srcDirs = ['src/lang24/phase/lexan']
+		}
 	}
 }
 
+def lexerName = "Lang24Lexer"
 generateGrammarSource {
+	include("${lexerName}.g4")
+	arguments += ["-visitor", "-long-messages"]
     outputDirectory = file("src/lang24/phase/lexan")
 }
 
 application {
 	// Define the main class for your application.
 	mainClassName = 'lang24.Compiler'
+}
+
+clean {
+	delete file("src/lang24/phase/lexan/${lexerName}.java")
+	delete file("src/lang24/phase/lexan/${lexerName}.interp")
+	delete file("src/lang24/phase/lexan/${lexerName}.tokens")
 }
