@@ -13,7 +13,12 @@ repositories {
 
 dependencies {
     antlr("org.antlr:antlr4:$project.antlr_version")
+	implementation("org.antlr:antlr4-runtime:$project.antlr_version")
 }
+
+def mainClass = "${project.src_root_name}.Compiler"
+def lexanDir = "src/${project.src_root_name}/phase/lexan"
+def lexerName = project.lexer_file_name
 
 sourceSets {
     main {
@@ -21,25 +26,56 @@ sourceSets {
 			srcDirs = ['src']
 		}
 		antlr {
-			srcDirs = ['src/lang24/phase/lexan']
+			srcDirs = [lexanDir]
 		}
 	}
 }
 
-def lexerName = "Lang24Lexer"
 generateGrammarSource {
 	include("${lexerName}.g4")
 	arguments += ["-visitor", "-long-messages"]
-    outputDirectory = file("src/lang24/phase/lexan")
+    outputDirectory = file(lexanDir)
 }
 
 application {
-	// Define the main class for your application.
-	mainClassName = 'lang24.Compiler'
+	mainClassName = mainClass
+}
+
+jar {
+	from {
+		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+	}
+	manifest {
+		attributes(
+				'Main-Class': mainClass
+		)
+	}
 }
 
 clean {
-	delete file("src/lang24/phase/lexan/${lexerName}.java")
-	delete file("src/lang24/phase/lexan/${lexerName}.interp")
-	delete file("src/lang24/phase/lexan/${lexerName}.tokens")
+	delete file("$lexanDir/${lexerName}.java")
+	delete file("$lexanDir/${lexerName}.interp")
+	delete file("$lexanDir/${lexerName}.tokens")
+
+	// Remove generated program xml and html files
+	delete file("./prg/*.html")
+	delete file("./prg/*.xml")
+}
+
+test {
+	dependsOn(compileJava)
+	description = "Runs the compiler for test files."
+	workingDir("prg")
+
+	def fileExtension = project.source_file_extension
+	// For each file ending with extension, run the compiler
+	doFirst {
+		fileTree("prg").visit { fileVisitDetails ->
+			if (fileVisitDetails.file.name.endsWith(fileExtension)) {
+				exec {
+					commandLine "java", mainClass, fileVisitDetails.file.name
+				}
+			}
+		}
+	}
 }
