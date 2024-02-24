@@ -1,0 +1,28 @@
+012
+12344321
+'i'
+'"'
+' ''[' ']' '#'
+'\''
+#"\"  # Shouldn't be allowed
+'\\'
+'\n'  # inline comment test šč
+"Hello"
+" \\ "
+"\\"
+"\""
+""
+"\n"
+"hello world"
+
+and bool
+# This is a comment
+while nil
+         return none
+        'i'
+	'a'
+ 	'b'
+  	'c'
+    	'd'
+
+And = and
