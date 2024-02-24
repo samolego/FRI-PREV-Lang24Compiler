@@ -13,8 +13,8 @@ Gradle config is to-be-done. Currently only runnable on UNIX systems.
 
 1. Download [antlr](https://www.antlr.org/download/antlr-4.13.1-complete.jar) to project `lib/` folder.
 2. Execute following command in project root directory:
-```shell
-`make all
+```bash
+make all
 ```
 
 ### Run
