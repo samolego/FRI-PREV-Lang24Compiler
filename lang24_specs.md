@@ -8,25 +8,25 @@ Programs in the LANG’24 programming language consist of the following lexical 
 
 * Literals:
     - numerical literals:
-    A nonempty finite string of decimal digits (0. . . 9) optionally preceded by a sign (+ or -).
+    A nonempty finite string of decimal digits (`0...9`) optionally preceded by a sign (`+` or `-`).
 
     - character literals:
         A character enclosed in single quotes (`'`). A character in a string literal can be specified by
         - any printable ASCII character, i.e., with ASCII code in range {32...126} but the single quote and the backslash must be preceded by the backslash (`\`),
         - a control sequence `\n` denoting the end of line
-        - an ASCII code represented as \XX where X stands for any uppercase hexadecimal digit (0. . . 9 or A. . . F).
+        - an ASCII code represented as \XX where X stands for any uppercase hexadecimal digit (`0...9` or `A...F`).
     - string literals:
-        A possibly empty string of characters enclosed in double quotes ("). A character in a string literal can be specified by
-            - any printable ASCII character, i.e., with ASCII code in range {32...126} but the double quote and the backslash must be preceded by the backslash (`\`),
+        A possibly empty string of characters enclosed in double quotes (`"`). A character in a string literal can be specified by
+            - any printable ASCII character, i.e., with ASCII code in range {`32...126`} but the double quote and the backslash must be preceded by the backslash (`\`),
             - a control sequence `\n` denoting the end of line
-            - an ASCII code represented as \XX where X stands for any uppercase hexadecimal digit (0. . . 9 or A. . . F).
+            - an ASCII code represented as `\XX` where X stands for any uppercase hexadecimal digit (`0...9` or `A...F`).
 * Symbols:
 ```
 ( ) { } [ ] . , : ; == != < > <= >= * / % + - ^ =
 ```
 
 * Identifiers:
-    A nonempty finite string of letters (A. . . Z and a. . . z), decimal digits (0. . . 9), and underscores (_) that
+    A nonempty finite string of letters (`A...Z` and `a...z`), decimal digits (0. . . 9), and underscores (_) that
         - starts with either a letter or an underscore and
         - is not a keyword or a constant.
 

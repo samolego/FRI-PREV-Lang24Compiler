@@ -42,6 +42,6 @@
  */
 module lang24compiler {
 	requires java.xml;
-    //requires antlr;
-    requires org.antlr.antlr4.runtime;
+    requires antlr;
+    //requires org.antlr.antlr4.runtime;
 }

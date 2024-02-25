@@ -1,10 +1,14 @@
-012
+a = +012
+b = -99
+c = 0
+d = 12 + 9 - (12 * 3) / 4
 12344321
 'i'
 '"'
 ' ''[' ']' '#'
 '\''
 #"\"  # Shouldn't be allowed
+'\89'
 '\\'
 '\n'  # inline comment test šč
 "Hello"

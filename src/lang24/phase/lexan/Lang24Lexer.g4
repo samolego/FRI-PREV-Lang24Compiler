@@ -36,7 +36,7 @@ fragment ESC_SEQ
 	: '\\'
 	(
 		'n'
-		| HEX_DIGIT+
+		| HEX_DIGIT HEX_DIGIT
 		| '\\'
 	);
 
@@ -127,3 +127,10 @@ ASSIGN : '=' ;
 // - starts with either a letter or an underscore and
 // - is not a keyword or a constant.
 ID : [a-zA-Z_][a-zA-Z_0-9]* ;
+
+// Error
+// Any character not recognized by the lexer
+ERROR : . {
+if (true)
+    throw new Report.Error(new Location(getLine(), getCharPositionInLine()), "Error: " + getText());
+} ;
