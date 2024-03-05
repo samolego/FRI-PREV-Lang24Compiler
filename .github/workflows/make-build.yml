@@ -21,5 +21,8 @@ jobs:
         server-id: github
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
+    - name: Download antlr
+      run: cd lib && wget "https://www.antlr.org/download/antlr-4.13.1-complete.jar"
+
     - name: Test build
       run: make all
