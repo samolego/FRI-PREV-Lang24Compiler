@@ -3,7 +3,18 @@ bin
 .idea
 .gradle
 build
+prg/*.lang24
+prg/*.html
+prg/*.xml
 
+
+src/lang24/phase/lexan/Lang24Lexer.java
 src/lang24/phase/lexan/Lang24Lexer.interp
 src/lang24/phase/lexan/Lang24Lexer.java-orig
 src/lang24/phase/lexan/Lang24Lexer.tokens
+
+
+src/lang24/phase/synan/Lang24Parser.java
+src/lang24/phase/synan/Lang24Parser.interp
+src/lang24/phase/synan/Lang24Parser.java-orig
+src/lang24/phase/synan/Lang24Parser.tokens
