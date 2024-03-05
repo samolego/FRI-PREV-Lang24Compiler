@@ -17,9 +17,9 @@ public LocLogToken nextToken() {
 // Literals:
 // numerical literals:
 // A nonempty finite string of decimal digits (0... 9) optionally preceded by a sign (+ or -).
+INTCONST : DEC_DIGIT+ ;
 DEC_DIGIT : [0-9] ;
 HEX_DIGIT : DEC_DIGIT | [A-F] ;
-NUM_LITERAL : DEC_DIGIT+ ;
 
 // character literals
 // A character enclosed in single quotes (').
@@ -40,7 +40,7 @@ fragment ESC_SEQ
 		| '\\'
 	);
 
-CHAR_LITERAL
+CHARCONST
 	: '\'' (
 		ESC_SEQ
 		| PRINTABLE_ASCII
@@ -49,7 +49,7 @@ CHAR_LITERAL
 	)
 	'\'' ;
 
-STRING_LITERAL
+STRCONST
 	: '"' (
 		ESC_SEQ
 		| PRINTABLE_ASCII
@@ -64,6 +64,7 @@ AND : 'and' ;
 BOOL : 'bool' ;
 CHAR : 'char' ;
 ELSE : 'else' ;
+FALSE : 'false' ;
 IF : 'if' ;
 INT : 'int' ;
 NIL : 'nil' ;
@@ -73,9 +74,9 @@ OR : 'or' ;
 SIZEOF : 'sizeof' ;
 THEN : 'then' ;
 RETURN : 'return' ;
+TRUE : 'true' ;
 VOID : 'void' ;
 WHILE : 'while' ;
-
 
 // White space:
 // Space, horizontal tab (HT), line feed (LF) and carriage return (CR).
@@ -126,11 +127,12 @@ ASSIGN : '=' ;
 // A nonempty finite string of letters (A. . . Z and a. . . z), decimal digits (0. . . 9), and underscores (_) that
 // - starts with either a letter or an underscore and
 // - is not a keyword or a constant.
-ID : [a-zA-Z_][a-zA-Z_0-9]* ;
+IDENTIFIER : [a-zA-Z_][a-zA-Z_0-9]* ;
 
 // Error
 // Any character not recognized by the lexer
 ERROR : . {
-if (true)
-    throw new Report.Error(new Location(getLine(), getCharPositionInLine()), "Error: " + getText());
+    throw new Report.Error(new Location(getLine(), getCharPositionInLine()), "Lexing error: " + getText());
+
+case 0xFFFFFFFF:  // Dummy case to make compiler happy
 } ;
