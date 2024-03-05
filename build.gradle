@@ -18,7 +18,9 @@ dependencies {
 
 def mainClass = "${project.src_root_name}.Compiler"
 def lexanDir = "src/${project.src_root_name}/phase/lexan"
+def synanDir = "src/${project.src_root_name}/phase/synan"
 def lexerName = project.lexer_file_name
+def parserName = project.parser_file_name
 
 sourceSets {
     main {
@@ -26,13 +28,13 @@ sourceSets {
             srcDirs = ['src']
         }
         antlr {
-            srcDirs = [lexanDir]
+            srcDirs = [lexanDir, synanDir]
         }
     }
 }
 
 generateGrammarSource {
-    include("${lexerName}.g4")
+    include("${lexerName}.g4", "${parserName}.g4")
     outputDirectory = file(lexanDir)
 }
 
@@ -59,6 +61,11 @@ clean {
     delete file("$lexanDir/${lexerName}.java-orig")
     delete file("$lexanDir/${lexerName}.interp")
     delete file("$lexanDir/${lexerName}.tokens")
+
+    delete file("$synanDir/${parserName}.java")
+    delete file("$synanDir/${parserName}.java-orig")
+    delete file("$synanDir/${parserName}.interp")
+    delete file("$synanDir/${parserName}.tokens")
 
     // Remove generated program xml and html files
     delete fileTree("prg", {
