@@ -7,6 +7,7 @@ import java.util.*;
 import lang24.common.report.*;
 import lang24.phase.lexan.*;
 import lang24.phase.synan.*;
+import lang24.phase.abstr.*;
 
 /**
  * The LANG'24 compiler.
@@ -22,7 +23,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr"));
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
@@ -148,8 +149,18 @@ public class Compiler {
 				if (cmdLineOptValues.get("--target-phase").equals("synan"))
 					break;
 
-				// if (cmdLineOptValues.get("--target-phase").equals("all"))
-				break;
+				// Abstract syntax.
+				try (Abstr abstr = new Abstr()) {
+					Abstr.tree = SynAn.tree.ast;
+					SynAn.tree = null;
+					AbstrLogger logger = new AbstrLogger(abstr.logger);
+					Abstr.tree.accept(logger, "AstDefn");
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("abstr"))
+					break;
+
+				if (cmdLineOptValues.get("--target-phase").equals("all"))
+				        break;
 			}
 
 			// Let's hope we ever come this far.
