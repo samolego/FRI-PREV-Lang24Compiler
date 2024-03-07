@@ -26,7 +26,7 @@ jobs:
         run: make all
 
       - name: Clean up
-        run: make clean && rm -rf lib/antlr-4.9.2-complete.jar && rm -rf .github/
+        run: make clean && rm -rf lib/antlr-4.13.1-complete.jar && rm -rf .github/
 
       - name: Fix module info
         run: mv src/module-info.java src/module-info.java-orig && sed 's/requires org\.antlr\.antlr4\.runtime;/requires antlr;/' < src/module-info.java-orig > src/module-info.java
