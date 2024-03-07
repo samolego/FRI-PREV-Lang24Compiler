@@ -35,13 +35,13 @@ jobs:
         run: rm Makefile && mv Makefile.orig Makefile
 
       - name: Prepare for packaging
-        run: cd .. && mv "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/../lang24compiler" && mkdir "${GITHUB_WORKSPACE}"
+        run: cd .. && mkdir "${GITHUB_WORKSPACE}/lang24compiler" && mv "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/lang24compiler/"
 
       - name: Zip release
-        run: zip -r lang24compiler.zip ../lang24compiler
+        run: zip -r compiler-release.zip lang24compiler
 
       - name: Upload release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: lang24compiler.zip
+          files: compiler-release.zip
           repo-token: ${{ secrets.GITHUB_TOKEN }}
