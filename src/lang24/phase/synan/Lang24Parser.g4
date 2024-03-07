@@ -47,7 +47,12 @@ function_definition
 
 // parameters
 // −→  ( ^ )? identifier : type  (,  ( ^ )? identifier : type )∗
-parameters : ( CARET )? IDENTIFIER COLON type ( COMMA ( CARET )? IDENTIFIER COLON type )* ;
+id_type : IDENTIFIER COLON type ;
+parameter : ( CARET )? id_type ;
+// Tole sicer ni LL(1), ampak bo antlr poskrbel
+parameters
+    : parameter
+    | parameter ( COMMA parameters ) ;
 
 // statement
 // −→ expression ;
@@ -73,7 +78,7 @@ statement
 // −→ identifier
 type
     : VOID | BOOL | CHAR | INT
-    | LBRACKET INTCONST RBRACKET IDENTIFIER
+    | LBRACKET INTCONST RBRACKET type
     | CARET type
     | LPAREN components RPAREN
     | LBRACE components RBRACE
@@ -82,7 +87,9 @@ type
 
 // components
 // −→ identifier : type ( , identifier : type )∗
-components : IDENTIFIER COLON type ( COMMA IDENTIFIER COLON type )* ;
+components
+    : id_type
+    | id_type ( COMMA components ) ;
 
 
 // expression
@@ -109,7 +116,7 @@ atom
     | INTCONST
     | STRCONST
     | ptrconst
-    | IDENTIFIER ( LPAREN ( expression ( COMMA expression )* )? RPAREN )?
+    | IDENTIFIER ( LPAREN ( more_expressions )? RPAREN )?
     | atom postfix_operator
     | prefix_operator atom
     | atom DOT IDENTIFIER
@@ -117,6 +124,9 @@ atom
     | atom LBRACKET expression RBRACKET
     | SIZEOF LPAREN expression RPAREN ;
 
+more_expressions
+    : expression
+    | expression ( COMMA more_expressions ) ;
 
 postfix_operator
     : LBRACKET
