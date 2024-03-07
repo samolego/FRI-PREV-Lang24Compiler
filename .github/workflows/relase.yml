@@ -35,7 +35,7 @@ jobs:
         run: rm Makefile && mv Makefile.orig Makefile
 
       - name: Prepare for packaging
-        run: cd .. && mkdir "${GITHUB_WORKSPACE}/lang24compiler" && mv "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/lang24compiler/"
+        run: mkdir "${GITHUB_WORKSPACE}/../lang24compiler" && mv * "${GITHUB_WORKSPACE}/../lang24compiler/" && mv "${GITHUB_WORKSPACE}/../lang24compiler/" "${GITHUB_WORKSPACE}"
 
       - name: Zip release
         run: zip -r compiler-release.zip lang24compiler
