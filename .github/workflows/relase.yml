@@ -33,11 +33,14 @@ jobs:
       - name: Fix module info
         run: sed 's/requires org\.antlr\.antlr4\.runtime;/requires antlr;/' < src/module-info.java > src/module-info.java
 
+      - name: Add original Makefile
+        run: rm Makefile && mv Makefile.orig Makefile
+
       - name: Prepare for packaging
-        run: cd .. && mv "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}../lang24compiler"
+        run: cd .. && mv "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}../lang24compiler" && mkdir "${GITHUB_WORKSPACE}"
 
       - name: Zip release
-        run: zip -r lang24compiler.zip lang24compiler
+        run: zip -r lang24compiler.zip ../lang24compiler
 
       - name: Upload release
         uses: AButler/upload-release-assets@v2.0
