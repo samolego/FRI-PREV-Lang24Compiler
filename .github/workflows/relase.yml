@@ -30,6 +30,9 @@ jobs:
       - name: Clean up
         run: make clean && rm -rf lib/antlr-4.9.2-complete.jar && rm -rf .github/
 
+      - name: Fix module info
+        run: sed 's/requires org\.antlr\.antlr4\.runtime;/requires antlr;/' < src/module-info.java > src/module-info.java
+
       - name: Prepare for packaging
         run: cd .. && mv "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}../lang24compiler"
 
