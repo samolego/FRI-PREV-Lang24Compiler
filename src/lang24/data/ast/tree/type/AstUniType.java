@@ -18,7 +18,7 @@ public class AstUniType extends AstRecType {
 	 * @param location The location.
 	 * @param cmps     The components of this union.
 	 */
-	public AstUniType(final Location location, final AstNodes<AstCmpDefn> cmps) {
+	public AstUniType(final Locatable location, final AstNodes<AstCmpDefn> cmps) {
 		super(location, cmps);
 	}
 

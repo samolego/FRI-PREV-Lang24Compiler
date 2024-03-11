@@ -19,6 +19,7 @@ dependencies {
 def mainClass = "${project.src_root_name}.Compiler"
 def lexanDir = "src/${project.src_root_name}/phase/lexan"
 def synanDir = "src/${project.src_root_name}/phase/synan"
+def phaseDir = "src/${project.src_root_name}/phase"
 def lexerName = project.lexer_file_name
 def parserName = project.parser_file_name
 
@@ -28,7 +29,7 @@ sourceSets {
             srcDirs = ['src']
         }
         antlr {
-            srcDirs = [lexanDir, synanDir]
+            srcDirs = [phaseDir]
         }
     }
 }
@@ -91,7 +92,7 @@ tasks.register('testProgram', Test) {
 
     def prgDir = file('prg/')
     // Test the specified file
-    def testFile = file(project.file)
+    def testFile = file(prgDir.path + "/" + project.file + ".$fileExtension")
     println("Testing file: $testFile.name")
     doLast {
         println("is file: ${testFile.isFile()}, ends with: ${testFile.name.endsWith(".$fileExtension")} ")

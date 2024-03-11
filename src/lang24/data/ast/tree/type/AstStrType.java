@@ -18,7 +18,7 @@ public class AstStrType extends AstRecType {
 	 * @param location The location.
 	 * @param cmps     The components of this struct.
 	 */
-	public AstStrType(final Location location, final AstNodes<AstCmpDefn> cmps) {
+	public AstStrType(final Locatable location, final AstNodes<AstCmpDefn> cmps) {
 		super(location, cmps);
 	}
 

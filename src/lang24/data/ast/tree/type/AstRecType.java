@@ -21,7 +21,7 @@ public abstract class AstRecType extends AstType {
 	 * @param location The location.
 	 * @param cmps     The components of this union.
 	 */
-	public AstRecType(final Location location, final AstNodes<AstCmpDefn> cmps) {
+	public AstRecType(final Locatable location, final AstNodes<AstCmpDefn> cmps) {
 		super(location);
 		this.cmps = cmps;
 	}

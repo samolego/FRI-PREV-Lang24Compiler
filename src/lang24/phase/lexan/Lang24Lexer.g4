@@ -17,7 +17,7 @@ public LocLogToken nextToken() {
 // Literals:
 // numerical literals:
 // A nonempty finite string of decimal digits (0... 9) optionally preceded by a sign (+ or -).
-INTCONST : DEC_DIGIT+ ;
+NUM_LIT : DEC_DIGIT+;
 DEC_DIGIT : [0-9] ;
 HEX_DIGIT : DEC_DIGIT | [A-F] ;
 
@@ -40,7 +40,7 @@ fragment ESC_SEQ
 		| '\\'
 	);
 
-CHARCONST
+CHAR_LIT
 	: '\'' (
 		ESC_SEQ
 		| PRINTABLE_ASCII
@@ -49,7 +49,7 @@ CHARCONST
 	)
 	'\'' ;
 
-STRCONST
+STR_LIT
 	: '"' (
 		ESC_SEQ
 		| PRINTABLE_ASCII
@@ -132,7 +132,7 @@ IDENTIFIER : [a-zA-Z_][a-zA-Z_0-9]* ;
 // Error
 // Any character not recognized by the lexer
 ERROR : . {
-    throw new Report.Error(new Location(getLine(), getCharPositionInLine()), "Lexing error: " + getText());
+    throw new Report.Error((LocLogToken) getToken(), "Lexing error: " + getText());
 
 case 0xFFFFFFFF:  // Dummy case to make compiler happy
 } ;

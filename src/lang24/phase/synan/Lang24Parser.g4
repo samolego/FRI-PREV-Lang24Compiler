@@ -4,9 +4,17 @@ parser grammar Lang24Parser;
 package lang24.phase.synan;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
 import lang24.common.report.*;
 import lang24.data.token.*;
 import lang24.phase.lexan.*;
+import lang24.data.ast.tree.expr.*;
+import lang24.data.ast.tree.defn.*;
+import lang24.data.ast.tree.stmt.*;
+import lang24.data.ast.tree.type.*;
+import lang24.data.ast.tree.AstNode;
+import lang24.data.ast.tree.AstNodes;
 
 }
 
@@ -25,34 +33,69 @@ options{
 }
 
 // program
-source : definitions EOF ;
+source returns [AstNode ast] : definitions EOF {
+    $ast = $definitions.ast;
+} ;
 
 // definitions
 // −→  (type-definition | variable-definition | function-definition )+
-definitions : (type_definition | variable_definition | function_definition )+ ;
+definitions returns [AstNodes ast]: (type_definition | variable_definition | function_definition )+ {
+    var list = new ArrayList<AstNode>();
+    for (var child : $ctx.children) {
+        if (child instanceof Type_definitionContext tchild) {
+            list.add(tchild.ast);
+        } else if (child instanceof Variable_definitionContext vchild) {
+            list.add(vchild.ast);
+        } else if (child instanceof Function_definitionContext fchild) {
+            list.add(fchild.ast);
+        }
+    }
+    $ast = new AstNodes(list);
+};
 
 // type-definition
 // −→ identifier = type
-type_definition : IDENTIFIER ASSIGN type ;
+type_definition returns [AstNode ast] : IDENTIFIER ASSIGN type {
+    $ast = new AstTypDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), $type.ast);
+};
 
 // variable-definition
 // −→ identifier : type
-variable_definition : IDENTIFIER COLON type ;
+variable_definition returns [AstNode ast] : IDENTIFIER COLON type {
+    $ast = new AstVarDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), $type.ast);
+};
 
 // function-definition
 // −→ identifier (  (parameters)? ) : type  (= statement ( { definitions } )? )?
-function_definition
-    : IDENTIFIER LPAREN (parameters)? RPAREN
-        COLON type ( ASSIGN statement ( LBRACE definitions RBRACE )? )? ;
+function_definition returns [AstNode ast]
+    : IDENTIFIER LPAREN (parameters)? RPAREN COLON type ( ASSIGN statement ( LBRACE definitions RBRACE )? )? {
+        var params = $ctx.parameters != null ? $parameters.ast : new AstNodes();
+        var defs = $ctx.definitions != null ? $definitions.ast : new AstNodes();
+        $ast = new AstFunDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), params, $type.ast, $statement.ast, defs);
+} ;
 
 // parameters
 // −→  ( ^ )? identifier : type  (,  ( ^ )? identifier : type )∗
-id_type : IDENTIFIER COLON type ;
-parameter : ( CARET )? id_type ;
+parameter returns [AstNode ast]
+    : ( CARET )? variable_definition {
+        $ast = $variable_definition.ast;  // todo - caret?
+    } ;
+
 // Tole sicer ni LL(1), ampak bo antlr poskrbel
-parameters
-    : parameter
-    | parameter ( COMMA parameters ) ;
+parameters returns [AstNodes ast]
+    : parameters_list {
+        $ast = new AstNodes($parameters_list.astList);
+    } ;
+
+parameters_list returns [List<AstNode> astList]
+    : parameter {
+        $astList = new LinkedList<AstNode>();
+        $astList.add($parameter.ast);
+    }
+    | parameter ( COMMA pl=parameters_list ) {
+        $astList = $pl.astList;
+        $astList.add($parameter.ast);
+    } ;
 
 // statement
 // −→ expression ;
@@ -61,13 +104,26 @@ parameters
 // −→ while expression : statement
 // −→ return expression ;
 // −→ {  (statement )+ }
-statement
-    : expression SEMICOLON
-    | expression ASSIGN expression SEMICOLON
-    | IF expression THEN statement ( ELSE statement )?
-    | WHILE expression COLON statement
-    | RETURN expression SEMICOLON
-    | LBRACE (statement)+ RBRACE ;
+statement returns [AstStmt ast]
+    : expression SEMICOLON {
+        $ast = new AstExprStmt((LocLogToken) getCurrentToken(), $expression.ast);
+    }
+    | expr1=expression ASSIGN expr2=expression SEMICOLON {
+        $ast = new AstAssignStmt((LocLogToken) getCurrentToken(), $expr1.ast, $expr2.ast);
+    }
+    | IF expression THEN st1=statement ( ELSE st2=statement )? {
+        var st2 = $ctx.st2 != null ? $st2.ast : null;
+        $ast = new AstIfStmt((LocLogToken) getCurrentToken(), $expression.ast, $st1.ast, st2);
+    }
+    | WHILE expression COLON stmt=statement {
+        $ast = new AstWhileStmt((LocLogToken) getCurrentToken(), $expression.ast, $stmt.ast);
+    }
+    | RETURN expression SEMICOLON {
+        $ast = new AstReturnStmt((LocLogToken) getCurrentToken(), $expression.ast);
+    }
+    | LBRACE (stmt_list+=statement)+ RBRACE {
+        $ast = new AstBlockStmt((LocLogToken) getCurrentToken(), $stmt_list.stream().map(x -> x.ast).collect(Collectors.toList()));
+    } ;
 
 // type
 // −→ void bool char int
@@ -76,20 +132,53 @@ statement
 // −→ ( components )
 // −→ { components }
 // −→ identifier
-type
-    : VOID | BOOL | CHAR | INT
-    | LBRACKET INTCONST RBRACKET type
-    | CARET type
-    | LPAREN components RPAREN
-    | LBRACE components RBRACE
-    | IDENTIFIER ;
+type returns [AstType ast]
+    : VOID {
+        $ast = new AstAtomType((LocLogToken) getCurrentToken(), AstAtomType.Type.VOID);
+    }
+    | BOOL {
+        $ast = new AstAtomType((LocLogToken) getCurrentToken(), AstAtomType.Type.BOOL);
+    }
+    | CHAR {
+        $ast = new AstAtomType((LocLogToken) getCurrentToken(), AstAtomType.Type.CHAR);
+    }
+    | INT {
+        $ast = new AstAtomType((LocLogToken) getCurrentToken(), AstAtomType.Type.INT);
+    }
+    | LBRACKET intconst RBRACKET tp=type {
+        $ast = new AstArrType((LocLogToken) getCurrentToken(), $tp.ast, $intconst.ast);
+    }
+    | CARET tp=type {
+        $ast = new AstPtrType((LocLogToken) getCurrentToken(), $tp.ast);
+    }
+    | LPAREN components RPAREN {
+        $ast = new AstUniType((LocLogToken) getCurrentToken(), $components.ast);
+    }
+    | LBRACE components RBRACE {
+        $ast = new AstStrType((LocLogToken) getCurrentToken(), $components.ast);
+    }
+    | IDENTIFIER {
+        $ast = new AstNameType((LocLogToken) getCurrentToken(), $IDENTIFIER.getText());
+    };
 
 
 // components
 // −→ identifier : type ( , identifier : type )∗
-components
-    : id_type
-    | id_type ( COMMA components ) ;
+components returns [AstNodes ast]
+    : components_list {
+        $ast = new AstNodes($components_list.astList);
+    } ;
+
+components_list returns [List<AstNode> astList]
+    : variable_definition {
+        $astList = new LinkedList<AstNode>();
+        $astList.add($variable_definition.ast);
+    }
+    | variable_definition ( COMMA components_list ) {
+        $astList = $components_list.astList;
+        $astList.add($variable_definition.ast);
+    }
+;
 
 
 // expression
@@ -104,89 +193,205 @@ components
 // −→ sizeof ( expression )
 // −→ ( expression )
 
-boolconst : TRUE | FALSE ;
-voidconst : NONE ;
-ptrconst : NIL ;
+intconst returns [AstAtomExpr ast] : NUM_LIT {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.INT, getCurrentToken().getText());
+} ;
 
-atom
-    : LPAREN expression RPAREN
-    | voidconst
-    | boolconst
-    | CHARCONST
-    | INTCONST
-    | STRCONST
-    | ptrconst
-    | IDENTIFIER ( LPAREN ( more_expressions )? RPAREN )?
-    | atom postfix_operator
-    | prefix_operator atom
-    | atom DOT IDENTIFIER
-    | LT type GT expression
-    | atom LBRACKET expression RBRACKET
-    | SIZEOF LPAREN expression RPAREN ;
+strconst returns [AstAtomExpr ast] : STR_LIT {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.STR, getCurrentToken().getText());
+} ;
 
-more_expressions
-    : expression
-    | expression ( COMMA more_expressions ) ;
+charconst returns [AstAtomExpr ast] : CHAR_LIT {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.CHAR, getCurrentToken().getText());
+} ;
 
-postfix_operator
-    : LBRACKET
-    | DOT
-    | RBRACKET
-    | CARET
-    | DOT ;
+boolconst returns [AstAtomExpr ast] : TRUE | FALSE {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.BOOL, getCurrentToken().getText());
+} ;
 
-prefix_operator
-    : NOT
-    | PLUS
-    | MINUS
-    | CARET
-    | LT
-    | DOT
-    | GT;
+voidconst returns [AstAtomExpr ast] : NONE {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.VOID, getCurrentToken().getText());
+} ;
 
-multiplicative_operator
-    : MUL
-    | DIV
-    | MOD ;
+ptrconst returns [AstAtomExpr ast] : NIL {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.PTR, getCurrentToken().getText());
+} ;
 
-additive_operator
-    : PLUS
-    | MINUS ;
+atom returns [AstExpr ast]
+    : LPAREN expression RPAREN {
+        $ast = $expression.ast;
+    }
+    | voidconst {
+        $ast = $voidconst.ast;
+    }
+    | boolconst {
+        $ast = $boolconst.ast;
+    }
+    | charconst {
+        $ast = $charconst.ast;
+    }
+    | intconst {
+        $ast = $intconst.ast;
+    }
+    | strconst {
+        $ast = $strconst.ast;
+    }
+    | ptrconst {
+        $ast = $ptrconst.ast;
+    }
+    | IDENTIFIER ( LPAREN ( more_expressions )? RPAREN )? {
+        if ($LPAREN != null) {
+            var exprs = $ctx.more_expressions != null ? $more_expressions.ast : new AstNodes();
+            $ast = new AstCallExpr((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), exprs);
+        } else {
+            $ast = new AstNameExpr((LocLogToken) getCurrentToken(), $IDENTIFIER.getText());
+        }
+    }
+    | atm=atom DOT IDENTIFIER {  //todo
+        $ast = new AstCmpExpr((LocLogToken) getCurrentToken(), $atm.ast, $IDENTIFIER.getText());
+    }
+    | atm=atom LBRACKET expression RBRACKET {
+        $ast = new AstArrExpr((LocLogToken) getCurrentToken(), $atm.ast, $expression.ast);
+    }
+    | atm=atom CARET {
+        $ast = new AstSfxExpr((LocLogToken) getCurrentToken(), AstSfxExpr.Oper.PTR, $atm.ast);
+    }
+    | prefix_operator atm=atom {
+        $ast = new AstPfxExpr((LocLogToken) getCurrentToken(), $prefix_operator.op, $atm.ast);
+    }
+    | LT type GT expression {
+        $ast = new AstCastExpr((LocLogToken) getCurrentToken(), $type.ast, $expression.ast);
+    }
+    | SIZEOF LPAREN type RPAREN {
+        $ast = new AstSizeofExpr((LocLogToken) getCurrentToken(), $type.ast);
+    } ;
 
-relational_operator
-    : EQ
-    | NE
-    | LT
-    | GT
-    | LE
-    | GE ;
+more_expressions returns [AstNodes ast]
+    : more_expressions_list {
+        $ast = new AstNodes($more_expressions_list.astList);
+    } ;
 
-expression
-    : multiplicative_expression
-    | additive_expression
-    | relational_expression
-    | conjunction_expression
-    | disjunction_expression ;
+more_expressions_list returns [List<AstNode> astList]
+    : expression {
+        $astList = new LinkedList<AstNode>();
+        $astList.add($expression.ast);
+    }
+    | expression ( COMMA more_expressions_list ) {
+        $astList = $more_expressions_list.astList;
+        $astList.add($expression.ast);
 
-multiplicative_expression
-    : multiplicative_expression multiplicative_operator atom
-    | atom ;
+    } ;
 
-additive_expression
-    : additive_expression additive_operator multiplicative_expression
-    | multiplicative_expression ;
+prefix_operator returns [AstPfxExpr.Oper op]
+    : NOT {
+        $op = AstPfxExpr.Oper.NOT;
+    }
+    | PLUS {
+        $op = AstPfxExpr.Oper.ADD;
+    }
+    | MINUS {
+        $op = AstPfxExpr.Oper.SUB;
+    }
+    | CARET {
+        $op = AstPfxExpr.Oper.PTR;
+    } ;
 
-relational_expression
-    : relational_expression relational_operator additive_expression
-    | additive_expression ;
+multiplicative_operator returns [AstBinExpr.Oper op]
+    : MUL {
+        $op = AstBinExpr.Oper.MUL;
+    }
+    | DIV {
+        $op = AstBinExpr.Oper.DIV;
+    }
+    | MOD {
+        $op = AstBinExpr.Oper.MOD;
+    } ;
 
-conjunction_expression
-    : conjunction_expression AND relational_expression
-    | relational_expression ;
+additive_operator returns [AstBinExpr.Oper op]
+    : PLUS {
+        $op = AstBinExpr.Oper.ADD;
+    }
+    | MINUS {
+        $op = AstBinExpr.Oper.SUB;
+    } ;
 
-disjunction_expression
-    : disjunction_expression OR conjunction_expression
-    | conjunction_expression ;
+relational_operator returns [AstBinExpr.Oper op]
+    : EQ {
+        $op = AstBinExpr.Oper.EQU;
+    }
+    | NE {
+        $op = AstBinExpr.Oper.NEQ;
+    }
+    | LT {
+        $op = AstBinExpr.Oper.LTH;
+    }
+    | GT {
+        $op = AstBinExpr.Oper.GTH;
+    }
+    | LE {
+        $op = AstBinExpr.Oper.LEQ;
+    }
+    | GE {
+        $op = AstBinExpr.Oper.GEQ;
+    } ;
+
+expression returns [AstExpr ast]
+    : multiplicative_expression {
+        $ast = $multiplicative_expression.ast;
+    }
+    | additive_expression {
+        $ast = $additive_expression.ast;
+    }
+    | relational_expression {
+        $ast = $relational_expression.ast;
+    }
+    | conjunction_expression {
+        $ast = $conjunction_expression.ast;
+    }
+    | disjunction_expression {
+        $ast = $disjunction_expression.ast;
+    } ;
+
+
+multiplicative_expression returns [AstExpr ast]
+    : mul_xpr=multiplicative_expression multiplicative_operator atom {
+        $ast = new AstBinExpr((LocLogToken) getCurrentToken(), $multiplicative_operator.op, $mul_xpr.ast, $atom.ast);
+    }
+    | atom {
+        $ast = $atom.ast;
+    } ;
+
+additive_expression returns [AstExpr ast]
+    : add_xpr=additive_expression additive_operator multiplicative_expression {
+        $ast = new AstBinExpr((LocLogToken) getCurrentToken(), $additive_operator.op, $add_xpr.ast, $multiplicative_expression.ast);
+    }
+    | multiplicative_expression {
+        $ast = $multiplicative_expression.ast;
+    } ;
+
+relational_expression returns [AstExpr ast]
+    : rel_xpr=relational_expression relational_operator additive_expression {
+        $ast = new AstBinExpr((LocLogToken) getCurrentToken(), $relational_operator.op, $rel_xpr.ast, $additive_expression.ast);
+    }
+    | additive_expression {
+        $ast = $additive_expression.ast;
+    } ;
+
+conjunction_expression returns [AstExpr ast]
+    : con_xpr=conjunction_expression AND relational_expression {
+        $ast = new AstBinExpr((LocLogToken) getCurrentToken(), AstBinExpr.Oper.AND, $con_xpr.ast, $relational_expression.ast);
+    }
+    | relational_expression {
+        $ast = $relational_expression.ast;
+    } ;
+
+disjunction_expression returns [AstExpr ast]
+    : dis_xpr=disjunction_expression OR conjunction_expression {
+        $ast = new AstBinExpr((LocLogToken) getCurrentToken(), AstBinExpr.Oper.OR, $dis_xpr.ast, $conjunction_expression.ast);
+    }
+    | conjunction_expression {
+        $ast = $conjunction_expression.ast;
+    } ;
 
 
 // Error

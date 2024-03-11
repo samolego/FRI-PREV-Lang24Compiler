@@ -151,7 +151,7 @@ public class Compiler {
 
 				// Abstract syntax.
 				try (Abstr abstr = new Abstr()) {
-					//todo Abstr.tree = SynAn.tree.ast;
+					Abstr.tree = SynAn.tree.ast;
 					SynAn.tree = null;
 					AbstrLogger logger = new AbstrLogger(abstr.logger);
 					Abstr.tree.accept(logger, "AstDefn");

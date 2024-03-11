@@ -24,7 +24,7 @@ public class AstArrType extends AstType {
 	 * @param elemType The type of elements in this array.
 	 * @param size     The number of elements.
 	 */
-	public AstArrType(final Location location, final AstType elemType, final AstExpr size) {
+	public AstArrType(final Locatable location, final AstType elemType, final AstExpr size) {
 		super(location);
 		this.elemType = elemType;
 		this.size = size;

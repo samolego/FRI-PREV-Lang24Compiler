@@ -31,9 +31,7 @@ public class AstNodes<Node extends AstNode> extends AstNode implements Iterable<
 	 */
 	@SuppressWarnings("unchecked")
 	public AstNodes(final List<Node> nodes) {
-		//todo
-		super(new Location(0,0));
-		//super(nodes.isEmpty() ? new Location(0, 0) : new Location(nodes.getFirst(), nodes.getLast()));
+		super(nodes.isEmpty() ? new Location(0, 0) : new Location(nodes.get(0), nodes.get(nodes.size() - 1)));
 		this.nodes = (Node[]) (new AstNode[nodes.size()]);
 		int index = 0;
 		for (final Node n : nodes)
