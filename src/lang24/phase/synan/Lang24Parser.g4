@@ -40,7 +40,7 @@ source returns [AstNode ast] : definitions EOF {
 // definitions
 // −→  (type-definition | variable-definition | function-definition )+
 definitions returns [AstNodes ast]: (type_definition | variable_definition | function_definition )+ {
-    var list = new ArrayList<AstNode>();
+    var list = new LinkedList<AstNode>();
     for (var child : $ctx.children) {
         if (child instanceof Type_definitionContext tchild) {
             list.add(tchild.ast);
@@ -78,13 +78,15 @@ function_definition returns [AstNode ast]
 // parameters
 // −→  ( ^ )? identifier : type  (,  ( ^ )? identifier : type )∗
 parameter returns [AstNode ast]
-    : ( crt=CARET )? variable_definition {
+    : ( crt=CARET )? IDENTIFIER COLON type {
+        var location = (LocLogToken) getCurrentToken();
+        var name = $IDENTIFIER.getText();
+        var type = $type.ast;
         if ($ctx.crt != null) {
             // Pointer
-            var ptrType = new AstPtrType((LocLogToken) getCurrentToken(), ((AstDefn) $variable_definition.ast).type);
-            $ast = new AstVarDefn((LocLogToken) getCurrentToken(), ((AstDefn) $variable_definition.ast).name, ptrType);
+            $ast = new AstFunDefn.AstRefParDefn(location, name, type);
         } else {
-            $ast = $variable_definition.ast;
+            $ast = new AstFunDefn.AstValParDefn(location, name, type);
         }
     } ;
 
@@ -94,14 +96,14 @@ parameters returns [AstNodes ast]
         $ast = new AstNodes($parameters_list.astList);
     } ;
 
-parameters_list returns [List<AstNode> astList]
+parameters_list returns [LinkedList<AstNode> astList]
     : parameter {
         $astList = new LinkedList<AstNode>();
-        $astList.add($parameter.ast);
+        $astList.addFirst($parameter.ast);
     }
     | parameter ( COMMA pl=parameters_list ) {
         $astList = $pl.astList;
-        $astList.add($parameter.ast);
+        $astList.addFirst($parameter.ast);
     } ;
 
 // statement
@@ -176,16 +178,20 @@ components returns [AstNodes ast]
         $ast = new AstNodes($components_list.astList);
     } ;
 
-components_list returns [List<AstNode> astList]
-    : variable_definition {
+components_list returns [LinkedList<AstNode> astList]
+    : single_component {
         $astList = new LinkedList<AstNode>();
-        $astList.add($variable_definition.ast);
+        $astList.addFirst($single_component.ast);
     }
-    | variable_definition ( COMMA components_list ) {
+    | single_component ( COMMA components_list ) {
         $astList = $components_list.astList;
-        $astList.add($variable_definition.ast);
-    }
-;
+        $astList.addFirst($single_component.ast);
+    } ;
+
+single_component returns [AstRecType.AstCmpDefn ast]
+    : IDENTIFIER COLON type {
+        $ast = new AstRecType.AstCmpDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), $type.ast);
+    } ;
 
 
 // expression
@@ -281,11 +287,11 @@ more_expressions returns [AstNodes ast]
 more_expressions_list returns [List<AstNode> astList]
     : expression {
         $astList = new LinkedList<AstNode>();
-        $astList.add($expression.ast);
+        $astList.addFirst($expression.ast);
     }
     | expression ( COMMA more_expressions_list ) {
         $astList = $more_expressions_list.astList;
-        $astList.add($expression.ast);
+        $astList.addFirst($expression.ast);
 
     } ;
 
