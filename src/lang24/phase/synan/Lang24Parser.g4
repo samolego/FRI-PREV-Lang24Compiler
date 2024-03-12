@@ -71,7 +71,8 @@ function_definition returns [AstNode ast]
     : IDENTIFIER LPAREN (parameters)? RPAREN COLON type ( ASSIGN statement ( LBRACE definitions RBRACE )? )? {
         var params = $ctx.parameters != null ? $parameters.ast : new AstNodes();
         var defs = $ctx.definitions != null ? $definitions.ast : new AstNodes();
-        $ast = new AstFunDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), params, $type.ast, $statement.ast, defs);
+        var statement = $ctx.statement != null ? $statement.ast : null;
+        $ast = new AstFunDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), params, $type.ast, statement, defs);
 } ;
 
 // parameters
@@ -200,27 +201,27 @@ components_list returns [List<AstNode> astList]
 // −→ ( expression )
 
 intconst returns [AstAtomExpr ast] : NUM_LIT {
-    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.INT, getCurrentToken().getText());
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.INT, $NUM_LIT.getText());
 } ;
 
 strconst returns [AstAtomExpr ast] : STR_LIT {
-    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.STR, getCurrentToken().getText());
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.STR, $STR_LIT.getText());
 } ;
 
 charconst returns [AstAtomExpr ast] : CHAR_LIT {
-    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.CHAR, getCurrentToken().getText());
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.CHAR, $CHAR_LIT.getText());
 } ;
 
-boolconst returns [AstAtomExpr ast] : TRUE | FALSE {
-    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.BOOL, getCurrentToken().getText());
+boolconst returns [AstAtomExpr ast] : bl=(TRUE | FALSE) {
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.BOOL, $bl.getText());
 } ;
 
 voidconst returns [AstAtomExpr ast] : NONE {
-    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.VOID, getCurrentToken().getText());
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.VOID, $NONE.getText());
 } ;
 
 ptrconst returns [AstAtomExpr ast] : NIL {
-    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.PTR, getCurrentToken().getText());
+    $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.PTR, $NIL.getText());
 } ;
 
 atom returns [AstExpr ast]
