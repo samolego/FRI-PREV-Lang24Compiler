@@ -77,8 +77,14 @@ function_definition returns [AstNode ast]
 // parameters
 // −→  ( ^ )? identifier : type  (,  ( ^ )? identifier : type )∗
 parameter returns [AstNode ast]
-    : ( CARET )? variable_definition {
-        $ast = $variable_definition.ast;  // todo - caret?
+    : ( crt=CARET )? variable_definition {
+        if ($ctx.crt != null) {
+            // Pointer
+            var ptrType = new AstPtrType((LocLogToken) getCurrentToken(), ((AstDefn) $variable_definition.ast).type);
+            $ast = new AstVarDefn((LocLogToken) getCurrentToken(), ((AstDefn) $variable_definition.ast).name, ptrType);
+        } else {
+            $ast = $variable_definition.ast;  // todo - caret?
+        }
     } ;
 
 // Tole sicer ni LL(1), ampak bo antlr poskrbel
@@ -247,7 +253,7 @@ atom returns [AstExpr ast]
             $ast = new AstNameExpr((LocLogToken) getCurrentToken(), $IDENTIFIER.getText());
         }
     }
-    | atm=atom DOT IDENTIFIER {  //todo
+    | atm=atom DOT IDENTIFIER {
         $ast = new AstCmpExpr((LocLogToken) getCurrentToken(), $atm.ast, $IDENTIFIER.getText());
     }
     | atm=atom LBRACKET expression RBRACKET {
