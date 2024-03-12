@@ -83,7 +83,7 @@ parameter returns [AstNode ast]
             var ptrType = new AstPtrType((LocLogToken) getCurrentToken(), ((AstDefn) $variable_definition.ast).type);
             $ast = new AstVarDefn((LocLogToken) getCurrentToken(), ((AstDefn) $variable_definition.ast).name, ptrType);
         } else {
-            $ast = $variable_definition.ast;  // todo - caret?
+            $ast = $variable_definition.ast;
         }
     } ;
 
