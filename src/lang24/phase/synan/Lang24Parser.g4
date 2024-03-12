@@ -284,7 +284,7 @@ more_expressions returns [AstNodes ast]
         $ast = new AstNodes($more_expressions_list.astList);
     } ;
 
-more_expressions_list returns [List<AstNode> astList]
+more_expressions_list returns [LinkedList<AstNode> astList]
     : expression {
         $astList = new LinkedList<AstNode>();
         $astList.addFirst($expression.ast);
