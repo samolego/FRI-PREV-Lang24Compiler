@@ -38,7 +38,7 @@ source returns [AstNode ast] : definitions EOF {
 } ;
 
 // definitions
-// −→  (type-definition | variable-definition | function-definition )+
+// −>  (type-definition | variable-definition | function-definition )+
 definitions returns [AstNodes ast]: (type_definition | variable_definition | function_definition )+ {
     var list = new LinkedList<AstNode>();
     for (var child : $ctx.children) {
@@ -54,19 +54,19 @@ definitions returns [AstNodes ast]: (type_definition | variable_definition | fun
 };
 
 // type-definition
-// −→ identifier = type
+// −> identifier = type
 type_definition returns [AstNode ast] : IDENTIFIER ASSIGN type {
     $ast = new AstTypDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), $type.ast);
 };
 
 // variable-definition
-// −→ identifier : type
+// −> identifier : type
 variable_definition returns [AstNode ast] : IDENTIFIER COLON type {
     $ast = new AstVarDefn((LocLogToken) getCurrentToken(), $IDENTIFIER.getText(), $type.ast);
 };
 
 // function-definition
-// −→ identifier (  (parameters)? ) : type  (= statement ( { definitions } )? )?
+// −> identifier (  (parameters)? ) : type  (= statement ( { definitions } )? )?
 function_definition returns [AstNode ast]
     : IDENTIFIER LPAREN (parameters)? RPAREN COLON type ( ASSIGN statement ( LBRACE definitions RBRACE )? )? {
         var params = $ctx.parameters != null ? $parameters.ast : new AstNodes();
@@ -76,7 +76,7 @@ function_definition returns [AstNode ast]
 } ;
 
 // parameters
-// −→  ( ^ )? identifier : type  (,  ( ^ )? identifier : type )∗
+// −>  ( ^ )? identifier : type  (,  ( ^ )? identifier : type )∗
 parameter returns [AstNode ast]
     : ( crt=CARET )? IDENTIFIER COLON type {
         var location = (LocLogToken) getCurrentToken();
@@ -107,12 +107,12 @@ parameters_list returns [LinkedList<AstNode> astList]
     } ;
 
 // statement
-// −→ expression ;
-// −→ expression = expression ;
-// −→ if expression then statement ( else statement )?
-// −→ while expression : statement
-// −→ return expression ;
-// −→ {  (statement )+ }
+// −> expression ;
+// −> expression = expression ;
+// −> if expression then statement ( else statement )?
+// −> while expression : statement
+// −> return expression ;
+// −> {  (statement )+ }
 statement returns [AstStmt ast]
     : expression SEMICOLON {
         $ast = new AstExprStmt((LocLogToken) getCurrentToken(), $expression.ast);
@@ -135,12 +135,12 @@ statement returns [AstStmt ast]
     } ;
 
 // type
-// −→ void bool char int
-// −→ [ intconst ] identifier
-// −→ ^ type
-// −→ ( components )
-// −→ { components }
-// −→ identifier
+// −> void bool char int
+// −> [ intconst ] identifier
+// −> ^ type
+// −> ( components )
+// −> { components }
+// −> identifier
 type returns [AstType ast]
     : VOID {
         $ast = new AstAtomType((LocLogToken) getCurrentToken(), AstAtomType.Type.VOID);
@@ -172,7 +172,7 @@ type returns [AstType ast]
 
 
 // components
-// −→ identifier : type ( , identifier : type )∗
+// −> identifier : type ( , identifier : type )∗
 components returns [AstNodes ast]
     : components_list {
         $ast = new AstNodes($components_list.astList);
@@ -195,16 +195,16 @@ single_component returns [AstRecType.AstCmpDefn ast]
 
 
 // expression
-// −→ voidconst | boolconst | charconst | intconst | strconst | ptrconst
-// −→ identifier ( ( ( expression ( , expression )∗ )? ) )?
-// −→ prefix-operator expression
-// −→ expression postfix-operator
-// −→ expression binary-operator expression
-// −→ < type > expression
-// −→ expression [ expression ]
-// −→ expression . identifier
-// −→ sizeof ( expression )
-// −→ ( expression )
+// −> voidconst | boolconst | charconst | intconst | strconst | ptrconst
+// −> identifier ( ( ( expression ( , expression )∗ )? ) )?
+// −> prefix-operator expression
+// −> expression postfix-operator
+// −> expression binary-operator expression
+// −> < type > expression
+// −> expression [ expression ]
+// −> expression . identifier
+// −> sizeof ( expression )
+// −> ( expression )
 
 intconst returns [AstAtomExpr ast] : NUM_LIT {
     $ast = new AstAtomExpr((LocLogToken) getCurrentToken(), AstAtomExpr.Type.INT, $NUM_LIT.getText());
