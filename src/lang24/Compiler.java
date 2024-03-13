@@ -8,6 +8,7 @@ import lang24.common.report.*;
 import lang24.phase.lexan.*;
 import lang24.phase.synan.*;
 import lang24.phase.abstr.*;
+import lang24.phase.seman.*;
 
 /**
  * The LANG'24 compiler.
@@ -23,7 +24,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman"));
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
@@ -159,8 +160,17 @@ public class Compiler {
 				if (cmdLineOptValues.get("--target-phase").equals("abstr"))
 					break;
 
-				if (cmdLineOptValues.get("--target-phase").equals("all"))
-				        break;
+				// Semantic analysis.
+				try (SemAn seman = new SemAn()) {
+					Abstr.tree.accept(new NameResolver(), null);
+					AbstrLogger logger = new AbstrLogger(seman.logger);
+					logger.addSubvisitor(new SemAnLogger(seman.logger));
+					Abstr.tree.accept(logger, "AstAnyStdDefn");
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("seman"))
+					break;
+
+				break;
 			}
 
 			// Let's hope we ever come this far.
