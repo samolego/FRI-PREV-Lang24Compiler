@@ -15,7 +15,7 @@ public class SemAn extends Phase {
 	/**
 	 * Mapping of names to definitions.
 	 */
-	public static final Attribute<AstNode, AstDefn> definedAt = new Attribute<AstNode, AstDefn>();
+	public static final Attribute<AstNode, AstDefn> definedAt = new Attribute<>();
 
 	/**
 	 * Phase construction.
