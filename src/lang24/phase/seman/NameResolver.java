@@ -16,7 +16,7 @@ import lang24.data.ast.visitor.*;
  * resolver. The results of the name resolver are stored in
  * {@link lang24.phase.seman.SemAn#definedAt}.
  */
-public class NameResolver implements AstFullVisitor<Object, *** TODO OR NOT TODO ***> {
+public class NameResolver implements AstFullVisitor<Object, /*** TODO OR NOT TODO ***/> {
 
 	/** Constructs a new name resolver. */
 	public NameResolver() {
@@ -25,6 +25,6 @@ public class NameResolver implements AstFullVisitor<Object, *** TODO OR NOT TODO
 	/** The symbol table. */
 	private SymbTable symbTable = new SymbTable();
 
-	*** TODO ***
+	/*** TODO ***/
 
 }

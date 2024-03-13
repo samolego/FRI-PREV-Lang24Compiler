@@ -3,9 +3,6 @@ package lang24.phase.seman;
 import lang24.data.ast.attribute.*;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
-import lang24.data.ast.tree.expr.*;
-import lang24.data.ast.tree.type.*;
-import lang24.data.type.*;
 import lang24.phase.*;
 
 /**

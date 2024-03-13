@@ -7,7 +7,6 @@ import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.stmt.*;
 import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
-import lang24.data.type.*;
 
 /**
  * Semantic analysis logger.
@@ -48,8 +47,8 @@ public class SemAnLogger implements AstNullVisitor<Object, Object> {
 				logger.endElement();
 			}
 		}
-		if (node instanceof final AstNameExpr nameExpr) { // exprNameDefinedAt:
-			final AstDefn defn = SemAn.definedAt.get(nameExpr);
+		if (node instanceof final AstCallExpr callExpr) { // exprNameDefinedAt:
+			final AstDefn defn = SemAn.definedAt.get(callExpr);
 			if (defn != null) {
 				logger.begElement("definedat");
 				logger.addAttribute("idx", Integer.toString(defn.id()));
@@ -57,28 +56,12 @@ public class SemAnLogger implements AstNullVisitor<Object, Object> {
 				logger.endElement();
 			}
 		}
-		if (node instanceof final AstNode anyNode) { // isType:
-			final SemType type = SemAn.isType.get(anyNode);
-			if (type != null)
-				type.log(logger);
-		}
-		if (node instanceof final AstNode anyNode) { // ofType:
-			final SemType type = SemAn.ofType.get(anyNode);
-			if (type != null)
-				type.log(logger);
-		}
-		if (node instanceof final AstExpr anyExpr) { // addr:
-			final Boolean addr = SemAn.addr.get(anyExpr);
-			if ((addr != null) && (addr == true)) {
-				logger.begElement("addr");
-				logger.endElement();
-			}
-		}
-		if (node instanceof final AstExpr anyExpr) { // value:
-			final Long value = SemAn.value.get(anyExpr);
-			if (value != null) {
-				logger.begElement("value");
-				logger.addAttribute("value", value.toString());
+		if (node instanceof final AstNameExpr nameExpr) { // exprNameDefinedAt:
+			final AstDefn defn = SemAn.definedAt.get(nameExpr);
+			if (defn != null) {
+				logger.begElement("definedat");
+				logger.addAttribute("idx", Integer.toString(defn.id()));
+				logger.addAttribute("location", defn.location().toString());
 				logger.endElement();
 			}
 		}
