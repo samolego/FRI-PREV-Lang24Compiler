@@ -17,103 +17,133 @@ import lang24.data.ast.visitor.*;
  * resolver. The results of the name resolver are stored in
  * {@link lang24.phase.seman.SemAn#definedAt}.
  */
-public class NameResolver implements AstFullVisitor<Object, Object> {
+public class NameResolver implements AstFullVisitor<Object, Integer> {
 
-	/** Constructs a new name resolver. */
-	public NameResolver() {
-	}
+    /**
+     * Constructs a new name resolver.
+     */
+    public NameResolver() {
+    }
 
-	/** The symbol table. */
-	private final SymbTable symbTable = new SymbTable();
+    /**
+     * The symbol table.
+     */
+    private final SymbTable symbTable = new SymbTable();
 
-	@Override
-	public Object visit(AstTypDefn typDefn, Object arg) {
-		var name = typDefn.name;
+    @Override
+    public Object visit(AstNodes<? extends AstNode> nodes, Integer arg) {
+        if (arg == null) {
+            // Root of the AST, need to make an additional visit of all the nodes
+            AstFullVisitor.super.visit(nodes, 1);
+            arg = 2;
+        }
 
-        try {
-            this.symbTable.ins(name, typDefn);
-			AstFullVisitor.super.visit(typDefn, arg);
-        } catch (SymbTable.CannotInsNameException e) {
-			throw new Report.Error(typDefn, "Name " + name + " already defined. Second definition at " + typDefn.location());
-		}
+        return AstFullVisitor.super.visit(nodes, arg);
+    }
+
+    @Override
+    public Object visit(AstTypDefn typDefn, Integer arg) {
+        if (arg == 1) {
+            var name = typDefn.name;
+
+            try {
+                this.symbTable.ins(name, typDefn);
+            } catch (SymbTable.CannotInsNameException e) {
+                throw new Report.Error(typDefn, "Name " + name + " already defined. Second definition at " + typDefn.location());
+            }
+        }
 
         return AstFullVisitor.super.visit(typDefn, arg);
-	}
+    }
 
-	@Override
-	public Object visit(AstVarDefn varDefn, Object arg) {
-		var name = varDefn.name;
+    @Override
+    public Object visit(AstVarDefn varDefn, Integer arg) {
+        if (arg == 1) {
+            var name = varDefn.name;
 
-		try {
-			this.symbTable.ins(name, varDefn);
-			AstFullVisitor.super.visit(varDefn, arg);
-		} catch (SymbTable.CannotInsNameException e) {
-			throw new Report.Error(varDefn, "Name " + name + " already defined. Second definition at " + varDefn.location());
-		}
-
-		return AstFullVisitor.super.visit(varDefn, arg);
-	}
-
-	@Override
-	public Object visit(AstFunDefn funDefn, Object arg) {
-		var name = funDefn.name;
-		try {
-			this.symbTable.ins(name, funDefn);
-
-			this.symbTable.newScope();
-
-			if (funDefn.pars != null) {
-                funDefn.pars.accept(this, arg);
+            try {
+                this.symbTable.ins(name, varDefn);
+            } catch (SymbTable.CannotInsNameException e) {
+                throw new Report.Error(varDefn, "Name " + name + " already defined. Second definition at " + varDefn.location());
             }
+        }
 
-			if (funDefn.defns != null) {
-                funDefn.defns.accept(this, arg);
+        return AstFullVisitor.super.visit(varDefn, arg);
+    }
+
+    @Override
+    public Object visit(AstFunDefn funDefn, Integer arg) {
+        if (arg == 1) {
+            var name = funDefn.name;
+            try {
+                this.symbTable.ins(name, funDefn);
+            } catch (SymbTable.CannotInsNameException e) {
+                throw new Report.Error(funDefn, "Name " + name + " already defined. Second definition at " + funDefn.location());
             }
+        }
 
-			if (funDefn.stmt != null) {
-                funDefn.stmt.accept(this, arg);
+
+        if (arg == 1) {
+            this.symbTable.newScope();
+        }
+
+        if (funDefn.pars != null) {
+            funDefn.pars.accept(this, arg);
+        }
+
+        if (arg == 1) {
+            this.symbTable.newScope();
+        }
+
+        if (funDefn.defns != null) {
+            funDefn.defns.accept(this, arg);
+        }
+
+        if (funDefn.stmt != null) {
+            funDefn.stmt.accept(this, arg);
+        }
+
+        if (arg == 1) {
+            this.symbTable.oldScope();
+            this.symbTable.oldScope();
+        }
+
+        return null;
+    }
+
+
+    @Override
+    public Object visit(AstFunDefn.AstRefParDefn refParDefn, Integer arg) {
+        if (arg == 1) {
+            var name = refParDefn.name;
+            try {
+                this.symbTable.ins(name, refParDefn);
+            } catch (SymbTable.CannotInsNameException e) {
+                throw new Report.Error(refParDefn, "Name " + name + " already defined. Second definition at " + refParDefn.location());
             }
+        }
 
-			this.symbTable.oldScope();
-		} catch (SymbTable.CannotInsNameException e) {
-			throw new Report.Error(funDefn, "Name " + name + " already defined. Second definition at " + funDefn.location());
-		}
+        return AstFullVisitor.super.visit(refParDefn, arg);
+    }
 
-		return null;
-	}
+    @Override
+    public Object visit(AstFunDefn.AstValParDefn valParDefn, Integer arg) {
+        var name = valParDefn.name;
 
+        if (arg == 1) {
+            try {
+                this.symbTable.ins(name, valParDefn);
+            } catch (SymbTable.CannotInsNameException e) {
+                throw new Report.Error(valParDefn, "Name " + name + " already defined. Second definition at " + valParDefn.location());
+            }
+        }
 
-	@Override
-	public Object visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
-		var name = refParDefn.name;
+        return AstFullVisitor.super.visit(valParDefn, arg);
+    }
 
-		try {
-			this.symbTable.ins(name, refParDefn);
-			AstFullVisitor.super.visit(refParDefn, arg);
-		} catch (SymbTable.CannotInsNameException e) {
-			throw new Report.Error(refParDefn, "Name " + name + " already defined. Second definition at " + refParDefn.location());
-		}
-
-		return AstFullVisitor.super.visit(refParDefn, arg);
-	}
-
-	@Override
-	public Object visit(AstFunDefn.AstValParDefn valParDefn, Object arg) {
-		var name = valParDefn.name;
-
-		try {
-			this.symbTable.ins(name, valParDefn);
-			AstFullVisitor.super.visit(valParDefn, arg);
-		} catch (SymbTable.CannotInsNameException e) {
-			throw new Report.Error(valParDefn, "Name " + name + " already defined. Second definition at " + valParDefn.location());
-		}
-
-		return AstFullVisitor.super.visit(valParDefn, arg);
-	}
-
-	// Not yet
+    // Not yet
 	/*@Override
-	public Object visit(AstRecType.AstCmpDefn cmpDefn, Object arg) {
+	public Object visit(AstRecType.AstCmpDefn cmpDefn, Integer arg) {
 		var name = cmpDefn.name;
 
 		try {
@@ -127,60 +157,61 @@ public class NameResolver implements AstFullVisitor<Object, Object> {
 	}*/
 
 
-	@Override
-	public Object visit(AstCallExpr callExpr, Object arg) {
-		var name = callExpr.name;
+    @Override
+    public Object visit(AstCallExpr callExpr, Integer arg) {
+        if (arg == 2) {
+            var name = callExpr.name;
 
-		// Find the definition of the function
-        try {
-            var defn = this.symbTable.fnd(name);
+            // Find the definition of the function
+            try {
+                var defn = this.symbTable.fnd(name);
 
-			// Connect the call with the definition
-			SemAn.definedAt.put(callExpr, defn);
-
-			AstFullVisitor.super.visit(callExpr, arg);
-        } catch (SymbTable.CannotFndNameException e) {
-            throw new Report.Error(callExpr, "Name " + name + " not defined. Used at " + callExpr.location());
+                // Connect the call with the definition
+                SemAn.definedAt.put(callExpr, defn);
+            } catch (SymbTable.CannotFndNameException e) {
+                throw new Report.Error(callExpr, "Name " + name + " not defined. Used at " + callExpr.location());
+            }
         }
 
-		return null;
-	}
+        return AstFullVisitor.super.visit(callExpr, arg);
+    }
 
-	@Override
-	public Object visit(AstNameExpr nameExpr, Object arg) {
-		var name = nameExpr.name;
+    @Override
+    public Object visit(AstNameExpr nameExpr, Integer arg) {
+        if (arg == 2) {
+            var name = nameExpr.name;
 
-		// Find the definition of the name
-		try {
-			var defn = this.symbTable.fnd(name);
+            // Find the definition of the name
+            try {
+                var defn = this.symbTable.fnd(name);
 
-			// Connect the name with the definition
-			SemAn.definedAt.put(nameExpr, defn);
+                // Connect the name with the definition
+                SemAn.definedAt.put(nameExpr, defn);
 
-			AstFullVisitor.super.visit(nameExpr, arg);
-		} catch (SymbTable.CannotFndNameException e) {
-			throw new Report.Error(nameExpr, "Name " + name + " not defined. Used at " + nameExpr.location());
-		}
+            } catch (SymbTable.CannotFndNameException e) {
+                throw new Report.Error(nameExpr, "Name " + name + " not defined. Used at " + nameExpr.location());
+            }
+        }
 
-		return null;
-	}
+        return AstFullVisitor.super.visit(nameExpr, arg);
+    }
 
-	@Override
-	public Object visit(AstNameType nameType, Object arg) {
-		var name = nameType.name;
+    @Override
+    public Object visit(AstNameType nameType, Integer arg) {
+        // Find the definition of the name
+        if (arg == 2) {
+            var name = nameType.name;
+            try {
+                var defn = this.symbTable.fnd(name);
 
-		// Find the definition of the name
-		try {
-			var defn = this.symbTable.fnd(name);
+                // Connect the name with the definition
+                SemAn.definedAt.put(nameType, defn);
 
-			// Connect the name with the definition
-			SemAn.definedAt.put(nameType, defn);
+            } catch (SymbTable.CannotFndNameException e) {
+                throw new Report.Error(nameType, "Name " + name + " not defined. Used at " + nameType.location());
+            }
+        }
 
-			AstFullVisitor.super.visit(nameType, arg);
-		} catch (SymbTable.CannotFndNameException e) {
-			throw new Report.Error(nameType, "Name " + name + " not defined. Used at " + nameType.location());
-		}
-
-		return null;
-	}
+        return AstFullVisitor.super.visit(nameType, arg);
+    }
 }
