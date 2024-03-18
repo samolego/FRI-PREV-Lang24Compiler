@@ -4,6 +4,10 @@ plugins {
     id 'antlr'
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+}
+
 version = project.project_version
 group = ""
 
@@ -29,14 +33,40 @@ sourceSets {
             srcDirs = ['src']
         }
         antlr {
-            srcDirs = [lexanDir, synanDir]
+            srcDirs = [lexanDir]
         }
     }
 }
 
 generateGrammarSource {
-    include("${lexerName}.g4", "${parserName}.g4")
-    outputDirectory = file(lexanDir)
+    source {
+        include("${lexerName}.g4")
+        outputDirectory = file(lexanDir)
+    }
+    source {
+        include("${parserName}.g4")
+        outputDirectory = file(synanDir)
+    }
+
+    // For some reason, the generated lexer is placed in the synan directory
+    doLast {
+        // Move generated lexer to the phase directory
+        copy {
+            from fileTree(synanDir)
+            into file(lexanDir)
+            include "${lexerName}.java"
+            include "${lexerName}.interp"
+            include "${lexerName}.tokens"
+            include "${lexerName}.java-orig"
+        }
+        // Delete generated lexer from the synan directory
+        delete fileTree(synanDir) {
+            include "${lexerName}.java"
+            include "${lexerName}.interp"
+            include "${lexerName}.tokens"
+            include "${lexerName}.java-orig"
+        }
+    }
 }
 
 application {
