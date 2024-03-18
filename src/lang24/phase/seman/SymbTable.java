@@ -92,13 +92,9 @@ public class SymbTable {
 		if (lock)
 			throw new Report.InternalError();
 
-		LinkedList<ScopedDefn> allDefnsOfName = allDefnsOfAllNames.get(name);
-		if (allDefnsOfName == null) {
-			allDefnsOfName = new LinkedList<ScopedDefn>();
-			allDefnsOfAllNames.put(name, allDefnsOfName);
-		}
+        LinkedList<ScopedDefn> allDefnsOfName = allDefnsOfAllNames.computeIfAbsent(name, k -> new LinkedList<ScopedDefn>());
 
-		if (!allDefnsOfName.isEmpty()) {
+        if (!allDefnsOfName.isEmpty()) {
 			ScopedDefn defnOfName = allDefnsOfName.getFirst();
 			if (defnOfName.depth == currDepth)
 				throw new CannotInsNameException();
@@ -166,6 +162,21 @@ public class SymbTable {
 		}
 		scopes.removeFirst();
 		currDepth--;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("SymbTable:\n");
+
+		for (String name : allDefnsOfAllNames.keySet()) {
+			sb.append(name).append(":\n");
+			for (ScopedDefn defn : allDefnsOfAllNames.get(name)) {
+				sb.append("  ").append(defn.defn).append(" at depth ").append(defn.depth).append("\n");
+			}
+		}
+
+		return sb.toString();
 	}
 
 	/**
