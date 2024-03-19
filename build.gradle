@@ -111,17 +111,11 @@ run {
     var targetPhase = getPropertyOrDefault("targetPhase", "all")
     var srcFileName = getPropertyOrDefault("srcFileName", null)
 
-    System.out.println("xsl: $xsl")
-    System.out.println("loggedPhase: $loggedPhase")
-    System.out.println("targetPhase: $targetPhase")
-    System.out.println("srcFileName: $srcFileName")
-
-    List<Object> argList = ['--xsl=$xsl', '--logged-phase=$loggedPhase', '--target-phase=$targetPhase']
+    List<Object> argList = ["--xsl=$xsl", "--logged-phase=$loggedPhase", "--target-phase=$targetPhase"]
 
     if (srcFileName != null) {
-        argList.add('--src-file-name=$srcFileName')
+        argList.add("--src-file-name=prg/${srcFileName}.lang24")
     }
-    System.out.println("args: $argList")
 
     args = argList
 }
