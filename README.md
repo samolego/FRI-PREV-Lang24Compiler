@@ -43,3 +43,4 @@ make all
 make TARGETPHASE=lexan filename
 ```
 where `filename` is the name of the the file, excluding file extension.
+Compiler will run up to phase `lexan` in this case.

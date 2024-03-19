@@ -9,6 +9,8 @@ import lang24.data.ast.tree.stmt.AstExprStmt;
 import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
 
+import java.util.Arrays;
+
 /**
  * Name resolver.
  * <p>
@@ -34,13 +36,37 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     @Override
     public Object visit(AstNodes<? extends AstNode> nodes, Integer arg) {
         if (arg == null) {
-            // Root of the AST, need to make an additional visit of all the nodes
-            AstFullVisitor.super.visit(nodes, 1);
+            Arrays.stream(nodes.nodes).sorted((a, b) -> {
+                if (a instanceof AstDefn ad && b instanceof AstDefn bd) {
+                    return ad.compareTo(bd);
+                }
+                return 0;
+            }).forEach(node -> node.accept(this, 1));
+
             arg = 2;
         }
 
-        return AstFullVisitor.super.visit(nodes, arg);
+        final Integer finalArg = arg;
+
+        Arrays.stream(nodes.nodes).sorted((a, b) -> {
+            if (a instanceof AstDefn ad && b instanceof AstDefn bd) {
+                return ad.compareTo(bd);
+            }
+            return 0;
+        }).forEach(node -> node.accept(this, finalArg));
+
+        return null;
     }
+
+    private void defineOrThrow(AstDefn node, String name) {
+        try {
+            this.symbTable.ins(name, node);
+        } catch (SymbTable.CannotInsNameException e) {
+            throw new Report.Error(node, "Name " + name + " already defined. Second definition at " + node.location());
+        }
+
+    }
+
 
     @Override
     public Object visit(AstBlockStmt blockStmt, Integer arg) {
@@ -55,12 +81,7 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     public Object visit(AstTypDefn typDefn, Integer arg) {
         if (arg == 1) {
             var name = typDefn.name;
-
-            try {
-                this.symbTable.ins(name, typDefn);
-            } catch (SymbTable.CannotInsNameException e) {
-                throw new Report.Error(typDefn, "Name " + name + " already defined. Second definition at " + typDefn.location());
-            }
+            defineOrThrow(typDefn, name);
         }
 
         return AstFullVisitor.super.visit(typDefn, arg);
@@ -70,12 +91,7 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     public Object visit(AstVarDefn varDefn, Integer arg) {
         if (arg == 1) {
             var name = varDefn.name;
-
-            try {
-                this.symbTable.ins(name, varDefn);
-            } catch (SymbTable.CannotInsNameException e) {
-                throw new Report.Error(varDefn, "Name " + name + " already defined. Second definition at " + varDefn.location());
-            }
+            defineOrThrow(varDefn, name);
         }
 
         return AstFullVisitor.super.visit(varDefn, arg);
@@ -85,38 +101,30 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     public Object visit(AstFunDefn funDefn, Integer arg) {
         if (arg == 1) {
             var name = funDefn.name;
-            try {
-                this.symbTable.ins(name, funDefn);
-            } catch (SymbTable.CannotInsNameException e) {
-                throw new Report.Error(funDefn, "Name " + name + " already defined. Second definition at " + funDefn.location());
-            }
+            defineOrThrow(funDefn, name);
         }
 
-
-        if (arg == 1) {
-            this.symbTable.newScope();
-        }
+        this.symbTable.newScope();
 
         if (funDefn.pars != null) {
-            funDefn.pars.accept(this, arg);
+            funDefn.pars.accept(this, 1);
+            funDefn.pars.accept(this, 2);
         }
 
-        if (arg == 1) {
             this.symbTable.newScope();
-        }
 
         if (funDefn.defns != null) {
-            funDefn.defns.accept(this, arg);
+            funDefn.defns.accept(this, 1);
+            funDefn.defns.accept(this, 2);
         }
 
         if (funDefn.stmt != null) {
-            funDefn.stmt.accept(this, arg);
+            funDefn.stmt.accept(this, 1);
+            funDefn.stmt.accept(this, 2);
         }
 
-        if (arg == 1) {
             this.symbTable.oldScope();
             this.symbTable.oldScope();
-        }
 
         return null;
     }
@@ -126,11 +134,7 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     public Object visit(AstFunDefn.AstRefParDefn refParDefn, Integer arg) {
         if (arg == 1) {
             var name = refParDefn.name;
-            try {
-                this.symbTable.ins(name, refParDefn);
-            } catch (SymbTable.CannotInsNameException e) {
-                throw new Report.Error(refParDefn, "Name " + name + " already defined. Second definition at " + refParDefn.location());
-            }
+            defineOrThrow(refParDefn, name);
         }
 
         return AstFullVisitor.super.visit(refParDefn, arg);
@@ -138,14 +142,9 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 
     @Override
     public Object visit(AstFunDefn.AstValParDefn valParDefn, Integer arg) {
-        var name = valParDefn.name;
-
         if (arg == 1) {
-            try {
-                this.symbTable.ins(name, valParDefn);
-            } catch (SymbTable.CannotInsNameException e) {
-                throw new Report.Error(valParDefn, "Name " + name + " already defined. Second definition at " + valParDefn.location());
-            }
+            var name = valParDefn.name;
+            defineOrThrow(valParDefn, name);
         }
 
         return AstFullVisitor.super.visit(valParDefn, arg);
@@ -167,40 +166,33 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 	}*/
 
 
+    private void findOrThrow(AstNode node, String name) {
+        try {
+            var defn = this.symbTable.fnd(name);
+            // Connect the call with the definition
+            SemAn.definedAt.put(node, defn);
+        } catch (SymbTable.CannotFndNameException e) {
+            throw new Report.Error(node, "Name " + name + " not defined. Used at " + node.location());
+        }
+    }
+
+
     @Override
     public Object visit(AstCallExpr callExpr, Integer arg) {
         if (arg == 2) {
             var name = callExpr.name;
-
-            // Find the definition of the function
-            try {
-                var defn = this.symbTable.fnd(name);
-
-                // Connect the call with the definition
-                SemAn.definedAt.put(callExpr, defn);
-            } catch (SymbTable.CannotFndNameException e) {
-                throw new Report.Error(callExpr, "Name " + name + " not defined. Used at " + callExpr.location());
-            }
+            findOrThrow(callExpr, name);
         }
 
         return AstFullVisitor.super.visit(callExpr, arg);
     }
 
+
     @Override
     public Object visit(AstNameExpr nameExpr, Integer arg) {
         if (arg == 2) {
             var name = nameExpr.name;
-
-            // Find the definition of the name
-            try {
-                var defn = this.symbTable.fnd(name);
-
-                // Connect the name with the definition
-                SemAn.definedAt.put(nameExpr, defn);
-
-            } catch (SymbTable.CannotFndNameException e) {
-                throw new Report.Error(nameExpr, "Name " + name + " not defined. Used at " + nameExpr.location());
-            }
+            findOrThrow(nameExpr, name);
         }
 
         return AstFullVisitor.super.visit(nameExpr, arg);
@@ -208,18 +200,9 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 
     @Override
     public Object visit(AstNameType nameType, Integer arg) {
-        // Find the definition of the name
         if (arg == 2) {
             var name = nameType.name;
-            try {
-                var defn = this.symbTable.fnd(name);
-
-                // Connect the name with the definition
-                SemAn.definedAt.put(nameType, defn);
-
-            } catch (SymbTable.CannotFndNameException e) {
-                throw new Report.Error(nameType, "Name " + name + " not defined. Used at " + nameType.location());
-            }
+            findOrThrow(nameType, name);
         }
 
         return AstFullVisitor.super.visit(nameType, arg);
