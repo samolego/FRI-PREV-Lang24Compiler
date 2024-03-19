@@ -104,41 +104,28 @@ clean {
     })
 }
 
-// todo
-tasks.register('testProgram', Test) {
-    dependsOn(compileJava, compileTestJava)
-    description = "Runs the compiler for specified test file."
+run {
+    // Default args
+    var xsl = getPropertyOrDefault("xsl", "lib/xsl")
+    var loggedPhase = getPropertyOrDefault("loggedPhase", "all")
+    var targetPhase = getPropertyOrDefault("targetPhase", "all")
+    var srcFileName = getPropertyOrDefault("srcFileName", null)
 
-    testClassesDirs = sourceSets.main.output.classesDirs
-    classpath = sourceSets.main.runtimeClasspath
+    System.out.println("xsl: $xsl")
+    System.out.println("loggedPhase: $loggedPhase")
+    System.out.println("targetPhase: $targetPhase")
+    System.out.println("srcFileName: $srcFileName")
 
-    def fileExtension = project.source_file_extension
-    def loggedPhase = project.hasProperty('loggedPhase') ? project.loggedPhase : "all"
-    def targetPhase = project.hasProperty('targetPhase') ? project.targetPhase : "all"
+    List<Object> argList = ['--xsl=$xsl', '--logged-phase=$loggedPhase', '--target-phase=$targetPhase']
 
-    if (!project.hasProperty('file')) {
-        throw new GradleException("No file specified. Use -Pfile=<file>")
+    if (srcFileName != null) {
+        argList.add('--src-file-name=$srcFileName')
     }
+    System.out.println("args: $argList")
 
-    def prgDir = file('prg/')
-    // Test the specified file
-    def testFile = file(prgDir.path + "/" + project.file + ".$fileExtension")
-    println("Testing file: $testFile.name")
-    doLast {
-        println("is file: ${testFile.isFile()}, ends with: ${testFile.name.endsWith(".$fileExtension")} ")
-        if (testFile.isFile() && testFile.name.endsWith(".$fileExtension")) {
-            println("Testing file: $testFile.name")
+    args = argList
+}
 
-            // Run the compiler with "--src-file-name=file.name"
-            exec {
-                workingDir prgDir
-                commandLine 'java',
-                        "-cp", classpath.asPath, mainClass,
-                        "--xsl=../lib/xsl/",
-                        "--logged-phase=$loggedPhase",
-                        "--target-phase=$targetPhase",
-                        "--src-file-name=$testFile.name"
-            }
-        }
-    }
+def getPropertyOrDefault(String propertyName, String defaultValue) {
+    return project.hasProperty(propertyName) ? project.properties[propertyName] : defaultValue
 }
