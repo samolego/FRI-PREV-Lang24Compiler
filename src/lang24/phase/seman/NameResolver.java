@@ -20,7 +20,7 @@ import java.util.Arrays;
  * resolver. The results of the name resolver are stored in
  * {@link lang24.phase.seman.SemAn#definedAt}.
  */
-public class NameResolver implements AstFullVisitor<Object, Integer> {
+public class NameResolver implements AstFullVisitor<Object, PassType> {
 
     /**
      * Constructs a new name resolver.
@@ -33,27 +33,11 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
      */
     private final SymbTable symbTable = new SymbTable();
 
+
     @Override
-    public Object visit(AstNodes<? extends AstNode> nodes, Integer arg) {
-        if (arg == null) {
-            Arrays.stream(nodes.nodes).sorted((a, b) -> {
-                if (a instanceof AstDefn ad && b instanceof AstDefn bd) {
-                    return ad.compareTo(bd);
-                }
-                return 0;
-            }).forEach(node -> node.accept(this, 1));
-
-            arg = 2;
-        }
-
-        final Integer finalArg = arg;
-
-        Arrays.stream(nodes.nodes).sorted((a, b) -> {
-            if (a instanceof AstDefn ad && b instanceof AstDefn bd) {
-                return ad.compareTo(bd);
-            }
-            return 0;
-        }).forEach(node -> node.accept(this, finalArg));
+    public Object visit(AstNodes<? extends AstNode> nodes, PassType arg) {
+        AstFullVisitor.super.visit(nodes, PassType.FIRST_PASS);
+        AstFullVisitor.super.visit(nodes, PassType.SECOND_PASS);
 
         return null;
     }
@@ -69,7 +53,7 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 
 
     @Override
-    public Object visit(AstBlockStmt blockStmt, Integer arg) {
+    public Object visit(AstBlockStmt blockStmt, PassType arg) {
         this.symbTable.newScope();
         AstFullVisitor.super.visit(blockStmt, arg);
         this.symbTable.oldScope();
@@ -78,8 +62,8 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstTypDefn typDefn, Integer arg) {
-        if (arg == 1) {
+    public Object visit(AstTypDefn typDefn, PassType arg) {
+        if (arg == PassType.FIRST_PASS) {
             var name = typDefn.name;
             defineOrThrow(typDefn, name);
         }
@@ -88,8 +72,8 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstVarDefn varDefn, Integer arg) {
-        if (arg == 1) {
+    public Object visit(AstVarDefn varDefn, PassType arg) {
+        if (arg == PassType.FIRST_PASS) {
             var name = varDefn.name;
             defineOrThrow(varDefn, name);
         }
@@ -98,41 +82,41 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstFunDefn funDefn, Integer arg) {
-        if (arg == 1) {
-            var name = funDefn.name;
-            defineOrThrow(funDefn, name);
+    public Object visit(AstFunDefn funDefn, PassType arg) {
+        switch (arg) {
+            case FIRST_PASS -> {
+                var name = funDefn.name;
+                defineOrThrow(funDefn, name);
+            }
+            case SECOND_PASS -> {
+                this.symbTable.newScope();
+
+                if (funDefn.pars != null) {
+                    funDefn.pars.accept(this, null);
+                }
+
+                this.symbTable.newScope();
+
+                if (funDefn.defns != null) {
+                    funDefn.defns.accept(this, null);
+                }
+
+                if (funDefn.stmt != null) {
+                    funDefn.stmt.accept(this, null);
+                }
+
+                this.symbTable.oldScope();
+                this.symbTable.oldScope();
+            }
         }
-
-        this.symbTable.newScope();
-
-        if (funDefn.pars != null) {
-            funDefn.pars.accept(this, 1);
-            funDefn.pars.accept(this, 2);
-        }
-
-            this.symbTable.newScope();
-
-        if (funDefn.defns != null) {
-            funDefn.defns.accept(this, 1);
-            funDefn.defns.accept(this, 2);
-        }
-
-        if (funDefn.stmt != null) {
-            funDefn.stmt.accept(this, 1);
-            funDefn.stmt.accept(this, 2);
-        }
-
-            this.symbTable.oldScope();
-            this.symbTable.oldScope();
 
         return null;
     }
 
 
     @Override
-    public Object visit(AstFunDefn.AstRefParDefn refParDefn, Integer arg) {
-        if (arg == 1) {
+    public Object visit(AstFunDefn.AstRefParDefn refParDefn, PassType arg) {
+        if (arg == PassType.FIRST_PASS) {
             var name = refParDefn.name;
             defineOrThrow(refParDefn, name);
         }
@@ -141,8 +125,8 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstFunDefn.AstValParDefn valParDefn, Integer arg) {
-        if (arg == 1) {
+    public Object visit(AstFunDefn.AstValParDefn valParDefn, PassType arg) {
+        if (arg == PassType.FIRST_PASS) {
             var name = valParDefn.name;
             defineOrThrow(valParDefn, name);
         }
@@ -152,7 +136,7 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 
     // Not yet
 	/*@Override
-	public Object visit(AstRecType.AstCmpDefn cmpDefn, Integer arg) {
+	public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
 		var name = cmpDefn.name;
 
 		try {
@@ -178,8 +162,8 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 
 
     @Override
-    public Object visit(AstCallExpr callExpr, Integer arg) {
-        if (arg == 2) {
+    public Object visit(AstCallExpr callExpr, PassType arg) {
+        if (arg == PassType.SECOND_PASS) {
             var name = callExpr.name;
             findOrThrow(callExpr, name);
         }
@@ -189,8 +173,8 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
 
 
     @Override
-    public Object visit(AstNameExpr nameExpr, Integer arg) {
-        if (arg == 2) {
+    public Object visit(AstNameExpr nameExpr, PassType arg) {
+        if (arg == PassType.SECOND_PASS) {
             var name = nameExpr.name;
             findOrThrow(nameExpr, name);
         }
@@ -199,8 +183,8 @@ public class NameResolver implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstNameType nameType, Integer arg) {
-        if (arg == 2) {
+    public Object visit(AstNameType nameType, PassType arg) {
+        if (arg == PassType.SECOND_PASS) {
             var name = nameType.name;
             findOrThrow(nameType, name);
         }
