@@ -7,6 +7,8 @@ import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.stmt.*;
 import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
+import lang24.data.type.*;
+import lang24.data.type.visitor.*;
 
 /**
  * Semantic analysis logger.
@@ -18,7 +20,7 @@ import lang24.data.ast.visitor.*;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class SemAnLogger implements AstNullVisitor<Object, Object> {
+public class SemAnLogger implements AstNullVisitor<Object, Object>, SemVisitor<Object, Boolean> {
 
 	/** The logger the log should be written to. */
 	private final Logger logger;
@@ -38,30 +40,35 @@ public class SemAnLogger implements AstNullVisitor<Object, Object> {
 	 * @param node The node.
 	 */
 	private void logAttributes(final AstNode node) {
-		if (node instanceof final AstNameType nameType) { // typeNameDefinedAt:
-			final AstDefn defn = SemAn.definedAt.get(nameType);
+		{
+			final AstDefn defn = SemAn.definedAt.get(node);
 			if (defn != null) {
 				logger.begElement("definedat");
-				logger.addAttribute("idx", Integer.toString(defn.id()));
+				logger.addAttribute("id", Integer.toString(defn.id()));
 				logger.addAttribute("location", defn.location().toString());
 				logger.endElement();
 			}
 		}
-		if (node instanceof final AstCallExpr callExpr) { // exprNameDefinedAt:
-			final AstDefn defn = SemAn.definedAt.get(callExpr);
-			if (defn != null) {
-				logger.begElement("definedat");
-				logger.addAttribute("idx", Integer.toString(defn.id()));
-				logger.addAttribute("location", defn.location().toString());
+		{
+			final SemType type = SemAn.isType.get(node);
+			if (type != null) {
+				logger.begElement("istype");
+				type.accept(this, node instanceof AstTypDefn);
 				logger.endElement();
 			}
 		}
-		if (node instanceof final AstNameExpr nameExpr) { // exprNameDefinedAt:
-			final AstDefn defn = SemAn.definedAt.get(nameExpr);
-			if (defn != null) {
-				logger.begElement("definedat");
-				logger.addAttribute("idx", Integer.toString(defn.id()));
-				logger.addAttribute("location", defn.location().toString());
+		{
+			final SemType type = SemAn.ofType.get(node);
+			if (type != null) {
+				logger.begElement("oftype");
+				type.accept(this, node instanceof AstTypDefn);
+				logger.endElement();
+			}
+		}
+		{
+			final Boolean lval = SemAn.isLVal.get(node);
+			if ((lval != null) && (lval == true)) {
+				logger.begElement("lvalue");
 				logger.endElement();
 			}
 		}
@@ -247,6 +254,99 @@ public class SemAnLogger implements AstNullVisitor<Object, Object> {
 	@Override
 	public Object visit(AstRecType.AstCmpDefn compDefn, Object arg) {
 		logAttributes(compDefn);
+		return null;
+	}
+
+	// lang24.data.type:
+
+	@Override
+	public Object visit(SemVoidType voidType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(voidType.id));
+		logger.addAttribute("label", voidType.getClass().getSimpleName());
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemBoolType boolType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(boolType.id));
+		logger.addAttribute("label", boolType.getClass().getSimpleName());
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemCharType charType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(charType.id));
+		logger.addAttribute("label", charType.getClass().getSimpleName());
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemIntType intType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(intType.id));
+		logger.addAttribute("label", intType.getClass().getSimpleName());
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemArrayType arrType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(arrType.id));
+		logger.addAttribute("label", arrType.getClass().getSimpleName() + "[" + arrType.size + "]");
+		arrType.elemType.accept(this, false);
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemPointerType ptrType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(ptrType.id));
+		logger.addAttribute("label", ptrType.getClass().getSimpleName());
+		if (ptrType.baseType != null)
+			ptrType.baseType.accept(this, false);
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemStructType strType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(strType.id));
+		logger.addAttribute("label", strType.getClass().getSimpleName());
+		for (final SemType cmpType : strType.cmpTypes)
+			cmpType.accept(this, false);
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemUnionType uniType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(uniType.id));
+		logger.addAttribute("label", uniType.getClass().getSimpleName());
+		for (final SemType cmpType : uniType.cmpTypes)
+			cmpType.accept(this, false);
+		logger.endElement();
+		return null;
+	}
+
+	@Override
+	public Object visit(SemNameType nameType, Boolean full) {
+		logger.begElement("type");
+		logger.addAttribute("id", Integer.toString(nameType.id));
+		logger.addAttribute("label", nameType.getClass().getSimpleName());
+		logger.addAttribute("name", nameType.name);
+		if (full == true)
+			nameType.type().accept(this, false);
+		logger.endElement();
 		return null;
 	}
 

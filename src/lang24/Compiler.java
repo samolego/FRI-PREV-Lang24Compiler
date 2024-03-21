@@ -163,9 +163,11 @@ public class Compiler {
 				// Semantic analysis.
 				try (SemAn seman = new SemAn()) {
 					Abstr.tree.accept(new NameResolver(), null);
+					Abstr.tree.accept(new LValResolver(), null);
+					Abstr.tree.accept(new TypeResolver(), null);
 					AbstrLogger logger = new AbstrLogger(seman.logger);
 					logger.addSubvisitor(new SemAnLogger(seman.logger));
-					Abstr.tree.accept(logger, "AstAnyStdDefn");
+					Abstr.tree.accept(logger, "AstDefn");
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("seman"))
 					break;

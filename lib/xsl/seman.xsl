@@ -46,9 +46,36 @@
 	  </xsl:if>
           <table width="100%">
             <xsl:apply-templates select="definedat"/>
+	    <xsl:if test="istype">
+	      <tr bgcolor="FFAF11">
+		<td>
+		  <font style="font-family:arial black" size="1">
+		    ISTYPE:
+		  </font>
+		</td>
+	      </tr>
+	      <xsl:apply-templates select="istype"/>
+	    </xsl:if>
+	    <xsl:if test="lvalue">
+	       <tr bgcolor="FFAF11">
+		<td>
+		  <font style="font-family:arial black" size="1">
+		    LVALUE
+		  </font>
+		</td>
+	      </tr>
+	    </xsl:if>
+	    <xsl:if test="oftype">
+	      <tr bgcolor="FFAF11">
+		<td>
+		  <font style="font-family:arial black" size="1">
+		    OFTYPE:
+		  </font>
+		</td>
+	      </tr>
+              <xsl:apply-templates select="oftype"/>
+	    </xsl:if>
             <xsl:apply-templates select="addr"/>
-            <xsl:apply-templates select="value"/>
-            <xsl:apply-templates select="semtype"/>
 	  </table>
 	</td>
       </tr>
@@ -64,12 +91,44 @@
     <td>
       <nobr>
 	<xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
-	(<xsl:value-of select="@idx"/>)
+	(<xsl:value-of select="@id"/>)
 	[<xsl:value-of select="@location"/>]
 	<xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
       </nobr>
     </td>
   </tr>	
+</xsl:template>
+
+<xsl:template match="istype">
+  <tr>
+     <xsl:apply-templates select="type"/>
+  </tr>
+</xsl:template>
+  
+<xsl:template match="type">
+  <td>
+    <table width="100%">
+      <tr bgcolor="FFAF11">
+	<td colspan="1000">
+	  <nobr>
+	    <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
+	    (<xsl:value-of select="@id"/>)
+	    <xsl:value-of select="@label"/>
+	    <xsl:if test="@name!=''">
+	      <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
+	      <font style="font-family:helvetica">
+		<xsl:value-of select="@name"/>
+	      </font>
+	    </xsl:if>
+	    <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
+	  </nobr>
+	</td>
+      </tr>
+      <tr>
+	<xsl:apply-templates select="type"/>
+      </tr>
+    </table>
+  </td>
 </xsl:template>
 
 <xsl:template match="addr">
@@ -82,36 +141,6 @@
       </nobr>
     </td>
   </tr>	
-</xsl:template>
-
-<xsl:template match="value">
-  <tr bgcolor="FFCF00">
-    <td>
-      <nobr>
-	<xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
-	value=<xsl:value-of select="@value"/>
-	<xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
-      </nobr>
-    </td>
-  </tr>	
-</xsl:template>
-
-<xsl:template match="semtype">
-  <td>
-    <table width="100%">
-      <tr>
-	<td bgcolor="EEBE00" colspan="1000">
-	  <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
-	  <xsl:value-of select="@type"/>
-	  <xsl:text disable-output-escaping="yes"><![CDATA[&nbsp;]]></xsl:text>
-	</td>
-      </tr>
-      <tr>
-	<xsl:apply-templates select="semtypes"/>
-	<xsl:apply-templates select="semtype"/>
-      </tr>
-    </table>
-  </td>
 </xsl:template>
 
 <xsl:template match="location">
