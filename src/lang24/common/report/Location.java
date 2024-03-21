@@ -13,25 +13,25 @@ public class Location implements Locatable, Loggable {
 	 * The line number of the first character of the specified part of the source
 	 * file.
 	 */
-	private final int begLine;
+	public final int begLine;
 
 	/**
 	 * The column number of the first character of the specified part of the source
 	 * file.
 	 */
-	private final int begColumn;
+	public final int begColumn;
 
 	/**
 	 * The line number of the last character of the specified part of the source
 	 * file.
 	 */
-	private final int endLine;
+	public final int endLine;
 
 	/**
 	 * The column number of the last character of the specified part of the source
 	 * file.
 	 */
-	private final int endColumn;
+	public final int endColumn;
 
 	/**
 	 * Constructs a new location if the position of the first and the last
@@ -112,5 +112,7 @@ public class Location implements Locatable, Loggable {
 	public String toString() {
 		return begLine + "." + begColumn + ":" + endLine + "." + endColumn;
 	}
+
+
 
 }

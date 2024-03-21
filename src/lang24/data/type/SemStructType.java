@@ -24,7 +24,7 @@ public class SemStructType extends SemRecordType {
 		final StringBuffer str = new StringBuffer();
 		str.append("struct(");
 		if (cmpTypes != null)
-			str.append(cmpTypes.toString());
+			str.append(cmpTypes);
 		str.append(")");
 		return str.toString();
 	}

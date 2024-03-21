@@ -41,7 +41,7 @@ public abstract class AstNode implements Locatable {
 	@Override
 	public String toString() {
 		if (this.location instanceof TextLocation) {
-			return this.getText() + " @ " + this.location;
+			return "`" + this.getText() + "` @ " + this.location;
 		}
 		return this.getText();
 	}

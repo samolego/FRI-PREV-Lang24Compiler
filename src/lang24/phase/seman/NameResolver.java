@@ -50,7 +50,11 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                 location = this.symbTable.fnd(name).location();
             } catch (SymbTable.CannotFndNameException ignored) {
             }
-            throw new Report.Error(node, "Name " + name + " already defined. Found definition @ " + location + ". Second definition at " + node.location());
+            var err = new ErrorAtBuilder("Name `" + name + "` is defined here:", location)
+                    .addString("But second definition was found here:")
+                    .addLocation(node)
+                    .toString();
+            throw new Report.Error(err);
         }
 
     }
@@ -160,13 +164,21 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         return AstFullVisitor.super.visit(uniType, arg);
     }
 
+    @Override
+    public Object visit(AstCmpExpr cmpExpr, PassType arg) {
+        // Validate that the expression cmpExpr.expr is defined and it has member cmpExpr.name
+        return AstFullVisitor.super.visit(cmpExpr, arg);
+    }
+
     private void findOrThrow(AstNode node, String name) {
         try {
             var defn = this.symbTable.fnd(name);
             // Connect the call with the definition
             SemAn.definedAt.put(node, defn);
         } catch (SymbTable.CannotFndNameException e) {
-            throw new Report.Error(node, "Name " + name + " not defined. Used at " + node.location());
+            var err = new ErrorAtBuilder("Name `" + name + "` not defined. Used here: ", node.location())
+                    .toString();
+            throw new Report.Error(err);
         }
     }
 
