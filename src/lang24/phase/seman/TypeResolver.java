@@ -13,7 +13,7 @@ import lang24.data.type.*;
 /**
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class TypeResolver implements AstFullVisitor<SemType, /*** TODO OR NOT TODO ***/> {
+public class TypeResolver implements AstFullVisitor<SemType, Object/*** TODO OR NOT TODO ***/> {
 
 	/**
 	 * Structural equivalence of types.

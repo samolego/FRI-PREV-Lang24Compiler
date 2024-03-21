@@ -5,11 +5,8 @@ import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
 import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.stmt.AstBlockStmt;
-import lang24.data.ast.tree.stmt.AstExprStmt;
 import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
-
-import java.util.Arrays;
 
 /**
  * Name resolver.
@@ -36,17 +33,24 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
     @Override
     public Object visit(AstNodes<? extends AstNode> nodes, PassType arg) {
-        AstFullVisitor.super.visit(nodes, PassType.FIRST_PASS);
-        AstFullVisitor.super.visit(nodes, PassType.SECOND_PASS);
+        if (arg == null) {
+            AstFullVisitor.super.visit(nodes, PassType.FIRST_PASS);
+            arg = PassType.SECOND_PASS;
+        }
 
-        return null;
+        return AstFullVisitor.super.visit(nodes, arg);
     }
 
     private void defineOrThrow(AstDefn node, String name) {
         try {
             this.symbTable.ins(name, node);
         } catch (SymbTable.CannotInsNameException e) {
-            throw new Report.Error(node, "Name " + name + " already defined. Second definition at " + node.location());
+            Location location = null;
+            try {
+                location = this.symbTable.fnd(name).location();
+            } catch (SymbTable.CannotFndNameException ignored) {
+            }
+            throw new Report.Error(node, "Name " + name + " already defined. Found definition @ " + location + ". Second definition at " + node.location());
         }
 
     }
@@ -102,7 +106,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                 }
 
                 if (funDefn.stmt != null) {
-                    funDefn.stmt.accept(this, null);
+                    funDefn.stmt.accept(this, PassType.SECOND_PASS);
                 }
 
                 this.symbTable.oldScope();
@@ -134,21 +138,27 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         return AstFullVisitor.super.visit(valParDefn, arg);
     }
 
-    // Not yet
-	/*@Override
-	public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
-		var name = cmpDefn.name;
 
-		try {
-			this.symbTable.ins(name, cmpDefn);
-			AstFullVisitor.super.visit(cmpDefn, arg);
-		} catch (SymbTable.CannotInsNameException e) {
-			throw new Report.Error(cmpDefn, "Name " + name + " already defined. Second definition at " + cmpDefn.location());
-		}
+    @Override
+    public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
+        if (arg == PassType.FIRST_PASS) {
+            var name = cmpDefn.name;
+            defineOrThrow(cmpDefn, name);
+        }
 
-		return AstFullVisitor.super.visit(cmpDefn, arg);
-	}*/
+        return AstFullVisitor.super.visit(cmpDefn, arg);
+    }
 
+
+    @Override
+    public Object visit(AstStrType strType, PassType arg) {
+        return AstFullVisitor.super.visit(strType, arg);
+    }
+
+    @Override
+    public Object visit(AstUniType uniType, PassType arg) {
+        return AstFullVisitor.super.visit(uniType, arg);
+    }
 
     private void findOrThrow(AstNode node, String name) {
         try {

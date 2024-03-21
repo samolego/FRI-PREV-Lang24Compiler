@@ -20,12 +20,22 @@ import lang24.data.ast.tree.AstNodes;
 
 @members {
 
-	private Location loc(Token tok) { return new Location((LocLogToken)tok); }
-	private Location loc(Token     tok1, Token     tok2) { return new Location((LocLogToken)tok1, (LocLogToken)tok2); }
-	private Location loc(Token     tok1, Locatable loc2) { return new Location((LocLogToken)tok1, loc2); }
-	private Location loc(Locatable loc1, Token     tok2) { return new Location(loc1, (LocLogToken)tok2); }
-	private Location loc(Locatable loc1, Locatable loc2) { return new Location(loc1, loc2); }
+	private Location loc(Token tok) {
+    	String text = this.getTextBetweenTokens(tok, tok);
+	    return new TextLocation(text, (LocLogToken)tok);
+    }
 
+	private Location loc(Token     tok1, Token     tok2) {
+	    String text = this.getTextBetweenTokens(tok1, tok2);
+        return new TextLocation(text, (LocLogToken)tok1, (LocLogToken)tok2);
+    }
+
+	/*private Location loc(Locatable loc1, Token     tok2) { return new Location(loc1, (LocLogToken)tok2); }
+	private Location loc(Locatable loc1, Locatable loc2) { return new Location(loc1, loc2); }*/
+
+    private String getTextBetweenTokens(Token start, Token stop) {
+        return start.getInputStream().getText(new Interval(start.getStartIndex(), stop.getStopIndex()));
+    }
 }
 
 options{

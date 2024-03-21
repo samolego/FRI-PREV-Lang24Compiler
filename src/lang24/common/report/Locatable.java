@@ -23,4 +23,8 @@ public interface Locatable {
 		throw new Report.InternalError();
 	}
 
+	default String getText() {
+		return location().getText();
+	}
+
 }
