@@ -97,6 +97,8 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                 defineOrThrow(funDefn, name);
             }
             case SECOND_PASS -> {
+                funDefn.type.accept(this,  PassType.SECOND_PASS);
+
                 this.symbTable.newScope();
 
                 if (funDefn.pars != null) {
@@ -143,7 +145,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
 
-    @Override
+    /*@Override
     public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = cmpDefn.name;
@@ -151,25 +153,21 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         }
 
         return AstFullVisitor.super.visit(cmpDefn, arg);
-    }
+    }*/
 
-
-    @Override
-    public Object visit(AstStrType strType, PassType arg) {
-        return AstFullVisitor.super.visit(strType, arg);
-    }
-
-    @Override
-    public Object visit(AstUniType uniType, PassType arg) {
-        return AstFullVisitor.super.visit(uniType, arg);
-    }
 
     @Override
     public Object visit(AstCmpExpr cmpExpr, PassType arg) {
-        // Validate that the expression cmpExpr.expr is defined and it has member cmpExpr.name
+        // Get type of cmpExpr.expr and check if it has a field with name cmpExpr.name todo
         return AstFullVisitor.super.visit(cmpExpr, arg);
     }
 
+    /**
+     * Find the definition of a name or throw an error.
+     *
+     * @param node The node where the name is used.
+     * @param name The name to find.
+     */
     private void findOrThrow(AstNode node, String name) {
         try {
             var defn = this.symbTable.fnd(name);

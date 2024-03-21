@@ -13,6 +13,11 @@ public class SemPointerType extends SemSimpleType {
 	/** An object of {@code SemPointerType(null)} class. */
 	public static final SemPointerType type = new SemPointerType(SemVoidType.type);
 
+	/**
+	 * A pointer to a character type.
+	 */
+	public static final SemPointerType stringType = new SemPointerType(SemCharType.type);
+
 	/** The base type (or {@code null} if it denotes <code>nil</code>). */
 	public final SemType baseType;
 
@@ -29,7 +34,7 @@ public class SemPointerType extends SemSimpleType {
 
 	@Override
 	public String toString() {
-		return "^" + (baseType == null ? "" : baseType.toString());
+		return "^" + baseType;
 	}
 
 	@Override

@@ -12,7 +12,7 @@ public class ErrorAtBuilder {
         sb.append("\n");
         sb.append("     | ");
         sb.append("\n");
-        this.appendLocationInfo(location);
+        this.addLocation(location);
         sb.append("\n");
     }
 
@@ -23,19 +23,7 @@ public class ErrorAtBuilder {
         return this;
     }
 
-    public ErrorAtBuilder addLocation(final Locatable location) {
-        this.appendLocationInfo(location);
-        sb.append("\n");
-
-        return this;
-    }
-
-    @Override
-    public String toString() {
-        return sb.toString();
-    }
-
-    private void appendLocationInfo(Locatable location1) {
+    public ErrorAtBuilder addLocation(Locatable location1) {
         var ln = String.format("%4d |    ", location1.location().begLine);
 
         // Make error like this:
@@ -50,5 +38,14 @@ public class ErrorAtBuilder {
         sb.append("     |    ");
         sb.append(" ".repeat(Math.max(0, location1.location().begColumn - 11)));
         sb.append("^".repeat(1 + Math.max(0, location1.location().endColumn - location1.location().begColumn)));
+        sb.append("\n");
+
+        return this;
+    }
+
+
+    @Override
+    public String toString() {
+        return sb.toString();
     }
 }

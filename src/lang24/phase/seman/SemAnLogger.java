@@ -67,7 +67,7 @@ public class SemAnLogger implements AstNullVisitor<Object, Object>, SemVisitor<O
 		}
 		{
 			final Boolean lval = SemAn.isLVal.get(node);
-			if ((lval != null) && (lval == true)) {
+			if ((lval != null) && lval) {
 				logger.begElement("lvalue");
 				logger.endElement();
 			}

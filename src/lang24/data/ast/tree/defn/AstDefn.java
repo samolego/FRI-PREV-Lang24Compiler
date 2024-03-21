@@ -9,7 +9,7 @@ import lang24.data.ast.tree.type.*;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public abstract class AstDefn extends AstNode implements Comparable<AstDefn> {
+public abstract class AstDefn extends AstNode {
 
 	/** The defined name. */
 	public final String name;
@@ -28,26 +28,5 @@ public abstract class AstDefn extends AstNode implements Comparable<AstDefn> {
 		super(location);
 		this.name = name;
 		this.type = type;
-	}
-
-	@Override
-	public int compareTo(AstDefn astDefn) {
-		if (this == astDefn) {
-			return 0;
-		}
-
-		if (this instanceof AstTypDefn && astDefn instanceof AstVarDefn ||
-				this instanceof AstTypDefn && astDefn instanceof AstFunDefn ||
-				this instanceof AstVarDefn && astDefn instanceof AstFunDefn) {
-			return -1;
-		}
-
-		if (this instanceof AstVarDefn && astDefn instanceof AstTypDefn ||
-				this instanceof AstFunDefn && astDefn instanceof AstTypDefn ||
-				this instanceof AstFunDefn && astDefn instanceof AstVarDefn) {
-			return 1;
-		}
-
-		return this.name.compareTo(astDefn.name);
 	}
 }
