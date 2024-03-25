@@ -96,6 +96,8 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 
 		if (exprLVal != null && exprLVal) {
 			SemAn.isLVal.put(castExpr, true);
+			castExpr.type.accept(this, arg);
+
 			return true;
 		}
 
@@ -110,27 +112,11 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 		var exprLVal = assignStmt.dst.accept(this, arg);
 
 		if (exprLVal != null && exprLVal) {
-			return assignStmt.src.accept(this, arg);
+			return false;
 		}
 
 		throwNotLValue(assignStmt.dst);
 		return false;
-	}
-
-	@Override
-	public Boolean visit(AstPfxExpr pfxExpr, Object arg) {
-		if (pfxExpr.oper == AstPfxExpr.Oper.PTR) {
-			var exprLVal = pfxExpr.expr.accept(this, arg);
-
-			if (exprLVal != null && exprLVal) {
-				return true;
-			}
-
-			throwNotLValue(pfxExpr);
-			return false;
-		}
-
-		return true;
 	}
 
 
