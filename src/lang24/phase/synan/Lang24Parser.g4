@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import lang24.common.report.*;
 import lang24.data.token.*;
+import lang24.data.ast.visitor.ParentSetter;
 import lang24.phase.lexan.*;
 import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.defn.*;
@@ -45,6 +46,7 @@ options{
 // program
 source returns [AstNode ast] : definitions EOF {
     $ast = $definitions.ast;
+    $ast.accept(new ParentSetter(), null);
 } ;
 
 // definitions

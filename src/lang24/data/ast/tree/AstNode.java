@@ -16,6 +16,9 @@ public abstract class AstNode implements Locatable {
 	/** The unique id of this node. */
 	public final int id;
 
+	/** The parent node. */
+	public AstNode parent;
+
 	/** The location of this node. */
 	private Location location;
 

@@ -3,7 +3,7 @@ package lang24.phase.seman;
 import java.util.*;
 
 import lang24.common.report.*;
-import lang24.data.ast.Nameable;
+import lang24.data.ast.tree.Nameable;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
 import lang24.data.ast.tree.expr.*;
@@ -140,11 +140,10 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
      * @param node         The node to check.
      * @param expectedType The expected type that node should be.
      * @param arg          which pass we are in
-     * @return The type of the node (will be the expected type).
      * @throws Report.Error if the type of the node is not the expected type.
      */
-    private SemType checkOrThrow(AstNode node, SemType expectedType, Object arg) {
-        return checkOrThrow(node, Set.of(expectedType), arg);
+    private void checkOrThrow(AstNode node, SemType expectedType, Object arg) {
+        checkOrThrow(node, Set.of(expectedType), arg);
     }
 
 
@@ -177,7 +176,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 //noinspection OptionalGetWithoutIsPresent
                 expectedTypeStr = String.format("one of [%s]", expectedTypes.stream().map(SemType::toString).reduce((a, b) -> a + ", " + b).get());
             }
-            var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", got `" + actualType + "`:", node.location());
+            var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", got `" + actualType + "`:", node);
             throw new Report.Error(node, err.toString());
         }
 
@@ -481,7 +480,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             type = SemAn.ofType.get(defined);
 
             if (type != null) {
-                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a variable, but was used as type here:", node.location());
+                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a variable, but was used as type here:", node);
                 throw new Report.Error(err.toString());
             }
 
@@ -503,7 +502,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             type = SemAn.isType.get(defined);
 
             if (type != null) {
-                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a type, but was used as variable here:", node.location());
+                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a type, but was used as variable here:", node);
                 throw new Report.Error(err.toString());
             }
 

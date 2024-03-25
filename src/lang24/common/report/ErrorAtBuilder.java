@@ -1,9 +1,11 @@
 package lang24.common.report;
 
+import lang24.data.ast.tree.AstNode;
+
 public class ErrorAtBuilder {
     private final StringBuilder sb;
 
-    public ErrorAtBuilder(final String messageTop, final Locatable location) {
+    public ErrorAtBuilder(final String messageTop, final AstNode location) {
         this.sb = new StringBuilder();
 
         sb.append("Error: \n");
@@ -23,7 +25,7 @@ public class ErrorAtBuilder {
         return this;
     }
 
-    public ErrorAtBuilder addLocation(Locatable location) {
+    public ErrorAtBuilder addLocation(AstNode location) {
         var ln = String.format("%4d |    ", location.location().begLine);
 
         // Make error like this:

@@ -1,7 +1,7 @@
 package lang24.data.ast.tree.type;
 
 import lang24.common.report.*;
-import lang24.data.ast.Nameable;
+import lang24.data.ast.tree.Nameable;
 import lang24.data.ast.visitor.*;
 
 /**

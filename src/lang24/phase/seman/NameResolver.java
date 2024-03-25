@@ -45,9 +45,9 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         try {
             this.symbTable.ins(name, node);
         } catch (SymbTable.CannotInsNameException e) {
-            Location location = null;
+            AstNode location = null;
             try {
-                location = this.symbTable.fnd(name).location();
+                location = this.symbTable.fnd(name);
             } catch (SymbTable.CannotFndNameException ignored) {
             }
             var err = new ErrorAtBuilder("Name `" + name + "` is defined here:", location)
@@ -176,7 +176,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
             // Todo - check for cyclic dependencies
         } catch (SymbTable.CannotFndNameException e) {
-            var err = new ErrorAtBuilder("Name `" + name + "` not defined. Used here: ", node.location())
+            var err = new ErrorAtBuilder("Name `" + name + "` not defined. Used here: ", node)
                     .toString();
             throw new Report.Error(err);
         }
