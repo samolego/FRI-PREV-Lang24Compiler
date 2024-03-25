@@ -32,8 +32,9 @@ public class Attribute<Node extends AstNode, Value> {
 	 */
 	public Value put(final Node node, final Value value) {
 		int id = node.id();
-		while (id >= mapping.size())
-			mapping.setSize(id + 1000);
+		while (id >= mapping.size()) {
+            mapping.setSize(id + 1000);
+        }
 		mapping.set(id, value);
 		return value;
 	}
@@ -46,8 +47,9 @@ public class Attribute<Node extends AstNode, Value> {
 	 */
 	public Value get(final Node node) {
 		int id = node.id();
-		while (id >= mapping.size())
-			return null;
+		if (id >= mapping.size()) {
+            return null;
+        }
 		return mapping.get(id);
 	}
 

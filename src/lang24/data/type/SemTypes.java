@@ -32,8 +32,9 @@ public class SemTypes<Type extends SemType> implements Iterable<Type> {
 	public SemTypes(final List<Type> types) {
 		this.types = (Type[]) (new SemType[types.size()]);
 		int index = 0;
-		for (final Type t : types)
-			this.types[index++] = t;
+		for (final Type t : types) {
+            this.types[index++] = t;
+        }
 	}
 
 	/**
@@ -59,8 +60,9 @@ public class SemTypes<Type extends SemType> implements Iterable<Type> {
 
 	@Override
 	public void forEach(final Consumer<? super Type> action) throws NullPointerException {
-		for (final Type t : this)
-			action.accept(t);
+		for (final Type t : this) {
+            action.accept(t);
+        }
 	}
 
 	@Override

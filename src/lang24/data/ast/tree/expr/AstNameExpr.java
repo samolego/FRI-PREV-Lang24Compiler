@@ -1,14 +1,15 @@
 package lang24.data.ast.tree.expr;
 
 import lang24.common.report.*;
+import lang24.data.ast.Nameable;
 import lang24.data.ast.visitor.*;
 
 /**
- * A function call.
+ * Variable use.
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class AstNameExpr extends AstExpr {
+public class AstNameExpr extends AstExpr implements Nameable {
 
 	/** The name. */
 	public String name;
@@ -29,4 +30,8 @@ public class AstNameExpr extends AstExpr {
 		return visitor.visit(this, arg);
 	}
 
+	@Override
+	public String name() {
+		return name;
+	}
 }

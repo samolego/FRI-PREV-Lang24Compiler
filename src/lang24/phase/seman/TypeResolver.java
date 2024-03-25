@@ -3,6 +3,7 @@ package lang24.phase.seman;
 import java.util.*;
 
 import lang24.common.report.*;
+import lang24.data.ast.Nameable;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
 import lang24.data.ast.tree.expr.*;
@@ -14,7 +15,8 @@ import lang24.data.type.*;
 /**
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR NOT TODO ***/> {
+public class TypeResolver implements AstFullVisitor<SemType, Object> {
+
 
     /**
      * Structural equivalence of types.
@@ -132,29 +134,50 @@ public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR
         throw new Report.InternalError();
     }
 
-    private SemType checkOrThrow(AstNode node, SemType expectedType) {
-        return checkOrThrow(node, Set.of(expectedType));
+    /**
+     * Check if the type of the node is the expected type.
+     *
+     * @param node         The node to check.
+     * @param expectedType The expected type that node should be.
+     * @param arg          which pass we are in
+     * @return The type of the node (will be the expected type).
+     * @throws Report.Error if the type of the node is not the expected type.
+     */
+    private SemType checkOrThrow(AstNode node, SemType expectedType, Object arg) {
+        return checkOrThrow(node, Set.of(expectedType), arg);
     }
 
 
-    private SemType checkOrThrow(AstNode node, Set<SemType> expectedTypes) {
-        final var actualType = node.accept(this, null);
+    /**
+     * Check if the type of the node is one of the expected types.
+     *
+     * @param node          The node to check.
+     * @param expectedTypes Any allowed types that node should be.
+     * @param arg           which pass we are in
+     * @return The type of the node (will be one of the expected types).
+     * @throws Report.Error if the type of the node is not one of the expected types.
+     */
+    private SemType checkOrThrow(AstNode node, Set<SemType> expectedTypes, Object arg) {
+        final var actualType = node.accept(this, arg);
 
-        final var equivs = new HashMap<SemType, Set<SemType>>();
-        SemType expectedType = null;
-        for (var typ : expectedTypes) {
-            expectedType = typ;
-            equivs.put(expectedType, expectedTypes);
+        boolean eq = false;
+
+        for (SemType expectedType : expectedTypes) {
+            if (equiv(actualType, expectedType)) {
+                eq = true;
+                break;
+            }
         }
 
-        if (!equiv(actualType, expectedType, equivs)) {
+        if (!eq) {
             String expectedTypeStr;
             if (expectedTypes.size() == 1) {
                 expectedTypeStr = String.format("`%s`", expectedTypes.iterator().next().toString());
             } else {
+                //noinspection OptionalGetWithoutIsPresent
                 expectedTypeStr = String.format("one of [%s]", expectedTypes.stream().map(SemType::toString).reduce((a, b) -> a + ", " + b).get());
             }
-            var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", got: " + actualType, node.location());
+            var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", got `" + actualType + "`:", node.location());
             throw new Report.Error(node, err.toString());
         }
 
@@ -162,24 +185,26 @@ public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR
     }
 
 
-    // Todo!
     @Override
-    public SemType visit(AstTypDefn typDefn, SemType arg) {
-        return AstFullVisitor.super.visit(typDefn, arg);
-    }
-
-
-    // Todo!
-    @Override
-    public SemType visit(AstArrExpr arrExpr, SemType arg) {
-        var type = arrExpr.arr.accept(this, arg);
-        checkOrThrow(arrExpr.idx, SemIntType.type);
+    public SemType visit(AstTypDefn typDefn, Object arg) {
+        var type = typDefn.type.accept(this, null);
+        SemAn.isType.put(typDefn, type);
 
         return type;
+
+    }
+
+
+    @Override
+    public SemType visit(AstArrExpr arrExpr, Object arg) {
+        var type = arrExpr.arr.accept(this, arg);
+        checkOrThrow(arrExpr.idx, SemIntType.type, arg);
+
+        return ((SemArrayType) type.actualType()).elemType;
     }
 
     @Override
-    public SemType visit(AstAtomExpr atomExpr, SemType arg) {
+    public SemType visit(AstAtomExpr atomExpr, Object arg) {
         return switch (atomExpr.type) {
             case VOID -> SemVoidType.type;
             case BOOL -> SemBoolType.type;
@@ -191,87 +216,113 @@ public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR
     }
 
     @Override
-    public SemType visit(AstBinExpr binExpr, SemType arg) {
+    public SemType visit(AstBinExpr binExpr, Object arg) {
+        SemType result;
         Set<SemType> expectedTypes = switch (binExpr.oper) {
-            case ADD, SUB, MUL, DIV, MOD -> Set.of(SemIntType.type);
-            case EQU, NEQ, LTH, GTH, LEQ, GEQ -> Set.of(SemIntType.type, SemCharType.type, SemBoolType.type, SemPointerType.type);
-            case AND, OR -> Set.of(SemBoolType.type);
+            case ADD, SUB, MUL, DIV, MOD -> {
+                result = SemIntType.type;
+                yield Set.of(SemIntType.type);
+            }
+            case EQU, NEQ -> {
+                result = SemBoolType.type;
+                yield Set.of(SemIntType.type, SemCharType.type, SemBoolType.type, SemPointerType.type);
+            }
+            case LTH, GTH, LEQ, GEQ -> {
+                result = SemBoolType.type;
+                yield Set.of(SemIntType.type, SemCharType.type, SemPointerType.type);
+            }
+            case AND, OR -> {
+                result = SemBoolType.type;
+                yield Set.of(SemBoolType.type);
+            }
         };
 
-        var firstType = checkOrThrow(binExpr.fstExpr, expectedTypes);
+        var firstType = checkOrThrow(binExpr.fstExpr, expectedTypes, arg);
 
-        return checkOrThrow(binExpr.sndExpr, firstType);
+        checkOrThrow(binExpr.sndExpr, firstType, arg);
+
+        return result;
     }
 
     @Override
-    public SemType visit(AstCallExpr callExpr, SemType arg) {
-        return AstFullVisitor.super.visit(callExpr, arg);
+    public SemType visit(AstCallExpr callExpr, Object arg) {
+        if (callExpr.args != null) {
+            callExpr.args.accept(this, arg);
+        }
+
+        return findVariableType(callExpr);
     }
 
     @Override
-    public SemType visit(AstCastExpr castExpr, SemType arg) {
-        return AstFullVisitor.super.visit(castExpr, arg);
+    public SemType visit(AstCastExpr castExpr, Object arg) {
+        var type = castExpr.type.accept(this, arg);
+
+        checkOrThrow(castExpr.expr, Set.of(SemCharType.type, SemIntType.type, SemPointerType.type), arg);
+
+        return type;
+    }
+
+    // todo
+    @Override
+    public SemType visit(AstCmpExpr cmpExpr, Object arg) {
+        return cmpExpr.expr.accept(this, arg);
+
     }
 
     @Override
-    public SemType visit(AstCmpExpr cmpExpr, SemType arg) {
-        return AstFullVisitor.super.visit(cmpExpr, arg);
+    public SemType visit(AstNameExpr nameExpr, Object arg) {
+        return findVariableType(nameExpr);
     }
 
     @Override
-    public SemType visit(AstNameExpr nameExpr, SemType arg) {
-        return AstFullVisitor.super.visit(nameExpr, arg);
-    }
-
-    @Override
-    public SemType visit(AstPfxExpr pfxExpr, SemType arg) {
+    public SemType visit(AstPfxExpr pfxExpr, Object arg) {
         var expectedType = switch (pfxExpr.oper) {
             case ADD, SUB -> SemIntType.type;
             case NOT -> SemBoolType.type;
             case PTR -> SemPointerType.type;
         };
 
-        checkOrThrow(pfxExpr.expr, expectedType);
+        checkOrThrow(pfxExpr.expr, expectedType, arg);
 
         return expectedType;
     }
 
     @Override
-    public SemType visit(AstSfxExpr sfxExpr, SemType arg) {
-        return AstFullVisitor.super.visit(sfxExpr, arg);
+    public SemType visit(AstSfxExpr sfxExpr, Object arg) {
+        return sfxExpr.expr.accept(this, arg);
     }
 
     @Override
-    public SemType visit(AstSizeofExpr sizeofExpr, SemType arg) {
+    public SemType visit(AstSizeofExpr sizeofExpr, Object arg) {
         AstFullVisitor.super.visit(sizeofExpr, arg);
 
         return SemIntType.type;
     }
 
     @Override
-    public SemType visit(AstExprStmt exprStmt, SemType arg) {
+    public SemType visit(AstExprStmt exprStmt, Object arg) {
         return exprStmt.expr.accept(this, arg);
     }
 
     @Override
-    public SemType visit(AstAssignStmt assignStmt, SemType arg) {
+    public SemType visit(AstAssignStmt assignStmt, Object arg) {
         var typeDst = assignStmt.dst.accept(this, arg);
 
-        checkOrThrow(assignStmt.src, typeDst);
+        checkOrThrow(assignStmt.src, typeDst, arg);
 
         return SemVoidType.type;
     }
 
     @Override
-    public SemType visit(AstBlockStmt blockStmt, SemType arg) {
+    public SemType visit(AstBlockStmt blockStmt, Object arg) {
         AstFullVisitor.super.visit(blockStmt, arg);
 
         return SemVoidType.type;
     }
 
     @Override
-    public SemType visit(AstIfStmt ifStmt, SemType arg) {
-        checkOrThrow(ifStmt.cond, SemBoolType.type);
+    public SemType visit(AstIfStmt ifStmt, Object arg) {
+        checkOrThrow(ifStmt.cond, SemBoolType.type, arg);
 
         // Check recursively
         ifStmt.thenStmt.accept(this, arg);
@@ -283,63 +334,79 @@ public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR
     }
 
     @Override
-    public SemType visit(AstWhileStmt whileStmt, SemType arg) {
-        checkOrThrow(whileStmt.cond, SemBoolType.type);
+    public SemType visit(AstWhileStmt whileStmt, Object arg) {
+        checkOrThrow(whileStmt.cond, SemBoolType.type, arg);
         whileStmt.stmt.accept(this, arg);
 
         return SemVoidType.type;
     }
 
     @Override
-    public SemType visit(AstReturnStmt retStmt, SemType arg) {
+    public SemType visit(AstReturnStmt retStmt, Object arg) {
         AstFullVisitor.super.visit(retStmt, arg);
         return SemVoidType.type;
     }
 
 
     @Override
-    public SemType visit(AstNodes<? extends AstNode> nodes, SemType arg) {
-        AstFullVisitor.super.visit(nodes, arg);
+    public SemType visit(AstNodes<? extends AstNode> nodes, Object arg) {
+        SemType type = SemVoidType.type;
 
-        return SemVoidType.type;
+        for (final AstNode node : nodes) {
+            type = node.accept(this, arg);
+        }
+
+        return type;
     }
 
     @Override
-    public SemType visit(AstVarDefn varDefn, SemType arg) {
+    public SemType visit(AstVarDefn varDefn, Object arg) {
+        var type = varDefn.type.accept(this, null);
+        SemAn.ofType.put(varDefn, type);
 
-        return varDefn.type.accept(this, arg);
+        return type;
     }
 
     @Override
-    public SemType visit(AstFunDefn funDefn, SemType arg) {
+    public SemType visit(AstFunDefn funDefn, Object arg) {
+        var fnType = funDefn.type.accept(this, null);
+
+        SemAn.ofType.put(funDefn, fnType);
+
+        // Todo : noben od parametrov ne sme biti void
+        // Todo : parametri se štejejo v tip funkcije
         if (funDefn.pars != null) {
-            funDefn.pars.accept(this, arg);
+            funDefn.pars.accept(this, null);
         }
+
+
         if (funDefn.defns != null) {
-            funDefn.defns.accept(this, arg);
+            funDefn.defns.accept(this, null);
         }
 
-        var fnType = funDefn.type.accept(this, arg);
+        checkOrThrow(funDefn.stmt, fnType, null);
+        //todo
 
-        return checkOrThrow(funDefn.stmt, fnType);
+        return fnType;
+    }
+
+
+    // Todo
+    @Override
+    public SemType visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
+        return checkOrThrow(refParDefn.type, Set.of(SemCharType.type, SemIntType.type, SemBoolType.type, SemPointerType.type), arg);
     }
 
     @Override
-    public SemType visit(AstFunDefn.AstRefParDefn refParDefn, SemType arg) {
-        return refParDefn.type.accept(this, arg);
+    public SemType visit(AstFunDefn.AstValParDefn valParDefn, Object arg) {
+        return checkOrThrow(valParDefn.type, Set.of(SemCharType.type, SemIntType.type, SemBoolType.type, SemPointerType.type), arg);
     }
 
     @Override
-    public SemType visit(AstFunDefn.AstValParDefn valParDefn, SemType arg) {
-        return valParDefn.type.accept(this, arg);
-    }
-
-    // todo all types
-    @Override
-    public SemType visit(AstArrType arrType, SemType arg) {
+    public SemType visit(AstArrType arrType, Object arg) {
         var elemType = arrType.elemType.accept(this, arg);
 
-        checkOrThrow(arrType.size, SemIntType.type);
+        checkOrThrow(arrType.size, SemIntType.type, arg);
 
         // Try to get size
         if (arrType.size instanceof AstAtomExpr atomExpr) {
@@ -349,11 +416,11 @@ public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR
         }
 
         // Todo - is this ok?
-        return new SemPointerType(elemType);
+        throw new Report.InternalError();
     }
 
     @Override
-    public SemType visit(AstAtomType atomType, SemType arg) {
+    public SemType visit(AstAtomType atomType, Object arg) {
         return switch (atomType.type) {
             case VOID -> SemVoidType.type;
             case BOOL -> SemBoolType.type;
@@ -363,37 +430,88 @@ public class TypeResolver implements AstFullVisitor<SemType, SemType/*** TODO OR
     }
 
     @Override
-    public SemType visit(AstNameType nameType, SemType arg) {
-        // Todo - how to define the type of a named type?
-        return new SemNameType(nameType.name);
+    public SemType visit(AstNameType nameType, Object arg) {
+        return findTypeAssociation(nameType);
     }
 
     @Override
-    public SemType visit(AstPtrType ptrType, SemType arg) {
+    public SemType visit(AstPtrType ptrType, Object arg) {
         return new SemPointerType(ptrType.baseType.accept(this, arg));
     }
 
     @Override
-    public SemType visit(AstStrType strType, SemType arg) {
-        for (int i = 0; i < strType.cmps.nodes.length; ++i) {
-            AstNode cmp = strType.cmps.nodes[i];
-            cmp.accept(this, arg);
+    public SemType visit(AstStrType strType, Object arg) {
+        var components = new LinkedList<SemType>();
+
+        for (int i = 0; i < strType.cmps.size(); ++i) {
+            AstNode cmp = strType.cmps.get(i);
+            var type = cmp.accept(this, arg);
+
+            components.add(type);
         }
-        return new SemStructType(Collections.emptyList());
+
+        return new SemStructType(components);
     }
 
     @Override
-    public SemType visit(AstUniType uniType, SemType arg) {
-        for (int i = 0; i < uniType.cmps.nodes.length; ++i) {
-            AstNode cmp = uniType.cmps.nodes[i];
-            cmp.accept(this, arg);
+    public SemType visit(AstUniType uniType, Object arg) {
+        var components = new LinkedList<SemType>();
+
+        for (int i = 0; i < uniType.cmps.size(); ++i) {
+            AstNode cmp = uniType.cmps.get(i);
+            var type = cmp.accept(this, arg);
+            components.add(type);
         }
-        return new SemStructType(Collections.emptyList());
+
+        return new SemStructType(components);
     }
 
     // Todo
     @Override
-    public SemType visit(AstRecType.AstCmpDefn cmpDefn, SemType arg) {
+    public SemType visit(AstRecType.AstCmpDefn cmpDefn, Object arg) {
         return cmpDefn.type.accept(this, arg);
+    }
+
+
+    private SemType findTypeAssociation(AstNameType node) {
+        var defined = SemAn.definedAt.get(node);
+        var type = SemAn.isType.get(defined);
+
+        if (type == null) {
+            type = SemAn.ofType.get(defined);
+
+            if (type != null) {
+                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a variable, but was used as type here:", node.location());
+                throw new Report.Error(err.toString());
+            }
+
+            // Ok, not, let's define it
+            type = defined.accept(this, null);
+            SemAn.isType.put(defined, type);
+        }
+
+        return type.actualType();
+    }
+
+
+    private <T extends AstNode & Nameable> SemType findVariableType(T node) {
+        var defined = SemAn.definedAt.get(node);
+        var type = SemAn.ofType.get(defined);
+
+        if (type == null) {
+            // It was not found, perhaps programmer tried to access type as variable?
+            type = SemAn.isType.get(defined);
+
+            if (type != null) {
+                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a type, but was used as variable here:", node.location());
+                throw new Report.Error(err.toString());
+            }
+
+            // Ok, not, let's define it
+            type = defined.accept(this, null);
+            SemAn.ofType.put(defined, type);
+        }
+
+        return type.actualType();
     }
 }

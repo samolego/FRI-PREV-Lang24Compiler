@@ -23,6 +23,11 @@ public interface Locatable {
 		throw new Report.InternalError();
 	}
 
+	/**
+	 * Gets text of this node, as it's written in the source file.
+	 * @return The text of this node.
+	 * @author samolego
+	 */
 	default String getText() {
 		return location().getText();
 	}

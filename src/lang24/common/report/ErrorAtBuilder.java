@@ -23,8 +23,8 @@ public class ErrorAtBuilder {
         return this;
     }
 
-    public ErrorAtBuilder addLocation(Locatable location1) {
-        var ln = String.format("%4d |    ", location1.location().begLine);
+    public ErrorAtBuilder addLocation(Locatable location) {
+        var ln = String.format("%4d |    ", location.location().begLine);
 
         // Make error like this:
         // <line number> | <line text>
@@ -32,12 +32,11 @@ public class ErrorAtBuilder {
 
         sb.append(ln);
 
-        final String lineText = location1.getText().replaceAll("\n", "\n     |    ");
+        final String lineText = location.getText().split("\n")[0];
         sb.append(lineText);
         sb.append("\n");
         sb.append("     |    ");
-        sb.append(" ".repeat(Math.max(0, location1.location().begColumn - 11)));
-        sb.append("^".repeat(1 + Math.max(0, location1.location().endColumn - location1.location().begColumn)));
+        sb.append("^".repeat(1 + Math.max(0, location.location().endColumn - location.location().begColumn)));
         sb.append("\n");
 
         return this;

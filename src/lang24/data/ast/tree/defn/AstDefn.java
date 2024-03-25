@@ -1,6 +1,7 @@
 package lang24.data.ast.tree.defn;
 
 import lang24.common.report.*;
+import lang24.data.ast.Nameable;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.type.*;
 
@@ -9,7 +10,7 @@ import lang24.data.ast.tree.type.*;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public abstract class AstDefn extends AstNode {
+public abstract class AstDefn extends AstNode implements Nameable {
 
 	/** The defined name. */
 	public final String name;
@@ -28,5 +29,10 @@ public abstract class AstDefn extends AstNode {
 		super(location);
 		this.name = name;
 		this.type = type;
+	}
+
+	@Override
+	public String name() {
+		return name;
 	}
 }

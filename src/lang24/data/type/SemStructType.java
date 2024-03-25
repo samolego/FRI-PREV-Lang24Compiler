@@ -21,11 +21,14 @@ public class SemStructType extends SemRecordType {
 
 	@Override
 	public String toString() {
-		final StringBuffer str = new StringBuffer();
+		final StringBuilder str = new StringBuilder();
 		str.append("struct(");
-		if (cmpTypes != null)
-			str.append(cmpTypes);
+
+		if (cmpTypes != null) {
+            str.append(cmpTypes);
+        }
 		str.append(")");
+
 		return str.toString();
 	}
 

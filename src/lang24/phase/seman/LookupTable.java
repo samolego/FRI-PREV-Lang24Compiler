@@ -2,39 +2,65 @@ package lang24.phase.seman;
 
 import java.util.*;
 import lang24.common.report.*;
-import lang24.data.ast.tree.defn.*;
 
 /**
  * A symbol table.
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class SymbTable {
+public class LookupTable<L> {
 
-	/**
-	 * A symbol table record denoting a definition of a name within a certain scope.
-	 */
-	private class ScopedDefn {
+    /**
+     * A symbol table record denoting a definition of a name within a certain scope.
+     */
+    private final class ScopedDefn {
+        private final int depth;
+        private final L defn;
 
-		/** The depth of the scope the definition belongs to. */
-		public final int depth;
 
-		/** The definition. */
-		public final AstDefn defn;
+        /**
+         * Constructs a new record denoting a definition of a name within a certain
+         * scope.
+         *
+         * @param depth The depth of the scope the definition belongs to.
+         * @param defn  The definition.
+         */
+        private ScopedDefn(int depth, L defn) {
+            this.depth = depth;
+            this.defn = defn;
+        }
 
-		/**
-		 * Constructs a new record denoting a definition of a name within a certain
-		 * scope.
-		 * 
-		 * @param depth The depth of the scope the definition belongs to.
-		 * @param defn  The definition.
-		 */
-		public ScopedDefn(int depth, AstDefn defn) {
-			this.depth = depth;
-			this.defn = defn;
-		}
+        public int depth() {
+            return depth;
+        }
 
-	}
+        public L defn() {
+            return defn;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (ScopedDefn) obj;
+            return this.depth == that.depth &&
+                    Objects.equals(this.defn, that.defn);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(depth, defn);
+        }
+
+        @Override
+        public String toString() {
+            return "ScopedDefn[" +
+                    "depth=" + depth + ", " +
+                    "defn=" + defn + ']';
+        }
+
+
+    }
 
 	/**
 	 * A mapping of names into lists of records denoting definitions at different
@@ -60,12 +86,12 @@ public class SymbTable {
 	/**
 	 * Constructs a new symbol table.
 	 */
-	public SymbTable() {
+	public LookupTable() {
 		allDefnsOfAllNames = new HashMap<String, LinkedList<ScopedDefn>>();
 		scopes = new LinkedList<LinkedList<String>>();
 		currDepth = 0;
 		lock = false;
-		newScope();
+		pushScope();
 	}
 
 	/**
@@ -88,16 +114,19 @@ public class SymbTable {
 	 * @throws CannotInsNameException Thrown if this name has already been defined
 	 *                                within the currently active scope.
 	 */
-	public void ins(String name, AstDefn defn) throws CannotInsNameException {
-		if (lock)
-			throw new Report.InternalError();
+	public void ins(String name, L defn) throws CannotInsNameException {
+		if (lock) {
+            throw new Report.InternalError();
+        }
 
         LinkedList<ScopedDefn> allDefnsOfName = allDefnsOfAllNames.computeIfAbsent(name, k -> new LinkedList<ScopedDefn>());
 
         if (!allDefnsOfName.isEmpty()) {
 			ScopedDefn defnOfName = allDefnsOfName.getFirst();
-			if (defnOfName.depth == currDepth)
-				throw new CannotInsNameException();
+
+			if (defnOfName.depth == currDepth) {
+                throw new CannotInsNameException();
+            }
 		}
 
 		allDefnsOfName.addFirst(new ScopedDefn(currDepth, defn));
@@ -114,13 +143,16 @@ public class SymbTable {
 	 *                                currently active scope or any scope enclosing
 	 *                                it.
 	 */
-	public AstDefn fnd(String name) throws CannotFndNameException {
+	public L fnd(String name) throws CannotFndNameException {
 		LinkedList<ScopedDefn> allDefnsOfName = allDefnsOfAllNames.get(name);
-		if (allDefnsOfName == null)
-			throw new CannotFndNameException();
 
-		if (allDefnsOfName.isEmpty())
-			throw new CannotFndNameException();
+		if (allDefnsOfName == null) {
+            throw new CannotFndNameException();
+        }
+
+		if (allDefnsOfName.isEmpty()) {
+            throw new CannotFndNameException();
+        }
 
 		return allDefnsOfName.getFirst().defn;
 	}
@@ -137,9 +169,10 @@ public class SymbTable {
 	 * Constructs a new scope within the currently active scope. The newly
 	 * constructed scope becomes the currently active scope.
 	 */
-	public void newScope() {
-		if (lock)
-			throw new Report.InternalError();
+	public void pushScope() {
+		if (lock) {
+            throw new Report.InternalError();
+        }
 
 		currDepth++;
 		scopes.addFirst(new LinkedList<String>());
@@ -150,16 +183,19 @@ public class SymbTable {
 	 * it from the symbol table. Makes the enclosing scope the currently active
 	 * scope.
 	 */
-	public void oldScope() {
-		if (lock)
-			throw new Report.InternalError();
+	public void popScope() {
+		if (lock) {
+            throw new Report.InternalError();
+        }
 
-		if (currDepth == 0)
-			throw new Report.InternalError();
+		if (currDepth == 0) {
+            throw new Report.InternalError();
+        }
 
 		for (String name : scopes.getFirst()) {
 			allDefnsOfAllNames.get(name).removeFirst();
 		}
+
 		scopes.removeFirst();
 		currDepth--;
 	}
@@ -167,7 +203,7 @@ public class SymbTable {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("SymbTable:\n");
+		sb.append("LookupTable:\n");
 
 		for (String name : allDefnsOfAllNames.keySet()) {
 			sb.append(name).append(":\n");
@@ -189,8 +225,7 @@ public class SymbTable {
 	/**
 	 * An exception thrown when the name cannot be inserted into a symbol table.
 	 */
-	@SuppressWarnings("serial")
-	public class CannotInsNameException extends Exception {
+	public static class CannotInsNameException extends Exception {
 
 		/**
 		 * Constructs a new exception.
@@ -203,8 +238,7 @@ public class SymbTable {
 	/**
 	 * An exception thrown when the name cannot be found in the symbol table.
 	 */
-	@SuppressWarnings("serial")
-	public class CannotFndNameException extends Exception {
+	public static class CannotFndNameException extends Exception {
 
 		/**
 		 * Constructs a new exception.

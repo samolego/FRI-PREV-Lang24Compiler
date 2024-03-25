@@ -15,7 +15,7 @@ import lang24.data.ast.visitor.*;
 public class AstNodes<Node extends AstNode> extends AstNode implements Iterable<Node> {
 
 	/** The nodes stored in this sequence. */
-	public final Node[] nodes;
+	private final Node[] nodes;
 
 	/**
 	 * Constructs a sequence of nodes.

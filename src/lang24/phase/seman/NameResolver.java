@@ -28,7 +28,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     /**
      * The symbol table.
      */
-    private final SymbTable symbTable = new SymbTable();
+    private final LookupTable<AstDefn> symbTable = new LookupTable<>();
 
 
     @Override
@@ -44,11 +44,11 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     private void defineOrThrow(AstDefn node, String name) {
         try {
             this.symbTable.ins(name, node);
-        } catch (SymbTable.CannotInsNameException e) {
+        } catch (LookupTable.CannotInsNameException e) {
             Location location = null;
             try {
                 location = this.symbTable.fnd(name).location();
-            } catch (SymbTable.CannotFndNameException ignored) {
+            } catch (LookupTable.CannotFndNameException ignored) {
             }
             var err = new ErrorAtBuilder("Name `" + name + "` is defined here:", location)
                     .addString("But second definition was found here:")
@@ -62,9 +62,9 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
     @Override
     public Object visit(AstBlockStmt blockStmt, PassType arg) {
-        this.symbTable.newScope();
+        this.symbTable.pushScope();
         AstFullVisitor.super.visit(blockStmt, arg);
-        this.symbTable.oldScope();
+        this.symbTable.popScope();
 
         return null;
     }
@@ -99,13 +99,13 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
             case SECOND_PASS -> {
                 funDefn.type.accept(this,  PassType.SECOND_PASS);
 
-                this.symbTable.newScope();
+                this.symbTable.pushScope();
 
                 if (funDefn.pars != null) {
                     funDefn.pars.accept(this, null);
                 }
 
-                this.symbTable.newScope();
+                this.symbTable.pushScope();
 
                 if (funDefn.defns != null) {
                     funDefn.defns.accept(this, null);
@@ -115,8 +115,8 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                     funDefn.stmt.accept(this, PassType.SECOND_PASS);
                 }
 
-                this.symbTable.oldScope();
-                this.symbTable.oldScope();
+                this.symbTable.popScope();
+                this.symbTable.popScope();
             }
         }
 
@@ -171,9 +171,11 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     private void findOrThrow(AstNode node, String name) {
         try {
             var defn = this.symbTable.fnd(name);
-            // Connect the call with the definition
+            // Connect the usage with the definition
             SemAn.definedAt.put(node, defn);
-        } catch (SymbTable.CannotFndNameException e) {
+
+            // Todo - check for cyclic dependencies
+        } catch (LookupTable.CannotFndNameException e) {
             var err = new ErrorAtBuilder("Name `" + name + "` not defined. Used here: ", node.location())
                     .toString();
             throw new Report.Error(err);

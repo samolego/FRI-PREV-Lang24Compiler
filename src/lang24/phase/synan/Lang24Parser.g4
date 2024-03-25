@@ -184,10 +184,10 @@ type returns [AstType ast]
         $ast = new AstPtrType(loc($start, $tp.stop), $tp.ast);
     }
     | LPAREN components RPAREN {
-        $ast = new AstUniType(loc($start, $RPAREN), $components.ast);
+        $ast = new AstStrType(loc($start, $RPAREN), $components.ast);
     }
     | LBRACE components RBRACE {
-        $ast = new AstStrType(loc($start, $RBRACE), $components.ast);
+        $ast = new AstUniType(loc($start, $RBRACE), $components.ast);
     }
     | IDENTIFIER {
         $ast = new AstNameType(loc($start, $IDENTIFIER), $IDENTIFIER.getText());

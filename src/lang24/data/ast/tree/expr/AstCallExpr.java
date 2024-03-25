@@ -1,6 +1,7 @@
 package lang24.data.ast.tree.expr;
 
 import lang24.common.report.*;
+import lang24.data.ast.Nameable;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.visitor.*;
 
@@ -9,7 +10,7 @@ import lang24.data.ast.visitor.*;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class AstCallExpr extends AstExpr {
+public class AstCallExpr extends AstExpr implements Nameable {
 
 	/** The name. */
 	public String name;
@@ -35,4 +36,8 @@ public class AstCallExpr extends AstExpr {
 		return visitor.visit(this, arg);
 	}
 
+	@Override
+	public String name() {
+		return name;
+	}
 }
