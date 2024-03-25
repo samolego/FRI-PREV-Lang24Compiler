@@ -9,10 +9,6 @@ import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.stmt.AstAssignStmt;
 import lang24.data.ast.visitor.*;
 import lang24.data.type.SemPointerType;
-import lang24.data.type.SemType;
-import lang24.data.type.SemVoidType;
-
-import java.util.Optional;
 
 /**
  * Lvalue resolver.
@@ -26,7 +22,8 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 	}
 
 	private void throwNotLValue(AstNode expr) {
-		var err = new ErrorAtBuilder("The following expression is not a valid lvalue:", expr);
+		var err = new ErrorAtBuilder("The following expression is not a valid lvalue:")
+				.addUnderlinedSourceNode(expr);
 		throw new Report.Error(expr, err.toString());
 	}
 

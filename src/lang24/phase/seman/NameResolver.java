@@ -8,6 +8,9 @@ import lang24.data.ast.tree.stmt.AstBlockStmt;
 import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Name resolver.
  * <p>
@@ -50,9 +53,11 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                 location = this.symbTable.fnd(name);
             } catch (SymbTable.CannotFndNameException ignored) {
             }
-            var err = new ErrorAtBuilder("Name `" + name + "` is defined here:", location)
-                    .addString("But second definition was found here:")
-                    .addLocation(node)
+            var err = new ErrorAtBuilder("Name `" + name + "` is defined here:")
+                    .addUnderlinedSourceNode(location)
+                    .addLine("\nBut second definition was found here:")
+                    .addSourceLine(node)
+                    .addOffsetedSquiglyLines(node, "Hint: Try using a different name for this definition.")
                     .toString();
             throw new Report.Error(err);
         }
@@ -175,10 +180,29 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
             SemAn.definedAt.put(node, defn);
 
             // Todo - check for cyclic dependencies
+
+            Set<AstNode> visited = new HashSet<>(Set.of(node, defn));
+
+            var prevDfn = defn;
+            while (defn != null) {
+                defn = SemAn.definedAt.get(defn.type);
+                if (visited.contains(defn)) {
+                    var err = new ErrorAtBuilder("Cyclic dependency detected:")
+                            .addUnderlinedSourceNode(defn.type)
+                            .addSourceLine(prevDfn.type)
+                            .addOffsetedSquiglyLines(node, "Hint: Try removing one of the definitions.")
+                            .toString();
+                    throw new Report.Error(node, err);
+                }
+                visited.add(defn);
+                prevDfn = defn;
+            }
         } catch (SymbTable.CannotFndNameException e) {
-            var err = new ErrorAtBuilder("Name `" + name + "` not defined. Used here: ", node)
+            var err = new ErrorAtBuilder("Name `" + name + "` is not defined. Used here:")
+                    .addSourceLine(node)
+                    .addOffsetedSquiglyLines(node, "Hint: Try adding a definition named `" + name + "` before using it.")
                     .toString();
-            throw new Report.Error(err);
+            throw new Report.Error(node, err);
         }
     }
 

@@ -176,7 +176,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 //noinspection OptionalGetWithoutIsPresent
                 expectedTypeStr = String.format("one of [%s]", expectedTypes.stream().map(SemType::toString).reduce((a, b) -> a + ", " + b).get());
             }
-            var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", got `" + actualType + "`:", node);
+            var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", but got `" + actualType + "`:")
+                    .addSourceLine(node)
+                    .addOffsetedSquiglyLines(node, "This expression has type `" + actualType + "`, which is wrong.");
             throw new Report.Error(node, err.toString());
         }
 
