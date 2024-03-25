@@ -2,65 +2,51 @@ package lang24.phase.seman;
 
 import java.util.*;
 import lang24.common.report.*;
+import lang24.data.ast.tree.defn.AstDefn;
 
 /**
  * A symbol table.
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class LookupTable<L> {
+public class SymbTable {
 
-    /**
-     * A symbol table record denoting a definition of a name within a certain scope.
-     */
-    private final class ScopedDefn {
-        private final int depth;
-        private final L defn;
+	/**
+	 * A symbol table record denoting a definition of a name within a certain scope.
+	 */
+	private record ScopedDefn(int depth, AstDefn defn) {
+		/**
+		 * Constructs a new record denoting a definition of a name within a certain
+		 * scope.
+		 *
+		 * @param depth The depth of the scope the definition belongs to.
+		 * @param defn  The definition.
+		 */
+		private ScopedDefn {
+		}
 
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+                return true;
+            }
 
-        /**
-         * Constructs a new record denoting a definition of a name within a certain
-         * scope.
-         *
-         * @param depth The depth of the scope the definition belongs to.
-         * @param defn  The definition.
-         */
-        private ScopedDefn(int depth, L defn) {
-            this.depth = depth;
-            this.defn = defn;
-        }
+			if ((obj instanceof ScopedDefn that)) {
+				return this.depth == that.depth &&
+						Objects.equals(this.defn, that.defn);
+            }
+			return false;
+		}
 
-        public int depth() {
-            return depth;
-        }
-
-        public L defn() {
-            return defn;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ScopedDefn) obj;
-            return this.depth == that.depth &&
-                    Objects.equals(this.defn, that.defn);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(depth, defn);
-        }
-
-        @Override
-        public String toString() {
-            return "ScopedDefn[" +
-                    "depth=" + depth + ", " +
-                    "defn=" + defn + ']';
-        }
+		@Override
+		public String toString() {
+			return "ScopedDefn[" +
+					"depth=" + depth + ", " +
+					"defn=" + defn + ']';
+		}
 
 
-    }
+	}
 
 	/**
 	 * A mapping of names into lists of records denoting definitions at different
@@ -86,7 +72,7 @@ public class LookupTable<L> {
 	/**
 	 * Constructs a new symbol table.
 	 */
-	public LookupTable() {
+	public SymbTable() {
 		allDefnsOfAllNames = new HashMap<String, LinkedList<ScopedDefn>>();
 		scopes = new LinkedList<LinkedList<String>>();
 		currDepth = 0;
@@ -114,7 +100,7 @@ public class LookupTable<L> {
 	 * @throws CannotInsNameException Thrown if this name has already been defined
 	 *                                within the currently active scope.
 	 */
-	public void ins(String name, L defn) throws CannotInsNameException {
+	public void ins(String name, AstDefn defn) throws CannotInsNameException {
 		if (lock) {
             throw new Report.InternalError();
         }
@@ -143,7 +129,7 @@ public class LookupTable<L> {
 	 *                                currently active scope or any scope enclosing
 	 *                                it.
 	 */
-	public L fnd(String name) throws CannotFndNameException {
+	public AstDefn fnd(String name) throws CannotFndNameException {
 		LinkedList<ScopedDefn> allDefnsOfName = allDefnsOfAllNames.get(name);
 
 		if (allDefnsOfName == null) {

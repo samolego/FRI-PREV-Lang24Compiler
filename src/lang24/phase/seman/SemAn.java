@@ -18,6 +18,7 @@ public class SemAn extends Phase {
 
 	/**
 	 * Attribute specifying whether someting is an lvalue or not (where applicable).
+	 * If not present, the construct is not an lvalue.
 	 */
 	public static final Attribute<AstNode, Boolean> isLVal = new Attribute<AstNode, Boolean>();
 
