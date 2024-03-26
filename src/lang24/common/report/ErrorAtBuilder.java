@@ -88,6 +88,23 @@ public class ErrorAtBuilder {
         return this;
     }
 
+    public ErrorAtBuilder addSourceLineEnd(AstNode node) {
+        node = findStatementNode(node);
+        var ln = String.format("%4d |    ", node.location().endLine);
+
+        // Make error like this:
+        // <line number> | <line text>
+        //                 ^^^^^^^^^^^
+
+        sb.append(ln);
+        var lineTexts = node.getText().split("\n");
+        final String lineText = lineTexts[lineTexts.length - 1];
+        sb.append(lineText);
+        sb.append("\n");
+
+        return this;
+    }
+
 
     private AstNode findStatementNode(AstNode node) {
         // The last part is root node check

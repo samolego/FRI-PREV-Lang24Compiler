@@ -48,7 +48,7 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 	@Override
 	public Boolean visit(AstSfxExpr sfxExpr, Object arg) {
 		// **Izredno grdo**!
-		var type = sfxExpr.expr.accept(new TypeResolver(), arg);
+		var type = sfxExpr.expr.accept(new TypeResolver(), null);
 
 		if (type instanceof SemPointerType) {
 			SemAn.isLVal.put(sfxExpr, true);
@@ -98,7 +98,6 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 			return true;
 		}
 
-		throwNotLValue(castExpr);
 		return false;
 	}
 
@@ -106,9 +105,10 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 
 	@Override
 	public Boolean visit(AstAssignStmt assignStmt, Object arg) {
-		var exprLVal = assignStmt.dst.accept(this, arg);
+		var dstLVal = assignStmt.dst.accept(this, arg);
+		assignStmt.src.accept(this, arg);
 
-		if (exprLVal != null && exprLVal) {
+		if (dstLVal != null && dstLVal) {
 			return false;
 		}
 
@@ -119,6 +119,7 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 
 	@Override
 	public Boolean visit(AstNameExpr nameExpr, Object arg) {
+		SemAn.isLVal.put(nameExpr, true);
 		return true;
 	}
 }
