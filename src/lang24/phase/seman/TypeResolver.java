@@ -256,14 +256,54 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
         return result;
     }
 
+    // Fixme: nicer error messages
     @Override
     public SemType visit(AstCallExpr callExpr, FoundReturnType foundType) {
-        if (callExpr.args != null) {
-            callExpr.args.accept(this, foundType);
+        AstFunDefn funDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
+        var callPars = callExpr.args;
+
+        int i = 0;
+        for (var expParam : funDefn.pars) {
+            if (i < callPars.size()) {
+                var callParamType = callPars.get(i).accept(this, null);
+                var expParamType = expParam.accept(this, null);
+
+                if (!equiv(callParamType, expParamType)) {
+                    var err = new ErrorAtBuilder("Type mismatch in function call `" + callExpr.name + "`. Expected `" + expParamType + "`, but got `" + callParamType + "`:")
+                            .addSourceLine(callPars.get(i))
+                            .addOffsetedSquiglyLines(callPars.get(i), "This expression has type `" + callParamType + "`, but should be `" + expParamType + "`.")
+                            .addLine("")
+                            .addLine("Function `" + funDefn.name() + "` expects `" + expParamType + "`:")
+                            .addSourceLine(expParam);
+                    throw new Report.Error(callExpr, err.toString());
+                }
+            } else {
+                // Too few parameters
+                var err = new ErrorAtBuilder("Too few parameters in function call `" + callExpr.name + "`:")
+                        .addSourceLine(callExpr)
+                        .addOffsetedSquiglyLines(callExpr, "Hint: try adding " + (funDefn.pars.size() - i) + " more parameter(s).")
+                        .addLine("")
+                        .addLine("Expected `" + expParam.accept(this, null) + "`:")
+                        .addSourceLine(expParam);
+                throw new Report.Error(callExpr, err.toString());
+            }
+            i += 1;
+        }
+        if (i != callPars.size()) {
+            // Too many parameters
+            var err = new ErrorAtBuilder("Too many parameters in function call `" + callExpr.name + "`:")
+                    .addSourceLine(callExpr)
+                    .addOffsetedSquiglyLines(callExpr, "Hint: try removing last " + (callPars.size() - i) + " parameter(s).")
+                    .addLine("")
+                    .addLine("Function `" + funDefn.name() + "` accepts " + funDefn.pars.size() + " parameters:")
+                    .addSourceLine(funDefn);
+            throw new Report.Error(callExpr, err.toString());
         }
 
-        SemAn.ofType.put(callExpr, SemVoidType.type);
-        return findVariableType(callExpr);
+        var type = findVariableType(callExpr);
+        SemAn.ofType.put(callExpr, type);
+
+        return type;
     }
 
     @Override
@@ -460,8 +500,6 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
         SemAn.ofType.put(funDefn, fnType);
 
-        // Todo : noben od parametrov ne sme biti void
-        // Todo : parametri se štejejo v tip funkcije
         funDefn.pars.accept(this, foundType);
         funDefn.defns.accept(this, foundType);
 
@@ -473,10 +511,10 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
             var err = new ErrorAtBuilder("Function `" + funDefn.name() + "` expects to return `" + fnType + "`:")
                     .addSourceLine(funDefn);
             if (expectedReturnType.stmt != null) {
-                    err.addOffsetedSquiglyLines(funDefn.type, "`" + fnType + "` is expected here.")
+                    err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
                     .addLine("But the actual return type is `" + expectedReturnType.type + "`:")
                     .addSourceLine(expectedReturnType.stmt)
-                    .addOffsetedSquiglyLines(expectedReturnType.stmt.expr, "Hint: Try changing the return type to `" + fnType + "`.");
+                    .addOffsetedSquiglyLines(expectedReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
             } else {
                 err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`, but no `return` statement was found.")
                     .addSourceLineEnd(funDefn);
@@ -655,7 +693,6 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
             // Ok, not, let's define it
             type = defined.accept(this, null).actualType();
-            SemAn.ofType.put(node, type);
         }
 
         return type.actualType();
