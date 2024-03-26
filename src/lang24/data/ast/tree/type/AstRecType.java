@@ -4,6 +4,10 @@ import lang24.common.report.*;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
 import lang24.data.ast.visitor.*;
+import lang24.data.type.SemType;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A record type, i.e., either a struct or union.
@@ -16,6 +20,11 @@ public abstract class AstRecType extends AstType {
 	public final AstNodes<AstCmpDefn> cmps;
 
 	/**
+	 * Maps the names of the components to their definitions.
+	 */
+	public final Map<String, AstCmpDefn> cmpTypes;
+
+	/**
 	 * Constructs a record type.
 	 * 
 	 * @param location The location.
@@ -24,6 +33,7 @@ public abstract class AstRecType extends AstType {
 	public AstRecType(final Locatable location, final AstNodes<AstCmpDefn> cmps) {
 		super(location);
 		this.cmps = cmps;
+		this.cmpTypes = new HashMap<>();
 	}
 
 	/**

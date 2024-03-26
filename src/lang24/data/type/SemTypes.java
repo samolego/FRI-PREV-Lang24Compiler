@@ -114,7 +114,7 @@ public class SemTypes<Type extends SemType> implements Iterable<Type> {
 
 	@Override
 	public String toString() {
-		final StringBuffer str = new StringBuffer();
+		final StringBuilder str = new StringBuilder();
 		str.append("(");
 		boolean fst = true;
 		for (SemType type : types) {

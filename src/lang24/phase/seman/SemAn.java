@@ -6,6 +6,10 @@ import lang24.data.ast.tree.defn.*;
 import lang24.data.type.*;
 import lang24.phase.*;
 
+import java.util.Comparator;
+import java.util.Map;
+import java.util.TreeMap;
+
 /**
  * Semantic analysis phase.
  * 
@@ -33,6 +37,8 @@ public class SemAn extends Phase {
 	 * applicable).
 	 */
 	public static final Attribute<AstNode, SemType> ofType = new Attribute<AstNode, SemType>();
+
+
 
 	/**
 	 * Phase construction.

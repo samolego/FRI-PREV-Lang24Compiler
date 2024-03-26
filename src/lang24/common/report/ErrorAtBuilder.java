@@ -90,7 +90,8 @@ public class ErrorAtBuilder {
 
 
     private AstNode findStatementNode(AstNode node) {
-        if (node instanceof AstStmt || node.parent == null || node.parent instanceof AstNodes<?>) {
+        // The last part is root node check
+        if (node instanceof AstStmt || node.parent == null || node.parent instanceof AstNodes<?> && node.parent.parent == null) {
             return node;
         } else {
             return findStatementNode(node.parent);

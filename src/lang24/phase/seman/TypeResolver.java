@@ -2,6 +2,7 @@ package lang24.phase.seman;
 
 import java.util.*;
 
+import lang24.common.StringUtil;
 import lang24.common.report.*;
 import lang24.data.ast.tree.Nameable;
 import lang24.data.ast.tree.*;
@@ -16,6 +17,8 @@ import lang24.data.type.*;
  * @author bostjan.slivnik@fri.uni-lj.si
  */
 public class TypeResolver implements AstFullVisitor<SemType, Object> {
+
+    private static final Map<SemRecordType, AstRecType> record2ast = new TreeMap<>(Comparator.comparing(semRecordType -> semRecordType.id));
 
 
     /**
@@ -186,6 +189,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     }
 
 
+    // todo - self pointers don't work
     @Override
     public SemType visit(AstTypDefn typDefn, Object arg) {
         var type = typDefn.type.accept(this, null);
@@ -266,8 +270,41 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     // todo
     @Override
     public SemType visit(AstCmpExpr cmpExpr, Object arg) {
-        return cmpExpr.expr.accept(this, arg);
+        var defn = findRecordVariableDefinition(cmpExpr);
 
+        // Check if cmpExpr.expr has a child
+        var compDefn = defn.cmpTypes.get(cmpExpr.name);
+
+        if (compDefn == null) {
+            // Loop through all nodes and try to find similar names
+            AstRecType.AstCmpDefn similar = null;
+            int min = Integer.MAX_VALUE;
+            for (var cmp : defn.cmpTypes.values()) {
+                if (similar == null) {
+                    similar = cmp;
+                    min = StringUtil.calculate(similar.name, cmpExpr.name);
+                } else {
+                    int dist = StringUtil.calculate(cmp.name, cmpExpr.name);
+
+                    if (dist < min) {
+                        similar = cmp;
+                        min = dist;
+                    }
+                }
+            }
+            var err = new ErrorAtBuilder("Tried to access invalid component `" + cmpExpr.name + "`:")
+                    .addSourceLine(cmpExpr);
+            if (similar != null && min < 3) {
+                err.addOffsetedSquiglyLines(cmpExpr, "Hint: Did you mean `" + similar.name + "`?");
+            } else {
+                err.addOffsetedSquiglyLines(cmpExpr, "");
+            }
+            err.addLine("Note: the record is defined with these components:")
+                    .addSourceLine(defn);
+            throw new Report.Error(err.toString());
+        }
+
+        return compDefn.accept(this, arg);
     }
 
     @Override
@@ -451,7 +488,10 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             components.add(type);
         }
 
-        return new SemStructType(components);
+        var type = new SemStructType(components);
+        record2ast.put(type, strType);
+
+        return type;
     }
 
     @Override
@@ -464,7 +504,10 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             components.add(type);
         }
 
-        return new SemStructType(components);
+        var type = new SemUnionType(components);
+        record2ast.put(type, uniType);
+
+        return type;
     }
 
     // Todo
@@ -514,5 +557,20 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         }
 
         return type.actualType();
+    }
+
+
+    private AstRecType findRecordVariableDefinition(AstCmpExpr cmpExpr) {
+        var type = cmpExpr.expr.accept(this, null);
+        var defn = record2ast.get((SemRecordType) type);
+
+        if (defn == null) {
+            var err = new ErrorAtBuilder("Record type `" + cmpExpr + "` is not defined in this scope:")
+                    .addUnderlinedSourceNode(cmpExpr);
+            throw new Report.Error(err.toString());
+        }
+
+
+        return defn;
     }
 }

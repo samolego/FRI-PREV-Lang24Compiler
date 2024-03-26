@@ -44,6 +44,11 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         return AstFullVisitor.super.visit(nodes, arg);
     }
 
+    /**
+     * Defines a name or throws an error if it is already defined.
+     * @param node The node which name points to.
+     * @param name The name to define.
+     */
     private void defineOrThrow(AstDefn node, String name) {
         try {
             this.symbTable.ins(name, node);
@@ -150,20 +155,42 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
 
-    /*@Override
+    // Todo
+    @Override
     public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = cmpDefn.name;
-            defineOrThrow(cmpDefn, name);
+            // Define the name in the node
+            var parent = (AstRecType) cmpDefn.parent.parent;
+
+            var existingDefn = parent.cmpTypes.get(name);
+            // Check if the name is already defined
+            if (existingDefn != null) {
+                var err = new ErrorAtBuilder("Name `" + name + "` was defined at least twice in the struct:")
+                        .addSourceLine(parent)
+                        .addOffsetedSquiglyLines(existingDefn, "First definition occurred here.")
+                        .addLine("\nBut second definition was found here:")
+                        .addSourceLine(parent)
+                        .addOffsetedSquiglyLines(cmpDefn, "Hint: Try using a different name for this definition.")
+                        .toString();
+                throw new Report.Error(cmpDefn, err);
+            } else {
+                parent.cmpTypes.put(name, cmpDefn);
+            }
         }
 
         return AstFullVisitor.super.visit(cmpDefn, arg);
-    }*/
+    }
 
 
     @Override
     public Object visit(AstCmpExpr cmpExpr, PassType arg) {
-        // Get type of cmpExpr.expr and check if it has a field with name cmpExpr.name todo
+        if (arg == PassType.SECOND_PASS) {
+            // todo - what if not name expr?
+            if (cmpExpr.expr instanceof AstNameExpr nameExpr) {
+                connectOrThrow(cmpExpr, nameExpr.name);
+            }
+        }
         return AstFullVisitor.super.visit(cmpExpr, arg);
     }
 
@@ -173,13 +200,11 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
      * @param node The node where the name is used.
      * @param name The name to find.
      */
-    private void findOrThrow(AstNode node, String name) {
+    private void connectOrThrow(AstNode node, String name) {
         try {
             var defn = this.symbTable.fnd(name);
             // Connect the usage with the definition
             SemAn.definedAt.put(node, defn);
-
-            // Todo - check for cyclic dependencies
 
             Set<AstNode> visited = new HashSet<>(Set.of(node, defn));
 
@@ -211,7 +236,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     public Object visit(AstCallExpr callExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = callExpr.name;
-            findOrThrow(callExpr, name);
+            connectOrThrow(callExpr, name);
         }
 
         return AstFullVisitor.super.visit(callExpr, arg);
@@ -222,7 +247,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     public Object visit(AstNameExpr nameExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = nameExpr.name;
-            findOrThrow(nameExpr, name);
+            connectOrThrow(nameExpr, name);
         }
 
         return AstFullVisitor.super.visit(nameExpr, arg);
@@ -232,7 +257,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     public Object visit(AstNameType nameType, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = nameType.name;
-            findOrThrow(nameType, name);
+            connectOrThrow(nameType, name);
         }
 
         return AstFullVisitor.super.visit(nameType, arg);

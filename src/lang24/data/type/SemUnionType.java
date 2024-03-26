@@ -21,10 +21,11 @@ public class SemUnionType extends SemRecordType {
 
 	@Override
 	public String toString() {
-		final StringBuffer str = new StringBuffer();
+		final StringBuilder str = new StringBuilder();
 		str.append("union(");
-		if (cmpTypes != null)
-			str.append(cmpTypes.toString());
+		if (cmpTypes != null) {
+            str.append(cmpTypes);
+        }
 		str.append(")");
 		return str.toString();
 	}
