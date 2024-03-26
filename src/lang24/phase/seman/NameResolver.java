@@ -9,6 +9,7 @@ import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -194,6 +195,39 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         return AstFullVisitor.super.visit(cmpExpr, arg);
     }
 
+    private Optional<AstDefn> getCyclicDefinition(AstDefn defn) {
+        var visited = new HashSet<>(Set.of(defn));
+        return getCyclicDefinition(defn, visited);
+    }
+
+    private Optional<AstDefn> getCyclicDefinition(AstDefn defn, Set<AstDefn> visited) {
+        // If this is record type, check its components
+        if (defn.type instanceof AstRecType rec) {
+            for (var cmp : rec.cmps) {
+                var cmpDefn = rec.cmpTypes.get(cmp.name);
+                if (visited.contains(cmpDefn)) {
+                    return Optional.of(cmpDefn);
+                }
+                visited.add(cmpDefn);
+                var cycle = getCyclicDefinition(cmpDefn, visited);
+                if (cycle.isPresent()) {
+                    return cycle;
+                }
+            }
+        }
+
+        var nextDefn = SemAn.definedAt.get(defn.type);
+        if (nextDefn == null) {
+            return Optional.empty();
+        }
+        if (visited.contains(nextDefn)) {
+            return Optional.of(nextDefn);
+        }
+        visited.add(nextDefn);
+
+        return getCyclicDefinition(nextDefn, visited);
+    }
+
     /**
      * Find the definition of a name or throw an error.
      *
@@ -206,21 +240,14 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
             // Connect the usage with the definition
             SemAn.definedAt.put(node, defn);
 
-            Set<AstNode> visited = new HashSet<>(Set.of(node, defn));
-
-            var prevDfn = defn;
-            while (defn != null) {
-                defn = SemAn.definedAt.get(defn.type);
-                if (visited.contains(defn)) {
-                    var err = new ErrorAtBuilder("Cyclic dependency detected:")
-                            .addUnderlinedSourceNode(defn.type)
-                            .addSourceLine(prevDfn.type)
-                            .addOffsetedSquiglyLines(node, "Hint: Try removing one of the definitions.")
-                            .toString();
-                    throw new Report.Error(node, err);
-                }
-                visited.add(defn);
-                prevDfn = defn;
+            var cycle = getCyclicDefinition(defn);
+            if (cycle.isPresent()) {
+                var err = new ErrorAtBuilder("Cyclic dependency detected:")
+                        .addUnderlinedSourceNode(cycle.get().type)
+                        .addSourceLine(node)
+                        .addOffsetedSquiglyLines(node, "Hint: Try removing one of the definitions.")
+                        .toString();
+                throw new Report.Error(node, err);
             }
         } catch (SymbTable.CannotFndNameException e) {
             var err = new ErrorAtBuilder("Name `" + name + "` is not defined. Used here:")
