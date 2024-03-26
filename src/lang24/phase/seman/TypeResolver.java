@@ -189,13 +189,23 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
 
-    // todo - self pointers don't work
     @Override
     public SemType visit(AstTypDefn typDefn, FoundReturnType foundType) {
-        var type = typDefn.type.accept(this, foundType);
-        SemAn.isType.put(typDefn, type);
+        if (SemAn.isType.get(typDefn) != null) {
+            return SemAn.isType.get(typDefn);
+        }
 
-        return type;
+        // Create dummy nametype to proccess self-referencing types
+        var nameType = new SemNameType(typDefn.name());
+        nameType.define(SemVoidType.type);
+        SemAn.isType.put(typDefn, nameType);
+
+        var type = typDefn.type.accept(this, foundType);
+        nameType = new SemNameType(typDefn.name());
+        nameType.define(type);
+        SemAn.isType.put(typDefn, nameType);
+
+        return nameType;
     }
 
 
@@ -530,8 +540,8 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     public SemType visit(AstFunDefn.AstRefParDefn refParDefn, FoundReturnType foundType) {
         var type = refParDefn.type.accept(this, foundType);
 
-        if (type.actualType() == SemVoidType.type) {
-            var err = new ErrorAtBuilder("Reference parameter cannot be of type `void`:")
+        if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType || type.actualType() instanceof SemUnionType) {
+            var err = new ErrorAtBuilder("Reference parameter cannot be of type `" + type + "`:")
                     .addSourceLine(refParDefn.parent.parent)
                     .addOffsetedSquiglyLines(refParDefn, "");
             throw new Report.Error(err.toString());
@@ -546,8 +556,8 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     public SemType visit(AstFunDefn.AstValParDefn valParDefn, FoundReturnType foundType) {
         var type = valParDefn.type.accept(this, foundType);
 
-        if (type.actualType() == SemVoidType.type) {
-            var err = new ErrorAtBuilder("Value parameter cannot be of type `void`:")
+        if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType || type.actualType() instanceof SemUnionType) {
+            var err = new ErrorAtBuilder("Value parameter cannot be of type `" + type + "`:")
                     .addSourceLine(valParDefn.parent.parent)
                     .addOffsetedSquiglyLines(valParDefn, "");
             throw new Report.Error(err.toString());
@@ -593,11 +603,12 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
         return type;
     }
 
+    // Todo - check name types, something is wrong
     @Override
     public SemType visit(AstNameType nameType, FoundReturnType foundType) {
         var type = findTypeAssociation(nameType);
 
-        SemAn.ofType.put(nameType, type);
+        SemAn.isType.put(nameType, type);
 
         return type;
     }
