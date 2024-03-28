@@ -194,6 +194,19 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     }
 
 
+    /**
+     * Check if the node is a lvalue or throw an error.
+     * @param node The node to check.
+     */
+    private void checkLValueOrThrow(AstNode node) {
+        Boolean islval = SemAn.isLVal.get(node);
+
+        if (islval == null || !islval) {
+            LValResolver.throwNotLValue(node);
+        }
+    }
+
+
     @Override
     public SemType visit(AstTypDefn typDefn, Object arg) {
         if (SemAn.isType.get(typDefn) != null) {
@@ -216,13 +229,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstArrExpr arrExpr, Object arg) {
-        var type = arrExpr.arr.accept(this, arg);
+
         checkOrThrow(arrExpr.idx, SemIntType.type, arg);
 
+        var type = arrExpr.arr.accept(this, arg);
         var tp = ((SemArrayType) type.actualType()).elemType;
 
         SemAn.ofType.put(arrExpr, tp);
 
+        checkLValueOrThrow(arrExpr.arr);
         return tp;
     }
 
@@ -277,6 +292,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         AstFunDefn funDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
         var callPars = callExpr.args;
 
+        // Check parameters
         int i = 0;
         for (var expParam : funDefn.pars) {
             if (i < callPars.size()) {
@@ -331,7 +347,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         return type;
     }
 
-    // todo
     @Override
     public SemType visit(AstCmpExpr cmpExpr, Object arg) {
         var defn = findRecordVariableDefinition(cmpExpr);
@@ -405,8 +420,12 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 var type = sfxExpr.expr.accept(this, arg);
 
                 if (type instanceof SemPointerType ptrType) {
+                    // Also correct the lvalue
+                    SemAn.isLVal.put(sfxExpr, true);
                     yield ptrType.baseType;
                 }
+
+                SemAn.isLVal.put(sfxExpr, false);
 
                 var err = new ErrorAtBuilder("Dereference operator `*` can only be applied to a pointer type, but got `" + type + "`:")
                         .addSourceLine(sfxExpr);
@@ -439,8 +458,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var typeDst = assignStmt.dst.accept(this, arg);
 
         checkOrThrow(assignStmt.src, typeDst, arg);
-
         SemAn.ofType.put(assignStmt, SemVoidType.type);
+
+        checkLValueOrThrow(assignStmt.dst);
         return SemVoidType.type;
     }
 
@@ -531,7 +551,11 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
         SemAn.ofType.put(funDefn, fnType);
 
-        funDefn.pars.accept(this, arg);
+        for (var param : funDefn.pars) {
+            param.accept(this, arg);
+            checkLValueOrThrow(param);
+        }
+
         funDefn.defns.accept(this, arg);
 
         if (funDefn.stmt != null) {
@@ -565,7 +589,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         return fnType;
     }
 
-    // Todo
     @Override
     public SemType visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
         var type = refParDefn.type.accept(this, arg);
@@ -633,7 +656,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         return type;
     }
 
-    // Todo - check name types, something is wrong
     @Override
     public SemType visit(AstNameType nameType, Object arg) {
         var type = findTypeAssociation(nameType);
@@ -648,6 +670,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var type = new SemPointerType(ptrType.baseType.accept(this, arg));
         SemAn.ofType.put(ptrType, type);
 
+        // Todo : ask!
+        //checkLValueOrThrow(ptrType.baseType);
         return type;
     }
 

@@ -7,6 +7,7 @@ import lang24.data.ast.tree.defn.AstFunDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
 import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.stmt.AstAssignStmt;
+import lang24.data.ast.tree.type.AstNameType;
 import lang24.data.ast.visitor.*;
 import lang24.data.type.SemPointerType;
 
@@ -21,7 +22,7 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 	public LValResolver() {
 	}
 
-	private void throwNotLValue(AstNode expr) {
+	public static void throwNotLValue(AstNode expr) {
 		var err = new ErrorAtBuilder("The following expression is not a valid lvalue:")
 				.addUnderlinedSourceNode(expr);
 		throw new Report.Error(expr, err.toString());
@@ -47,16 +48,8 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 
 	@Override
 	public Boolean visit(AstSfxExpr sfxExpr, Object arg) {
-		// **Izredno grdo**!
-		var type = sfxExpr.expr.accept(new TypeResolver(), null);
-
-		if (type instanceof SemPointerType) {
-			SemAn.isLVal.put(sfxExpr, true);
-			return true;
-		}
-
-        throwNotLValue(sfxExpr);
-        return false;
+		// Handled in TypeResolver
+		return true;
     }
 
 	@Override
