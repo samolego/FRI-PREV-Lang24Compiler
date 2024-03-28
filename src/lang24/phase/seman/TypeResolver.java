@@ -16,9 +16,14 @@ import lang24.data.type.*;
 /**
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundReturnType> {
+public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     private static final Map<SemRecordType, AstRecType> record2ast = new TreeMap<>(Comparator.comparing(semRecordType -> semRecordType.id));
+
+    /**
+     * Return type that was found when parsing function.
+     */
+    private FoundReturnType foundReturnType = null;
 
 
     /**
@@ -142,11 +147,11 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
      *
      * @param node         The node to check.
      * @param expectedType The expected type that node should be.
-     * @param foundType    argument which pass we are in
+     * @param arg    argument which pass we are in
      * @throws Report.Error if the type of the node is not the expected type.
      */
-    private void checkOrThrow(AstNode node, SemType expectedType, FoundReturnType foundType) {
-        checkOrThrow(node, Set.of(expectedType), foundType);
+    private void checkOrThrow(AstNode node, SemType expectedType, Object arg) {
+        checkOrThrow(node, Set.of(expectedType), arg);
     }
 
 
@@ -155,12 +160,12 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
      *
      * @param node          The node to check.
      * @param expectedTypes Any allowed types that node should be.
-     * @param foundType           which pass we are in
+     * @param arg           which pass we are in
      * @return The type of the node (will be one of the expected types).
      * @throws Report.Error if the type of the node is not one of the expected types.
      */
-    private SemType checkOrThrow(AstNode node, Set<SemType> expectedTypes, FoundReturnType foundType) {
-        final var actualType = node.accept(this, foundType);
+    private SemType checkOrThrow(AstNode node, Set<SemType> expectedTypes, Object arg) {
+        final var actualType = node.accept(this, arg);
 
         boolean eq = false;
 
@@ -190,7 +195,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
 
     @Override
-    public SemType visit(AstTypDefn typDefn, FoundReturnType foundType) {
+    public SemType visit(AstTypDefn typDefn, Object arg) {
         if (SemAn.isType.get(typDefn) != null) {
             return SemAn.isType.get(typDefn);
         }
@@ -200,7 +205,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
         nameType.define(SemVoidType.type);
         SemAn.isType.put(typDefn, nameType);
 
-        var type = typDefn.type.accept(this, foundType);
+        var type = typDefn.type.accept(this, arg);
         nameType = new SemNameType(typDefn.name());
         nameType.define(type);
         SemAn.isType.put(typDefn, nameType);
@@ -210,9 +215,9 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
 
     @Override
-    public SemType visit(AstArrExpr arrExpr, FoundReturnType foundType) {
-        var type = arrExpr.arr.accept(this, foundType);
-        checkOrThrow(arrExpr.idx, SemIntType.type, foundType);
+    public SemType visit(AstArrExpr arrExpr, Object arg) {
+        var type = arrExpr.arr.accept(this, arg);
+        checkOrThrow(arrExpr.idx, SemIntType.type, arg);
 
         var tp = ((SemArrayType) type.actualType()).elemType;
 
@@ -222,7 +227,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstAtomExpr atomExpr, FoundReturnType foundType) {
+    public SemType visit(AstAtomExpr atomExpr, Object arg) {
         var type = switch (atomExpr.type) {
             case VOID -> SemVoidType.type;
             case BOOL -> SemBoolType.type;
@@ -237,7 +242,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstBinExpr binExpr, FoundReturnType foundType) {
+    public SemType visit(AstBinExpr binExpr, Object arg) {
         SemType result;
         Set<SemType> expectedTypes = switch (binExpr.oper) {
             case ADD, SUB, MUL, DIV, MOD -> {
@@ -258,9 +263,9 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
             }
         };
 
-        var firstType = checkOrThrow(binExpr.fstExpr, expectedTypes, foundType);
+        var firstType = checkOrThrow(binExpr.fstExpr, expectedTypes, arg);
 
-        checkOrThrow(binExpr.sndExpr, firstType, foundType);
+        checkOrThrow(binExpr.sndExpr, firstType, arg);
 
         SemAn.ofType.put(binExpr, result);
         return result;
@@ -268,7 +273,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
     // Fixme: nicer error messages
     @Override
-    public SemType visit(AstCallExpr callExpr, FoundReturnType foundType) {
+    public SemType visit(AstCallExpr callExpr, Object arg) {
         AstFunDefn funDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
         var callPars = callExpr.args;
 
@@ -317,10 +322,10 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstCastExpr castExpr, FoundReturnType foundType) {
-        var type = castExpr.type.accept(this, foundType);
+    public SemType visit(AstCastExpr castExpr, Object arg) {
+        var type = castExpr.type.accept(this, arg);
 
-        checkOrThrow(castExpr.expr, Set.of(SemCharType.type, SemIntType.type, SemPointerType.type), foundType);
+        checkOrThrow(castExpr.expr, Set.of(SemCharType.type, SemIntType.type, SemPointerType.type), arg);
 
         SemAn.ofType.put(castExpr, type);
         return type;
@@ -328,7 +333,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
     // todo
     @Override
-    public SemType visit(AstCmpExpr cmpExpr, FoundReturnType foundType) {
+    public SemType visit(AstCmpExpr cmpExpr, Object arg) {
         var defn = findRecordVariableDefinition(cmpExpr);
 
         // Check if cmpExpr.expr has a child
@@ -364,7 +369,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
             throw new Report.Error(err.toString());
         }
 
-        var type = childDefn.accept(this, foundType);
+        var type = childDefn.accept(this, arg);
 
         SemAn.ofType.put(cmpExpr, type);
 
@@ -372,7 +377,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstNameExpr nameExpr, FoundReturnType foundType) {
+    public SemType visit(AstNameExpr nameExpr, Object arg) {
         var type = findVariableType(nameExpr);
 
         SemAn.ofType.put(nameExpr, type);
@@ -380,24 +385,24 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstPfxExpr pfxExpr, FoundReturnType foundType) {
+    public SemType visit(AstPfxExpr pfxExpr, Object arg) {
         var expectedType = switch (pfxExpr.oper) {
             case ADD, SUB -> SemIntType.type;
             case NOT -> SemBoolType.type;
             case PTR -> SemPointerType.type;
         };
 
-        checkOrThrow(pfxExpr.expr, expectedType, foundType);
+        checkOrThrow(pfxExpr.expr, expectedType, arg);
         SemAn.ofType.put(pfxExpr, expectedType);
 
         return expectedType;
     }
 
     @Override
-    public SemType visit(AstSfxExpr sfxExpr, FoundReturnType foundType) {
+    public SemType visit(AstSfxExpr sfxExpr, Object arg) {
         var retType = switch(sfxExpr.oper) {
             case AstSfxExpr.Oper.PTR -> {
-                var type = sfxExpr.expr.accept(this, foundType);
+                var type = sfxExpr.expr.accept(this, arg);
 
                 if (type instanceof SemPointerType ptrType) {
                     yield ptrType.baseType;
@@ -414,47 +419,47 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstSizeofExpr sizeofExpr, FoundReturnType foundType) {
-        AstFullVisitor.super.visit(sizeofExpr, foundType);
+    public SemType visit(AstSizeofExpr sizeofExpr, Object arg) {
+        AstFullVisitor.super.visit(sizeofExpr, arg);
 
         SemAn.ofType.put(sizeofExpr, SemIntType.type);
         return SemIntType.type;
     }
 
     @Override
-    public SemType visit(AstExprStmt exprStmt, FoundReturnType foundType) {
-        var type = exprStmt.expr.accept(this, foundType);
+    public SemType visit(AstExprStmt exprStmt, Object arg) {
+        var type = exprStmt.expr.accept(this, arg);
         SemAn.ofType.put(exprStmt, type);
 
         return type;
     }
 
     @Override
-    public SemType visit(AstAssignStmt assignStmt, FoundReturnType foundType) {
-        var typeDst = assignStmt.dst.accept(this, foundType);
+    public SemType visit(AstAssignStmt assignStmt, Object arg) {
+        var typeDst = assignStmt.dst.accept(this, arg);
 
-        checkOrThrow(assignStmt.src, typeDst, foundType);
+        checkOrThrow(assignStmt.src, typeDst, arg);
 
         SemAn.ofType.put(assignStmt, SemVoidType.type);
         return SemVoidType.type;
     }
 
     @Override
-    public SemType visit(AstBlockStmt blockStmt, FoundReturnType foundType) {
-        AstFullVisitor.super.visit(blockStmt, foundType);
+    public SemType visit(AstBlockStmt blockStmt, Object arg) {
+        AstFullVisitor.super.visit(blockStmt, arg);
 
         SemAn.ofType.put(blockStmt, SemVoidType.type);
         return SemVoidType.type;
     }
 
     @Override
-    public SemType visit(AstIfStmt ifStmt, FoundReturnType foundType) {
-        checkOrThrow(ifStmt.cond, SemBoolType.type, foundType);
+    public SemType visit(AstIfStmt ifStmt, Object arg) {
+        checkOrThrow(ifStmt.cond, SemBoolType.type, arg);
 
         // Check recursively
-        ifStmt.thenStmt.accept(this, foundType);
+        ifStmt.thenStmt.accept(this, arg);
         if (ifStmt.elseStmt != null) {
-            ifStmt.elseStmt.accept(this, foundType);
+            ifStmt.elseStmt.accept(this, arg);
         }
 
         SemAn.ofType.put(ifStmt, SemVoidType.type);
@@ -463,21 +468,37 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstWhileStmt whileStmt, FoundReturnType foundType) {
-        checkOrThrow(whileStmt.cond, SemBoolType.type, foundType);
-        whileStmt.stmt.accept(this, foundType);
+    public SemType visit(AstWhileStmt whileStmt, Object arg) {
+        checkOrThrow(whileStmt.cond, SemBoolType.type, arg);
+        whileStmt.stmt.accept(this, arg);
 
         SemAn.ofType.put(whileStmt, SemVoidType.type);
         return SemVoidType.type;
     }
 
     @Override
-    public SemType visit(AstReturnStmt retStmt, FoundReturnType expectedReturnType) {
-        if (expectedReturnType != null) {
-            // Arg type is expected return type
-            expectedReturnType.type = retStmt.expr.accept(this, null);
-            expectedReturnType.stmt = retStmt;
+    public SemType visit(AstReturnStmt retStmt, Object arg) {
+        var type = retStmt.expr.accept(this, arg);
+        var foundReturn = new FoundReturnType(type);
+        foundReturn.stmt = retStmt;
+        // Check parent function for its return type and compare
+        for (var prt = retStmt.parent; prt != null; prt = prt.parent) {
+            if (prt instanceof AstFunDefn funDefn) {
+                var fnType = SemAn.ofType.get(funDefn);
+                boolean eq = equiv(fnType, type);
+
+                if (!eq) {
+                    foundReturnType = foundReturn;
+                }
+
+                break;
+            }
         }
+
+        if (foundReturnType == null) {
+            foundReturnType = foundReturn;
+        }
+
 
         SemAn.ofType.put(retStmt, SemVoidType.type);
 
@@ -486,50 +507,59 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
 
     @Override
-    public SemType visit(AstNodes<? extends AstNode> nodes, FoundReturnType foundType) {
+    public SemType visit(AstNodes<? extends AstNode> nodes, Object arg) {
         SemType type = SemVoidType.type;
 
         for (final AstNode node : nodes) {
-            type = node.accept(this, foundType);
+            type = node.accept(this, arg);
         }
 
         return type;
     }
 
     @Override
-    public SemType visit(AstVarDefn varDefn, FoundReturnType foundType) {
-        var type = varDefn.type.accept(this, foundType);
+    public SemType visit(AstVarDefn varDefn, Object arg) {
+        var type = varDefn.type.accept(this, arg);
         SemAn.ofType.put(varDefn, type);
 
         return type;
     }
 
     @Override
-    public SemType visit(AstFunDefn funDefn, FoundReturnType foundType) {
-        var fnType = funDefn.type.accept(this, foundType);
+    public SemType visit(AstFunDefn funDefn, Object arg) {
+        var fnType = funDefn.type.accept(this, arg);
 
         SemAn.ofType.put(funDefn, fnType);
 
-        funDefn.pars.accept(this, foundType);
-        funDefn.defns.accept(this, foundType);
+        funDefn.pars.accept(this, arg);
+        funDefn.defns.accept(this, arg);
 
-        var expectedReturnType = new FoundReturnType();
-        checkOrThrow(funDefn.stmt, SemVoidType.type, expectedReturnType);
-        boolean eq = equiv(fnType, expectedReturnType.type);
+        if (funDefn.stmt != null) {
+            this.foundReturnType = null;
+            checkOrThrow(funDefn.stmt, SemVoidType.type, arg);
 
-        if (!eq) {
-            var err = new ErrorAtBuilder("Function `" + funDefn.name() + "` expects to return `" + fnType + "`:")
-                    .addSourceLine(funDefn);
-            if (expectedReturnType.stmt != null) {
-                    err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
-                    .addLine("But the actual return type is `" + expectedReturnType.type + "`:")
-                    .addSourceLine(expectedReturnType.stmt)
-                    .addOffsetedSquiglyLines(expectedReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
-            } else {
-                err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`, but no `return` statement was found.")
-                    .addSourceLineEnd(funDefn);
+            if (foundReturnType == null) {
+                foundReturnType = new FoundReturnType(SemVoidType.type);
             }
-            throw new Report.Error(err.toString());
+
+            boolean eq = equiv(fnType, this.foundReturnType.type);
+            // Throw error if not equivalent
+            if (!eq) {
+                var err = new ErrorAtBuilder("Function `" + funDefn.name() + "` expects to return `" + fnType + "`:")
+                        .addSourceLine(funDefn);
+                if (foundReturnType.stmt != null) {
+                    err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
+                            .addLine("But the actual return type is `" + foundReturnType.type + "`:")
+                            .addSourceLine(foundReturnType.stmt)
+                            .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
+                } else {
+                    err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`.")
+                            .addLine("But no `return` statement was found at the end of the function:")
+                            .addSourceLineEnd(funDefn)
+                            .addBlankSourceLine();
+                }
+                throw new Report.Error(err.toString());
+            }
         }
 
         return fnType;
@@ -537,11 +567,11 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
     // Todo
     @Override
-    public SemType visit(AstFunDefn.AstRefParDefn refParDefn, FoundReturnType foundType) {
-        var type = refParDefn.type.accept(this, foundType);
+    public SemType visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
+        var type = refParDefn.type.accept(this, arg);
 
-        if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType || type.actualType() instanceof SemUnionType) {
-            var err = new ErrorAtBuilder("Reference parameter cannot be of type `" + type + "`:")
+        if (type == SemVoidType.type) {
+            var err = new ErrorAtBuilder("Reference parameter `" + refParDefn.name() + "` cannot be of type `" + type + "`:")
                     .addSourceLine(refParDefn.parent.parent)
                     .addOffsetedSquiglyLines(refParDefn, "");
             throw new Report.Error(err.toString());
@@ -553,8 +583,8 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstFunDefn.AstValParDefn valParDefn, FoundReturnType foundType) {
-        var type = valParDefn.type.accept(this, foundType);
+    public SemType visit(AstFunDefn.AstValParDefn valParDefn, Object arg) {
+        var type = valParDefn.type.accept(this, arg);
 
         if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType || type.actualType() instanceof SemUnionType) {
             var err = new ErrorAtBuilder("Value parameter cannot be of type `" + type + "`:")
@@ -569,10 +599,10 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstArrType arrType, FoundReturnType foundType) {
-        var elemType = arrType.elemType.accept(this, foundType);
+    public SemType visit(AstArrType arrType, Object arg) {
+        var elemType = arrType.elemType.accept(this, arg);
 
-        checkOrThrow(arrType.size, SemIntType.type, foundType);
+        checkOrThrow(arrType.size, SemIntType.type, arg);
 
         // Try to get size
         if (arrType.size instanceof AstAtomExpr atomExpr) {
@@ -590,7 +620,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstAtomType atomType, FoundReturnType foundType) {
+    public SemType visit(AstAtomType atomType, Object arg) {
         var type = switch (atomType.type) {
             case VOID -> SemVoidType.type;
             case BOOL -> SemBoolType.type;
@@ -605,7 +635,7 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
 
     // Todo - check name types, something is wrong
     @Override
-    public SemType visit(AstNameType nameType, FoundReturnType foundType) {
+    public SemType visit(AstNameType nameType, Object arg) {
         var type = findTypeAssociation(nameType);
 
         SemAn.isType.put(nameType, type);
@@ -614,21 +644,20 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstPtrType ptrType, FoundReturnType foundType) {
-        var type = new SemPointerType(ptrType.baseType.accept(this, foundType));
-
+    public SemType visit(AstPtrType ptrType, Object arg) {
+        var type = new SemPointerType(ptrType.baseType.accept(this, arg));
         SemAn.ofType.put(ptrType, type);
 
         return type;
     }
 
     @Override
-    public SemType visit(AstStrType strType, FoundReturnType foundType) {
+    public SemType visit(AstStrType strType, Object arg) {
         var components = new LinkedList<SemType>();
 
         for (int i = 0; i < strType.cmps.size(); ++i) {
             AstNode cmp = strType.cmps.get(i);
-            var type = cmp.accept(this, foundType);
+            var type = cmp.accept(this, arg);
 
             components.add(type);
         }
@@ -642,12 +671,12 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstUniType uniType, FoundReturnType foundType) {
+    public SemType visit(AstUniType uniType, Object arg) {
         var components = new LinkedList<SemType>();
 
         for (int i = 0; i < uniType.cmps.size(); ++i) {
             AstNode cmp = uniType.cmps.get(i);
-            var type = cmp.accept(this, foundType);
+            var type = cmp.accept(this, arg);
             components.add(type);
         }
 
@@ -660,8 +689,8 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
 
     @Override
-    public SemType visit(AstRecType.AstCmpDefn cmpDefn, FoundReturnType foundType) {
-        var type = cmpDefn.type.accept(this, foundType);
+    public SemType visit(AstRecType.AstCmpDefn cmpDefn, Object arg) {
+        var type = cmpDefn.type.accept(this, arg);
 
         SemAn.ofType.put(cmpDefn, type);
         return type;
@@ -722,11 +751,11 @@ public class TypeResolver implements AstFullVisitor<SemType, TypeResolver.FoundR
     }
     
     public static class FoundReturnType {
-        private SemType type;
+        private final SemType type;
         private AstReturnStmt stmt;
 
-        public FoundReturnType() {
-            this.type = SemVoidType.type;
+        public FoundReturnType(SemType type) {
+            this.type = type;
         }
     }
 }

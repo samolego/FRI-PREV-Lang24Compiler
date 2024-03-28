@@ -189,7 +189,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         if (arg == PassType.SECOND_PASS) {
             // todo - what if not name expr?
             if (cmpExpr.expr instanceof AstNameExpr nameExpr) {
-                connectOrThrow(cmpExpr, nameExpr.name);
+                connectOrThrow(cmpExpr, nameExpr.name, false);
             }
         }
         return AstFullVisitor.super.visit(cmpExpr, arg);
@@ -234,9 +234,19 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
      * @param node The node where the name is used.
      * @param name The name to find.
      */
-    private void connectOrThrow(AstNode node, String name) {
+    private void connectOrThrow(AstNode node, String name, boolean isType) {
         try {
             var defn = this.symbTable.fnd(name);
+
+            if (!(defn instanceof AstTypDefn) && isType) {
+                // Not a type, but should be!
+                var err = new ErrorAtBuilder("Expected a type, but found definition name:")
+                        .addSourceLine(node)
+                        .addOffsetedSquiglyLines(node, "Hint: Replace this with a type.");
+
+                throw new Report.Error(node, err.toString());
+            }
+
             // Connect the usage with the definition
             SemAn.definedAt.put(node, defn);
 
@@ -263,7 +273,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     public Object visit(AstCallExpr callExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = callExpr.name;
-            connectOrThrow(callExpr, name);
+            connectOrThrow(callExpr, name, false);
         }
 
         return AstFullVisitor.super.visit(callExpr, arg);
@@ -274,7 +284,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     public Object visit(AstNameExpr nameExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = nameExpr.name;
-            connectOrThrow(nameExpr, name);
+            connectOrThrow(nameExpr, name, false);
         }
 
         return AstFullVisitor.super.visit(nameExpr, arg);
@@ -284,7 +294,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     public Object visit(AstNameType nameType, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = nameType.name;
-            connectOrThrow(nameType, name);
+            connectOrThrow(nameType, name, true);
         }
 
         return AstFullVisitor.super.visit(nameType, arg);
