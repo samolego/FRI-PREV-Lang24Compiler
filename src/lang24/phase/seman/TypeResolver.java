@@ -358,23 +358,23 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         if (childDefn == null) {
             // Loop through all nodes and try to find similar names
             AstRecType.AstCmpDefn similar = null;
-            int min = Integer.MAX_VALUE;
+            int minDist = Integer.MAX_VALUE;
             for (var cmp : defn.cmpTypes.values()) {
                 if (similar == null) {
                     similar = cmp;
-                    min = StringUtil.calculate(similar.name, cmpExpr.name);
+                    minDist = StringUtil.calculate(similar.name, cmpExpr.name);
                 } else {
                     int dist = StringUtil.calculate(cmp.name, cmpExpr.name);
 
-                    if (dist < min) {
+                    if (dist < minDist) {
                         similar = cmp;
-                        min = dist;
+                        minDist = dist;
                     }
                 }
             }
             var err = new ErrorAtBuilder("Tried to access invalid component `" + cmpExpr.name + "`:")
                     .addSourceLine(cmpExpr);
-            if (similar != null && min < 3) {
+            if (similar != null && minDist < 3) {
                 err.addOffsetedSquiglyLines(cmpExpr, "Hint: Did you mean `" + similar.name + "`?");
             } else {
                 err.addOffsetedSquiglyLines(cmpExpr, "");
@@ -466,7 +466,18 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstBlockStmt blockStmt, Object arg) {
-        AstFullVisitor.super.visit(blockStmt, arg);
+        for (final AstStmt stmt : blockStmt.stmts) {
+            var type = stmt.accept(this, arg);
+
+            if (stmt instanceof AstExprStmt exprStmt && !(exprStmt.expr instanceof AstCallExpr)) {
+                if (!equiv(type, SemVoidType.type)) {
+                    var err = new ErrorAtBuilder("Following expression is not a valid statement:")
+                            .addSourceLine(stmt)
+                            .addOffsetedSquiglyLines(stmt, "Hint: Try removing this expression.");
+                    throw new Report.Error(stmt, err.toString());
+                }
+            }
+        }
 
         SemAn.ofType.put(blockStmt, SemVoidType.type);
         return SemVoidType.type;
@@ -528,13 +539,11 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstNodes<? extends AstNode> nodes, Object arg) {
-        SemType type = SemVoidType.type;
-
         for (final AstNode node : nodes) {
-            type = node.accept(this, arg);
+            node.accept(this, arg);
         }
 
-        return type;
+        return SemVoidType.type;
     }
 
     @Override
@@ -560,6 +569,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
         if (funDefn.stmt != null) {
             this.foundReturnType = null;
+
             checkOrThrow(funDefn.stmt, SemVoidType.type, arg);
 
             if (foundReturnType == null) {
@@ -569,13 +579,19 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             boolean eq = equiv(fnType, this.foundReturnType.type);
             // Throw error if not equivalent
             if (!eq) {
-                var err = new ErrorAtBuilder("Function `" + funDefn.name() + "` expects to return `" + fnType + "`:")
+                var err = new ErrorAtBuilder("Function `" + funDefn.name() + "` is declared to return `" + fnType + "`:")
                         .addSourceLine(funDefn);
                 if (foundReturnType.stmt != null) {
-                    err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
-                            .addLine("But the actual return type is `" + foundReturnType.type + "`:")
-                            .addSourceLine(foundReturnType.stmt)
-                            .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
+                    if (equiv(fnType, SemVoidType.type)) {
+                        err.addOffsetedSquiglyLines(funDefn.type, "Hint: try changing the return type to `" + foundReturnType.type + "`.")
+                                .addLine("Actual return type is `" + foundReturnType.type + "`:")
+                                .addSourceLine(foundReturnType.stmt);
+                    } else {
+                        err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
+                                .addLine("But the actual return type is `" + foundReturnType.type + "`:")
+                                .addSourceLine(foundReturnType.stmt)
+                                .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
+                    }
                 } else {
                     err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`.")
                             .addLine("But no `return` statement was found at the end of the function:")
