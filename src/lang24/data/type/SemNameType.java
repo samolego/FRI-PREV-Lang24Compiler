@@ -65,7 +65,7 @@ public class SemNameType extends SemType {
 
 	@Override
 	public String toString() {
-		return type.toString();
+		return name;
 	}
 
 	@Override

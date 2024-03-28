@@ -1,8 +1,6 @@
 package lang24.data.token;
 
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CommonToken;
-import org.antlr.v4.runtime.TokenSource;
+import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.misc.*;
 
 import lang24.common.logger.*;
@@ -40,7 +38,7 @@ public class LocLogToken extends CommonToken implements Locatable, Loggable {
 	 */
 	@SuppressWarnings("doclint:missing")
 	public LocLogToken(final Pair<TokenSource, CharStream> source, final int type, final int channel, final int start,
-					   final int stop) {
+			final int stop) {
 		super(source, type, channel, start, stop);
 		setCharPositionInLine(getCharPositionInLine() - getText().length() + 1);
 		location = new Location(getLine(), getCharPositionInLine(), getLine(),
