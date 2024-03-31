@@ -1,7 +1,6 @@
 package lang24.data.mem;
 
 import lang24.common.logger.*;
-import lang24.data.type.*;
 
 /**
  * A stack frame.
@@ -20,7 +19,7 @@ public class MemFrame implements Loggable {
 	public final long size;
 
 	/** The size of the block of local variables within a frame. */
-	public final long locsSize;
+	public final long blockSize;
 
 	/** The size of the block of (call, i.e., outgoing) arguments within a frame. */
 	public final long argsSize;
@@ -36,15 +35,15 @@ public class MemFrame implements Loggable {
 	 * 
 	 * @param label    The function's entry label.
 	 * @param depth    The function's static depth.
-	 * @param locsSize The size of the block of local variables within a frame.
+	 * @param blockSize The size of the block of local variables within a frame.
 	 * @param argsSize The size of the block of (call, i.e., outgoing) arguments
 	 *                 within a frame.
 	 * @param size     The size of the frame.
 	 */
-	public MemFrame(MemLabel label, long depth, long locsSize, long argsSize, long size) {
+	public MemFrame(MemLabel label, long depth, long blockSize, long argsSize, long size) {
 		this.label = label;
 		this.depth = depth;
-		this.locsSize = locsSize;
+		this.blockSize = blockSize;
 		this.argsSize = argsSize;
 		this.size = size;
 		this.FP = new MemTemp();
@@ -58,7 +57,7 @@ public class MemFrame implements Loggable {
 		logger.begElement("frame");
 		logger.addAttribute("label", label.name);
 		logger.addAttribute("depth", Long.toString(depth));
-		logger.addAttribute("locssize", Long.toString(locsSize));
+		logger.addAttribute("locssize", Long.toString(blockSize));
 		logger.addAttribute("argssize", Long.toString(argsSize));
 		logger.addAttribute("size", Long.toString(size));
 		logger.addAttribute("FP", FP.toString());

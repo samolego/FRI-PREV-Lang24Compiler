@@ -1,7 +1,6 @@
 package lang24.phase.memory;
 
-import java.util.*;
-
+import lang24.common.report.Report;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
 import lang24.data.ast.tree.expr.*;
@@ -10,7 +9,6 @@ import lang24.data.ast.tree.type.*;
 import lang24.data.ast.visitor.*;
 import lang24.data.mem.*;
 import lang24.data.type.*;
-import lang24.data.type.visitor.*;
 import lang24.phase.seman.SemAn;
 
 /**
@@ -18,151 +16,231 @@ import lang24.phase.seman.SemAn;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class MemEvaluator implements AstFullVisitor<Object, Object> {
+public class MemEvaluator implements AstFullVisitor<Long, Integer> {
 
-    @Override
-    public Object visit(AstNodes<? extends AstNode> nodes, Object arg) {
-        return AstFullVisitor.super.visit(nodes, arg);
+    /**
+     * Gets the size of a type in bytes.
+     * @param type The type to get the size of.
+     * @return The size of the type in bytes.
+     */
+    private static long getSizeInBytes(SemType type) {
+        return switch (type) {
+            case SemPointerType ignored -> 8;
+            case SemIntType ignored -> 8;
+            case SemBoolType ignored -> 1;
+            case SemCharType ignored -> 1;
+            case SemStructType semStructType -> {
+                long size = 0;
+                for (var cmp : semStructType.cmpTypes) {
+                    size += getSizeInBytes(cmp);
+                }
+                yield size;
+            }
+            case SemUnionType semUnionType -> {
+                long size = 0;
+                for (var cmp : semUnionType.cmpTypes) {
+                    size = Math.max(size, getSizeInBytes(cmp));
+                }
+                yield size;
+            }
+            case SemArrayType semArrayType -> semArrayType.size * getSizeInBytes(semArrayType.elemType);
+            case null, default -> throw new Report.InternalError();
+        };
+    }
+
+
+    /**
+     * Get the size of a type in bytes, rounded up to the nearest multiple of 8.
+     * @param type The type to get the size of.
+     * @return The size of the type in bytes, rounded up to the nearest multiple of 8.
+     */
+    private static long getRoundedSizeInBytes(SemType type) {
+        long size = getSizeInBytes(type);
+        if (size % 8 != 0) {
+            size += 8 - size % 8;
+        }
+
+        return size;
     }
 
     @Override
-    public Object visit(AstTypDefn typDefn, Object arg) {
-        return AstFullVisitor.super.visit(typDefn, arg);
+    public Long visit(AstNodes<? extends AstNode> nodes, Integer depth) {
+        if (depth == null) {
+            depth = 0;
+        }
+        return AstFullVisitor.super.visit(nodes, depth);
     }
 
     @Override
-    public Object visit(AstVarDefn varDefn, Object arg) {
-        return AstFullVisitor.super.visit(varDefn, arg);
+    public Long visit(AstTypDefn typDefn, Integer depth) {
+        return AstFullVisitor.super.visit(typDefn, depth);
     }
 
     @Override
-    public Object visit(AstFunDefn funDefn, Object arg) {
-        Memory.frames.put(funDefn, new MemFrame(funDefn));
-        return AstFullVisitor.super.visit(funDefn, arg);
+    public Long visit(AstVarDefn varDefn, Integer depth) {
+        // Get type of the variable
+        var type = SemAn.ofType.get(varDefn);
+
+        // Get the size of the type in bytes
+        long size = getRoundedSizeInBytes(type);
+
+        MemAccess memAcc;
+        if (depth == 0) {
+            // Static variable definition
+            memAcc = new MemAbsAccess(size, new MemLabel(varDefn.name));
+        } else {
+            memAcc = new MemRelAccess(size, 0, depth);
+        }
+
+        Memory.varAccesses.put(varDefn, memAcc);
+
+        // Shouldn't need? todo
+        varDefn.type.accept(this, depth);
+
+
+        return size;
     }
 
     @Override
-    public Object visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
-        return AstFullVisitor.super.visit(refParDefn, arg);
+    public Long visit(AstFunDefn funDefn, Integer depth) {
+        long argsSize = funDefn.pars.accept(this, depth + 1);
+        funDefn.defns.accept(this, depth + 1);
+
+        long blockSize = 0;
+        if (funDefn.stmt != null) {
+            blockSize = funDefn.stmt.accept(this, depth + 1);
+        }
+
+        long size = argsSize + blockSize;
+        var frame = new MemFrame(new MemLabel(funDefn.name), depth, blockSize, argsSize, size);
+        Memory.frames.put(funDefn, frame);
+
+
+        return null;
     }
 
     @Override
-    public Object visit(AstFunDefn.AstValParDefn valParDefn, Object arg) {
-        return AstFullVisitor.super.visit(valParDefn, arg);
+    public Long visit(AstFunDefn.AstRefParDefn refParDefn, Integer depth) {
+        return AstFullVisitor.super.visit(refParDefn, depth);
     }
 
     @Override
-    public Object visit(AstArrExpr arrExpr, Object arg) {
-        return AstFullVisitor.super.visit(arrExpr, arg);
+    public Long visit(AstFunDefn.AstValParDefn valParDefn, Integer depth) {
+        return AstFullVisitor.super.visit(valParDefn, depth);
     }
 
     @Override
-    public Object visit(AstAtomExpr atomExpr, Object arg) {
-        return AstFullVisitor.super.visit(atomExpr, arg);
+    public Long visit(AstArrExpr arrExpr, Integer depth) {
+        return AstFullVisitor.super.visit(arrExpr, depth);
     }
 
     @Override
-    public Object visit(AstBinExpr binExpr, Object arg) {
-        return AstFullVisitor.super.visit(binExpr, arg);
+    public Long visit(AstAtomExpr atomExpr, Integer depth) {
+        return AstFullVisitor.super.visit(atomExpr, depth);
     }
 
     @Override
-    public Object visit(AstCallExpr callExpr, Object arg) {
-        return AstFullVisitor.super.visit(callExpr, arg);
+    public Long visit(AstBinExpr binExpr, Integer depth) {
+        return AstFullVisitor.super.visit(binExpr, depth);
     }
 
     @Override
-    public Object visit(AstCastExpr castExpr, Object arg) {
-        return AstFullVisitor.super.visit(castExpr, arg);
+    public Long visit(AstCallExpr callExpr, Integer depth) {
+        return AstFullVisitor.super.visit(callExpr, depth);
     }
 
     @Override
-    public Object visit(AstCmpExpr cmpExpr, Object arg) {
-        return AstFullVisitor.super.visit(cmpExpr, arg);
+    public Long visit(AstCastExpr castExpr, Integer depth) {
+        return AstFullVisitor.super.visit(castExpr, depth);
     }
 
     @Override
-    public Object visit(AstNameExpr nameExpr, Object arg) {
-        return AstFullVisitor.super.visit(nameExpr, arg);
+    public Long visit(AstCmpExpr cmpExpr, Integer depth) {
+        return AstFullVisitor.super.visit(cmpExpr, depth);
     }
 
     @Override
-    public Object visit(AstPfxExpr pfxExpr, Object arg) {
-        return AstFullVisitor.super.visit(pfxExpr, arg);
+    public Long visit(AstNameExpr nameExpr, Integer depth) {
+        return AstFullVisitor.super.visit(nameExpr, depth);
     }
 
     @Override
-    public Object visit(AstSfxExpr sfxExpr, Object arg) {
-        return AstFullVisitor.super.visit(sfxExpr, arg);
+    public Long visit(AstPfxExpr pfxExpr, Integer depth) {
+        return AstFullVisitor.super.visit(pfxExpr, depth);
     }
 
     @Override
-    public Object visit(AstSizeofExpr sizeofExpr, Object arg) {
-        return AstFullVisitor.super.visit(sizeofExpr, arg);
+    public Long visit(AstSfxExpr sfxExpr, Integer depth) {
+        return AstFullVisitor.super.visit(sfxExpr, depth);
     }
 
     @Override
-    public Object visit(AstAssignStmt assignStmt, Object arg) {
-        return AstFullVisitor.super.visit(assignStmt, arg);
+    public Long visit(AstSizeofExpr sizeofExpr, Integer depth) {
+        return AstFullVisitor.super.visit(sizeofExpr, depth);
     }
 
     @Override
-    public Object visit(AstBlockStmt blockStmt, Object arg) {
-        return AstFullVisitor.super.visit(blockStmt, arg);
+    public Long visit(AstAssignStmt assignStmt, Integer depth) {
+        return AstFullVisitor.super.visit(assignStmt, depth);
     }
 
     @Override
-    public Object visit(AstExprStmt exprStmt, Object arg) {
-        return AstFullVisitor.super.visit(exprStmt, arg);
+    public Long visit(AstBlockStmt blockStmt, Integer depth) {
+        return AstFullVisitor.super.visit(blockStmt, depth);
     }
 
     @Override
-    public Object visit(AstIfStmt ifStmt, Object arg) {
-        return AstFullVisitor.super.visit(ifStmt, arg);
+    public Long visit(AstExprStmt exprStmt, Integer depth) {
+        return AstFullVisitor.super.visit(exprStmt, depth);
     }
 
     @Override
-    public Object visit(AstReturnStmt retStmt, Object arg) {
-        return AstFullVisitor.super.visit(retStmt, arg);
+    public Long visit(AstIfStmt ifStmt, Integer depth) {
+        return AstFullVisitor.super.visit(ifStmt, depth);
     }
 
     @Override
-    public Object visit(AstWhileStmt whileStmt, Object arg) {
-        return AstFullVisitor.super.visit(whileStmt, arg);
+    public Long visit(AstReturnStmt retStmt, Integer depth) {
+        return AstFullVisitor.super.visit(retStmt, depth);
     }
 
     @Override
-    public Object visit(AstArrType arrType, Object arg) {
-        return AstFullVisitor.super.visit(arrType, arg);
+    public Long visit(AstWhileStmt whileStmt, Integer depth) {
+        return AstFullVisitor.super.visit(whileStmt, depth);
     }
 
     @Override
-    public Object visit(AstAtomType atomType, Object arg) {
-        return AstFullVisitor.super.visit(atomType, arg);
+    public Long visit(AstArrType arrType, Integer depth) {
+        return AstFullVisitor.super.visit(arrType, depth);
     }
 
     @Override
-    public Object visit(AstNameType nameType, Object arg) {
-        return AstFullVisitor.super.visit(nameType, arg);
+    public Long visit(AstAtomType atomType, Integer depth) {
+        return AstFullVisitor.super.visit(atomType, depth);
     }
 
     @Override
-    public Object visit(AstPtrType ptrType, Object arg) {
-        return AstFullVisitor.super.visit(ptrType, arg);
+    public Long visit(AstNameType nameType, Integer depth) {
+        return AstFullVisitor.super.visit(nameType, depth);
     }
 
     @Override
-    public Object visit(AstStrType strType, Object arg) {
-        return AstFullVisitor.super.visit(strType, arg);
+    public Long visit(AstPtrType ptrType, Integer depth) {
+        return AstFullVisitor.super.visit(ptrType, depth);
     }
 
     @Override
-    public Object visit(AstUniType uniType, Object arg) {
-        return AstFullVisitor.super.visit(uniType, arg);
+    public Long visit(AstStrType strType, Integer depth) {
+        return AstFullVisitor.super.visit(strType, depth);
     }
 
     @Override
-    public Object visit(AstRecType.AstCmpDefn cmpDefn, Object arg) {
-        return AstFullVisitor.super.visit(cmpDefn, arg);
+    public Long visit(AstUniType uniType, Integer depth) {
+        return AstFullVisitor.super.visit(uniType, depth);
+    }
+
+    @Override
+    public Long visit(AstRecType.AstCmpDefn cmpDefn, Integer depth) {
+        return AstFullVisitor.super.visit(cmpDefn, depth);
     }
 }
