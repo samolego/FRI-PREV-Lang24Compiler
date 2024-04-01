@@ -427,7 +427,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
                 SemAn.isLVal.put(sfxExpr, false);
 
-                var err = new ErrorAtBuilder("Dereference operator `*` can only be applied to a pointer type, but got `" + type + "`:")
+                var err = new ErrorAtBuilder("Dereference operator `^` can only be applied to a pointer type, but got `" + type + "`:")
                         .addSourceLine(sfxExpr);
                 throw new Report.Error(err.toString());
             }
