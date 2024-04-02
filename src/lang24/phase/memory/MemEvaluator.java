@@ -22,8 +22,9 @@ import static java.lang.Math.max;
  * @author bostjan.slivnik@fri.uni-lj.si
  */
 public class MemEvaluator implements AstFullVisitor<Object, Integer> {
+    private final long SL_SIZE = getSizeInBytes(SemPointerType.type);
 
-    private long maxCallSize = getSizeInBytes(SemPointerType.type);  // Static link always included
+    private long maxCallSize = SL_SIZE;  // Static link always included
 
     /**
      * Gets the size of a type in bytes.
@@ -33,21 +34,22 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
      */
     private static long getSizeInBytes(SemType type) {
         return switch (type) {
+            case SemVoidType ignored -> 0;
             case SemPointerType ignored -> 8;
-            case SemIntType ignored -> 4;
+            case SemIntType ignored -> 8;
             case SemBoolType ignored -> 1;
             case SemCharType ignored -> 1;
             case SemStructType semStructType -> {
                 long size = 0;
                 for (var cmp : semStructType.cmpTypes) {
-                    size += getSizeInBytes(cmp);
+                    size += getRoundedSizeInBytes(cmp);
                 }
                 yield size;
             }
             case SemUnionType semUnionType -> {
                 long size = 0;
                 for (var cmp : semUnionType.cmpTypes) {
-                    size = max(size, getSizeInBytes(cmp));
+                    size = max(size, getRoundedSizeInBytes(cmp));
                 }
                 yield size;
             }
@@ -106,32 +108,36 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
     @Override
     public Object visit(AstFunDefn funDefn, Integer depth) {
-
         long paramSize = 0;
         for (var par : funDefn.pars) {
             par.accept(this, depth);
 
             var type = SemAn.ofType.get(par);
             // Round parameters & arguments
-            long size = getRoundedSizeInBytes(type);
+            long size = getSizeInBytes(type);
 
-            var memAcc = new MemRelAccess(size, paramSize, depth);
+            var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
             Memory.parAccesses.put(par, memAcc);
 
-            paramSize += size;
+            paramSize += roundTo8(size);
         }
 
 
         long blockSize = 0;
         for (var defn : funDefn.defns) {
-            defn.accept(this, depth);
+            if (defn instanceof AstFunDefn) {
+                defn.accept(this, depth + 1);
+            } else {
+                defn.accept(this, depth);
+            }
 
+            // Just variables interest us
             if (defn instanceof AstVarDefn varDefn) {
                 var type = SemAn.ofType.get(defn);
                 long size = getSizeInBytes(type);
-                blockSize += size;
+                // todo - ask - should we round components?
+                blockSize += roundTo8(size);
 
-                // Just variables interest us
                 // Automatic variable definition
                 var memAcc = new MemRelAccess(size, -blockSize, depth);
 
@@ -140,7 +146,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
         }
 
 
-        this.maxCallSize = getSizeInBytes(SemPointerType.type);
+        this.maxCallSize = SL_SIZE;
         if (funDefn.stmt != null) {
             funDefn.stmt.accept(this, depth + 1);
         }
@@ -163,7 +169,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     public Object visit(AstAtomExpr atomExpr, Integer depth) {
         if (atomExpr.type == AstAtomExpr.Type.STR) {
             assert SemAn.ofType.get(atomExpr) == SemPointerType.stringType : "Wrong string pointer for node " + atomExpr.getText();
-            Memory.strings.put(atomExpr, new MemAbsAccess(8, new MemLabel(), atomExpr.value));
+            Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemPointerType.type), new MemLabel(), atomExpr.value));
         }
 
         return null;
@@ -172,7 +178,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     @Override
     public Object visit(AstCallExpr callExpr, Integer depth) {
         //var fnDefn = SemAn.definedAt.get(callExpr);
-        long argSize = getSizeInBytes(SemPointerType.type); // We need at least static link for each function
+        long argSize = SL_SIZE; // We need at least static link for each function
         for (var arg : callExpr.args) {
             arg.accept(this, depth);
 
@@ -209,15 +215,16 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             cmp.accept(this, -1);
 
             var type = SemAn.ofType.get(cmp);
-            // Round the size in components
-            long size = getRoundedSizeInBytes(type);
+            // todo - ask - should we round components?
+            long size = getSizeInBytes(type);
 
             // Depth is -1 for components of a record
             long cmpOffset = recType instanceof AstStrType ? offset : 0;
             var memAcc = new MemRelAccess(size, cmpOffset, -1);
             Memory.cmpAccesses.put(cmp, memAcc);
 
-            offset += size;
+            // todo - ask - should we round components?
+            offset += roundTo8(size);
         }
 
         return offset;
