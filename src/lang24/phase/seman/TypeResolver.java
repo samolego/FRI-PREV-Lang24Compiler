@@ -150,8 +150,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
      * @param arg    argument which pass we are in
      * @throws Report.Error if the type of the node is not the expected type.
      */
-    private void checkOrThrow(AstNode node, SemType expectedType, Object arg) {
-        checkOrThrow(node, Set.of(expectedType), arg);
+    private SemType checkOrThrow(AstNode node, SemType expectedType, Object arg) {
+        return checkOrThrow(node, Set.of(expectedType), arg);
     }
 
 
@@ -286,7 +286,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         return result;
     }
 
-    // Fixme: nicer error messages
+    // Fixme : nested definitions error messages are broken
     @Override
     public SemType visit(AstCallExpr callExpr, Object arg) {
         AstFunDefn funDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
@@ -302,10 +302,10 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 if (!equiv(callParamType, expParamType)) {
                     var err = new ErrorAtBuilder("Type mismatch in function call `" + callExpr.name + "`. Expected `" + expParamType + "`, but got `" + callParamType + "`:")
                             .addSourceLine(callPars.get(i))
-                            .addOffsetedSquiglyLines(callPars.get(i), "This expression has type `" + callParamType + "`, but should be `" + expParamType + "`.")
+                            .addOffsetedSquiglyLines(callPars.get(i), "This expression has type `" + callParamType + "`.")
                             .addLine("")
-                            .addLine("Function `" + funDefn.name() + "` expects `" + expParamType + "`:")
-                            .addSourceLine(expParam);
+                            .addLine("But function `" + funDefn.name() + "` expects `" + expParamType + "`:")
+                            .addUnderlinedSourceNode(expParam);
                     throw new Report.Error(callExpr, err.toString());
                 }
             } else {
@@ -315,7 +315,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                         .addOffsetedSquiglyLines(callExpr, "Hint: try adding " + (funDefn.pars.size() - i) + " more parameter(s).")
                         .addLine("")
                         .addLine("Expected `" + expParam.accept(this, null) + "`:")
-                        .addSourceLine(expParam);
+                        .addUnderlinedSourceNode(expParam);
                 throw new Report.Error(callExpr, err.toString());
             }
             i += 1;
@@ -401,16 +401,18 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstPfxExpr pfxExpr, Object arg) {
-        var expectedType = switch (pfxExpr.oper) {
-            case ADD, SUB -> SemIntType.type;
-            case NOT -> SemBoolType.type;
-            case PTR -> SemPointerType.type;
+        var actualType = switch (pfxExpr.oper) {
+            case ADD, SUB -> checkOrThrow(pfxExpr.expr, SemIntType.type, arg);
+            case NOT -> checkOrThrow(pfxExpr.expr, SemBoolType.type, arg);
+            case PTR -> {
+                var type = pfxExpr.expr.accept(this, arg);
+                yield new SemPointerType(type);
+            }
         };
 
-        checkOrThrow(pfxExpr.expr, expectedType, arg);
-        SemAn.ofType.put(pfxExpr, expectedType);
+        SemAn.ofType.put(pfxExpr, actualType);
 
-        return expectedType;
+        return actualType;
     }
 
     @Override
@@ -654,7 +656,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             }
         }
 
-        // Todo - is this ok?
         throw new Report.InternalError();
     }
 
