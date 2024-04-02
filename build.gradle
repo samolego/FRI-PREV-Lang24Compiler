@@ -105,6 +105,7 @@ clean {
 }
 
 run {
+    enableAssertions = true
     // Default args
     var xsl = getPropertyOrDefault("xsl", "lib/xsl")
     var loggedPhase = getPropertyOrDefault("loggedPhase", "all")
