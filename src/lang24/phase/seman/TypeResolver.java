@@ -24,6 +24,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
      * Return type that was found when parsing function.
      */
     private FoundReturnType foundReturnType = null;
+    private AstFunDefn currentReturningFunction = null;
 
 
     /**
@@ -147,7 +148,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
      *
      * @param node         The node to check.
      * @param expectedType The expected type that node should be.
-     * @param arg    argument which pass we are in
+     * @param arg          argument which pass we are in
      * @throws Report.Error if the type of the node is not the expected type.
      */
     private SemType checkOrThrow(AstNode node, SemType expectedType, Object arg) {
@@ -196,6 +197,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     /**
      * Check if the node is a lvalue or throw an error.
+     *
      * @param node The node to check.
      */
     private void checkLValueOrThrow(AstNode node) {
@@ -286,7 +288,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         return result;
     }
 
-    // Fixme : nested definitions error messages are broken
     @Override
     public SemType visit(AstCallExpr callExpr, Object arg) {
         AstFunDefn funDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
@@ -406,6 +407,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             case NOT -> checkOrThrow(pfxExpr.expr, SemBoolType.type, arg);
             case PTR -> {
                 var type = pfxExpr.expr.accept(this, arg);
+                SemAn.isLVal.put(pfxExpr, true);
                 yield new SemPointerType(type);
             }
         };
@@ -417,7 +419,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstSfxExpr sfxExpr, Object arg) {
-        var retType = switch(sfxExpr.oper) {
+        var retType = switch (sfxExpr.oper) {
             case AstSfxExpr.Oper.PTR -> {
                 var type = sfxExpr.expr.accept(this, arg);
 
@@ -489,10 +491,20 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstIfStmt ifStmt, Object arg) {
         checkOrThrow(ifStmt.cond, SemBoolType.type, arg);
 
+        // We must have return in both cases, otherwise return
+        // in just `if` is not (yet) valid
         // Check recursively
         ifStmt.thenStmt.accept(this, arg);
+        boolean foundIfReturn = this.foundReturnType != null;
+        this.foundReturnType = null;
+
         if (ifStmt.elseStmt != null) {
             ifStmt.elseStmt.accept(this, arg);
+
+            if (this.foundReturnType != null && !foundIfReturn) {
+                // `if` has no return, `else` has it. So we have to "check on"
+                this.foundReturnType = null;
+            }
         }
 
         SemAn.ofType.put(ifStmt, SemVoidType.type);
@@ -514,22 +526,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var type = retStmt.expr.accept(this, arg);
         var foundReturn = new FoundReturnType(type);
         foundReturn.stmt = retStmt;
+        this.foundReturnType = foundReturn;
+
         // Check parent function for its return type and compare
-        for (var prt = retStmt.parent; prt != null; prt = prt.parent) {
-            if (prt instanceof AstFunDefn funDefn) {
-                var fnType = SemAn.ofType.get(funDefn);
-                boolean eq = equiv(fnType, type);
+        var expectedFnType = SemAn.ofType.get(this.currentReturningFunction);
+        boolean eq = equiv(expectedFnType, type);
 
-                if (!eq) {
-                    foundReturnType = foundReturn;
-                }
-
-                break;
-            }
-        }
-
-        if (foundReturnType == null) {
-            foundReturnType = foundReturn;
+        if (!eq || foundReturnType == null) {
+            // Error!
+            functionReturnError(this.currentReturningFunction, true);
         }
 
 
@@ -570,41 +575,54 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         funDefn.defns.accept(this, arg);
 
         if (funDefn.stmt != null) {
+            this.currentReturningFunction = funDefn;
             this.foundReturnType = null;
 
             checkOrThrow(funDefn.stmt, SemVoidType.type, arg);
 
             if (foundReturnType == null) {
-                foundReturnType = new FoundReturnType(SemVoidType.type);
-            }
-
-            boolean eq = equiv(fnType, this.foundReturnType.type);
-            // Throw error if not equivalent
-            if (!eq) {
-                var err = new ErrorAtBuilder("Function `" + funDefn.name() + "` is declared to return `" + fnType + "`:")
-                        .addSourceLine(funDefn);
-                if (foundReturnType.stmt != null) {
-                    if (equiv(fnType, SemVoidType.type)) {
-                        err.addOffsetedSquiglyLines(funDefn.type, "Hint: try changing the return type to `" + foundReturnType.type + "`.")
-                                .addLine("Actual return type is `" + foundReturnType.type + "`:")
-                                .addSourceLine(foundReturnType.stmt);
-                    } else {
-                        err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
-                                .addLine("But the actual return type is `" + foundReturnType.type + "`:")
-                                .addSourceLine(foundReturnType.stmt)
-                                .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
-                    }
-                } else {
-                    err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`.")
-                            .addLine("But no `return` statement was found at the end of the function:")
-                            .addSourceLineEnd(funDefn)
-                            .addBlankSourceLine();
+                // No return type was found
+                functionReturnError(funDefn, false);
+            } else {
+                boolean eq = equiv(fnType, this.foundReturnType.type);
+                // Throw error if not equivalent
+                if (!eq) {
+                    functionReturnError(funDefn, true);
                 }
-                throw new Report.Error(err.toString());
             }
         }
 
         return fnType;
+    }
+
+    private void functionReturnError(AstFunDefn funDefn, boolean isFatal) {
+        var fnType = SemAn.ofType.get(funDefn);
+        String type = isFatal ? "Error" : "Warning";
+        var err = new ErrorAtBuilder(type, "Function `" + funDefn.name() + "` is declared to return `" + fnType + "`:")
+                .addSourceLine(funDefn);
+        if (foundReturnType != null && foundReturnType.stmt != null) {
+            if (equiv(fnType, SemVoidType.type)) {
+                err.addOffsetedSquiglyLines(funDefn.type, "Hint: try changing the return type to `" + foundReturnType.type + "`.")
+                        .addLine("Actual return type is `" + foundReturnType.type + "`:")
+                        .addSourceLine(foundReturnType.stmt);
+            } else {
+                err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
+                        .addLine("But the actual return type is `" + foundReturnType.type + "`:")
+                        .addSourceLine(foundReturnType.stmt)
+                        .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
+            }
+        } else {
+            err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`.")
+                    .addLine("But function end was reached without finding `return` statement:")
+                    .addSourceLineEnd(funDefn)
+                    .addBlankSourceLine();
+        }
+        final String message = err.toString();
+        if (isFatal) {
+            throw new Report.Error(message);
+        } else {
+            Report.warning(funDefn, message);
+        }
     }
 
     @Override
@@ -790,7 +808,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
         return defn;
     }
-    
+
     public static class FoundReturnType {
         private final SemType type;
         private AstReturnStmt stmt;

@@ -14,14 +14,20 @@ public class ErrorAtBuilder {
     }
 
 
-    public ErrorAtBuilder(final String messageTop) {
+    public ErrorAtBuilder(final String type, final String messageTop) {
         this.sb = new StringBuilder();
 
-        sb.append("Error: \n");
+        sb.append(type);
+        sb.append(": \n");
         sb.append(messageTop);
 
         sb.append("\n");
     }
+
+    public ErrorAtBuilder(final String messageTop) {
+        this("Error", messageTop);
+    }
+
 
     public ErrorAtBuilder addLine(String message) {
         sb.append(message);
@@ -30,6 +36,7 @@ public class ErrorAtBuilder {
         return this;
     }
 
+    // Don't inspect return type coudl be void
     public ErrorAtBuilder addBlankSourceLine() {
         sb.append("     |\n");
         return this;
@@ -43,19 +50,21 @@ public class ErrorAtBuilder {
     }
 
     public ErrorAtBuilder addOffsetedSquiglyLines(AstNode node, String message) {
-        int offset = node.location().begColumn - findStatementNode(node).location().begColumn;
+        var parent = findStatementNode(node).location();
+        int offset = node.location().begColumn - parent.begColumn;
+        int lineOffset = node.location().begLine - parent.begLine;
 
         if (offset < 0) {
             offset = 0;
         }
 
-        return addSquiglyLines(node, offset, message);
+        return addSquiglyLines(node, offset, lineOffset, message);
     }
 
-    public ErrorAtBuilder addSquiglyLines(Locatable location, int offset, String message) {
+    public ErrorAtBuilder addSquiglyLines(Locatable location, int colOffset, int lineOffset, String message) {
         var ln = "     |    ";
         sb.append(ln);
-        sb.append(" ".repeat(offset));
+        sb.append(" ".repeat(colOffset));
 
         int caretRepeat = 1 + Math.max(0, location.location().endColumn - location.location().begColumn);
         sb.append("^".repeat(caretRepeat));
@@ -63,7 +72,7 @@ public class ErrorAtBuilder {
         if (message != null && !message.isEmpty()) {
             sb.append("\n");
             sb.append(ln);
-            sb.append(" ".repeat(offset));
+            sb.append(" ".repeat(colOffset));
 
             sb.append(message);
         }
@@ -73,7 +82,8 @@ public class ErrorAtBuilder {
     }
 
     public ErrorAtBuilder addSourceLine(AstNode node) {
-        node = findStatementNode(node);
+        var parent = findStatementNode(node);
+        int lineOffset = node.location().begLine - parent.location().begLine;
         var ln = String.format("%4d |    ", node.location().begLine);
 
         // Make error like this:
@@ -81,7 +91,8 @@ public class ErrorAtBuilder {
         //                 ^^^^^^^^^^^
 
         sb.append(ln);
-        final String lineText = node.getText().split("\n")[0];
+        var perLines =  parent.getText().split("\n");
+        final String lineText = perLines[lineOffset];
         sb.append(lineText);
         sb.append("\n");
 
