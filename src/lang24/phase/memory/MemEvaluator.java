@@ -187,7 +187,6 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
     @Override
     public Object visit(AstCallExpr callExpr, Integer depth) {
-        //var fnDefn = SemAn.definedAt.get(callExpr);
         long argSize = SL_SIZE; // We need at least static link for each function
         for (var arg : callExpr.args) {
             arg.accept(this, depth);
@@ -200,7 +199,6 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
         // We also round the return variable
         long returnSize = getRoundedSizeInBytes(SemAn.ofType.get(callExpr));
-
         long callSize = max(argSize, returnSize);
 
         this.maxCallSize = max(this.maxCallSize, callSize);
