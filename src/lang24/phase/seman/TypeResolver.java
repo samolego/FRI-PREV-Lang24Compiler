@@ -565,6 +565,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstFunDefn funDefn, Object arg) {
         var fnType = funDefn.type.accept(this, arg);
 
+        // Check return type - can't be structs or so.
+        if (fnType.actualType() instanceof SemRecordType || fnType.actualType() instanceof SemUnionType) {
+            var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Did you mean to return `^" + fnType + "`?")
+                    .addSourceLine(funDefn)
+                    .addOffsetedSquiglyLines(funDefn.type, "Hint: try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
+
+            throw new Report.Error(err.toString());
+        }
+
         SemAn.ofType.put(funDefn, fnType);
 
         for (var param : funDefn.pars) {
