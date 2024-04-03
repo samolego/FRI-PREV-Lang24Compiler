@@ -188,7 +188,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", but got `" + actualType + "`:")
                     .addSourceLine(node)
                     .addOffsetedSquiglyLines(node, "This expression has type `" + actualType + "`, which is wrong.");
-            throw new Report.Error(node, err.toString());
+            throw new Report.Error(node, err);
         }
 
         return actualType;
@@ -307,7 +307,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                             .addLine("")
                             .addLine("But function `" + funDefn.name() + "` expects `" + expParamType + "`:")
                             .addUnderlinedSourceNode(expParam);
-                    throw new Report.Error(callExpr, err.toString());
+                    throw new Report.Error(callExpr, err);
                 }
             } else {
                 // Too few parameters
@@ -317,7 +317,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                         .addLine("")
                         .addLine("Expected `" + expParam.accept(this, null) + "`:")
                         .addUnderlinedSourceNode(expParam);
-                throw new Report.Error(callExpr, err.toString());
+                throw new Report.Error(callExpr, err);
             }
             i += 1;
         }
@@ -329,7 +329,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                     .addLine("")
                     .addLine("Function `" + funDefn.name() + "` accepts " + funDefn.pars.size() + " parameters:")
                     .addSourceLine(funDefn);
-            throw new Report.Error(callExpr, err.toString());
+            throw new Report.Error(callExpr, err);
         }
 
         var type = findVariableType(callExpr);
@@ -478,7 +478,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                     var err = new ErrorAtBuilder("Following expression is not a valid statement:")
                             .addSourceLine(stmt)
                             .addOffsetedSquiglyLines(stmt, "Hint: Try removing this expression.");
-                    throw new Report.Error(stmt, err.toString());
+                    throw new Report.Error(stmt, err);
                 }
             }
         }

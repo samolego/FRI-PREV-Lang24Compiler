@@ -150,7 +150,7 @@ ERROR : . {
         var err = new ErrorAtBuilder("Lexing error: `" + getText() + "`")
                 .addSourceLine(location, lineText)
                 .addSquiglyLines(location, getCharPositionInLine() - 1, 0, "Unexpected symbol");
-        throw new Report.Error(location, err.toString());
+        throw new Report.Error(location, err);
 
 
 case 0xFFFFFFFF:  // Dummy case to make Java compiler happy

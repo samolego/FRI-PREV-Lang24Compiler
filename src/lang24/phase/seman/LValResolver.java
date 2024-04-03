@@ -26,7 +26,7 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 		var err = new ErrorAtBuilder("The following expression is not a valid:")
 				.addSourceLine(expr)
 				.addOffsetedSquiglyLines(expr, "Hint: Try replacing this with valid lvalue.");
-		throw new Report.Error(expr, err.toString());
+		throw new Report.Error(expr, err);
 	}
 
 	@Override

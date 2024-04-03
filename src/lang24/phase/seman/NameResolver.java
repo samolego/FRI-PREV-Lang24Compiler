@@ -242,7 +242,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                         .addSourceLine(node)
                         .addOffsetedSquiglyLines(node, "Hint: Replace this with a type.");
 
-                throw new Report.Error(node, err.toString());
+                throw new Report.Error(node, err);
             }
 
             // Connect the usage with the definition

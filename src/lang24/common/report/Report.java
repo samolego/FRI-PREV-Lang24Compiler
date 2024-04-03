@@ -74,7 +74,7 @@ public class Report {
 	 * @param location The location the warning message is related to.
 	 * @param message  The warning message to be printed out.
 	 */
-	public static void warning(final Locatable location, final String message) {
+	public static void warning(final Locatable location, final Object message) {
 		numOfWarnings++;
 		System.err.println(":-o " + "[" + location.location() + "] " + message);
 	}
@@ -85,7 +85,6 @@ public class Report {
 	 * Thrown whenever the program reaches a situation where any further computing
 	 * makes no sense any more because of the erroneous input.
 	 */
-	@SuppressWarnings("serial")
 	public static class Error extends java.lang.Error {
 
 		/**
@@ -103,10 +102,9 @@ public class Report {
 		 * @param location The location the error message is related to.
 		 * @param message  The error message to be printed out.
 		 */
-		public Error(final Locatable location, final String message) {
+		public Error(final Locatable location, final Object message) {
 			super(":-( " + "[" + location.location() + "] " + message);
 		}
-
 	}
 
 	/**
@@ -114,7 +112,6 @@ public class Report {
 	 * 
 	 * Thrown whenever the program encounters internal error.
 	 */
-	@SuppressWarnings("serial")
 	public static class InternalError extends Error {
 
 		/**
