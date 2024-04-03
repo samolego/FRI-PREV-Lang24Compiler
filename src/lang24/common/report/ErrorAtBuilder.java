@@ -99,6 +99,22 @@ public class ErrorAtBuilder {
         return this;
     }
 
+    public ErrorAtBuilder addSourceLine(Location location, String lineText) {
+        var ln = String.format("%4d |    ", location.location().begLine);
+
+        // Make error like this:
+        // <line number> | <line text>
+        //                 ^^^^^^^^^^^
+
+        sb.append(ln);
+        //var perLines = parent.getText().split("\n");
+        //final String lineText = perLines[lineOffset];
+        sb.append(lineText);
+        sb.append("\n");
+
+        return this;
+    }
+
     public ErrorAtBuilder addSourceLineEnd(AstNode node) {
         node = findStatementNode(node);
         var ln = String.format("%4d |    ", node.location().endLine);

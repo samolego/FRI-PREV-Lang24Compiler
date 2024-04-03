@@ -132,7 +132,26 @@ IDENTIFIER : [a-zA-Z_][a-zA-Z_0-9]* ;
 // Error
 // Any character not recognized by the lexer
 ERROR : . {
-    throw new Report.Error((LocLogToken) getToken(), "Lexing error: " + getText());
+        var location = new Location(this.getLine(), this.getCharPositionInLine());
+        int prevNL = 0;
+        if (this.getLine() > 1) {
+            prevNL = getInputStream().getText(new Interval(0, this.getInputStream().index())).lastIndexOf('\n') + 1;
+        }
+        int nextNL = this.getInputStream().index();
+        if (nextNL < getInputStream().size() - 1) {
+            nextNL = getInputStream().getText(new Interval(this.getInputStream().index(), getInputStream().size() - 1)).indexOf('\n') + this.getInputStream().index();
 
-case 0xFFFFFFFF:  // Dummy case to make compiler happy
+            if (prevNL == nextNL) {
+                // EOF without newline
+                nextNL = getInputStream().size();
+            }
+        }
+        var lineText = getInputStream().getText(new Interval(prevNL, nextNL - 1));
+        var err = new ErrorAtBuilder("Lexing error: `" + getText() + "`")
+                .addSourceLine(location, lineText)
+                .addSquiglyLines(location, getCharPositionInLine() - 1, 0, "Unexpected symbol");
+        throw new Report.Error(location, err.toString());
+
+
+case 0xFFFFFFFF:  // Dummy case to make Java compiler happy
 } ;
