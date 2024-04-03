@@ -65,7 +65,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                     .addSourceLine(node)
                     .addOffsetedSquiglyLines(node, "Hint: Try using a different name for this definition.")
                     .toString();
-            throw new Report.Error(err);
+            throw new Report.Error(node, err);
         }
 
     }

@@ -382,7 +382,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             }
             err.addLine("Note: the record is defined with these components:")
                     .addSourceLine(defn);
-            throw new Report.Error(err.toString());
+            throw new Report.Error(cmpExpr, err);
         }
 
         var type = childDefn.accept(this, arg);
@@ -433,7 +433,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
                 var err = new ErrorAtBuilder("Dereference operator `^` can only be applied to a pointer type, but got `" + type + "`:")
                         .addSourceLine(sfxExpr);
-                throw new Report.Error(err.toString());
+                throw new Report.Error(sfxExpr, err);
             }
         };
 
@@ -571,7 +571,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                     .addSourceLine(funDefn)
                     .addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
 
-            throw new Report.Error(err.toString());
+            throw new Report.Error(funDefn, err);
         }
 
         SemAn.ofType.put(funDefn, fnType);
@@ -630,7 +630,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         }
         final String message = err.toString();
         if (isFatal) {
-            throw new Report.Error(message);
+            throw new Report.Error(funDefn, message);
         } else {
             Report.warning(funDefn, message);
         }
@@ -644,7 +644,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             var err = new ErrorAtBuilder("Reference parameter `" + refParDefn.name() + "` cannot be of type `" + type + "`:")
                     .addSourceLine(refParDefn.parent.parent)
                     .addOffsetedSquiglyLines(refParDefn, "");
-            throw new Report.Error(err.toString());
+            throw new Report.Error(refParDefn, err);
         }
 
         SemAn.ofType.put(refParDefn, type);
@@ -660,7 +660,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             var err = new ErrorAtBuilder("Value parameter cannot be of type `" + type + "`:")
                     .addSourceLine(valParDefn.parent.parent)
                     .addOffsetedSquiglyLines(valParDefn, "");
-            throw new Report.Error(err.toString());
+            throw new Report.Error(valParDefn, err);
         }
 
         SemAn.ofType.put(valParDefn, type);
@@ -774,7 +774,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
             if (type != null) {
                 var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a variable, but was used as type here:", node);
-                throw new Report.Error(err.toString());
+                throw new Report.Error(node, err);
             }
 
             // Ok, not, let's define it
@@ -796,7 +796,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
             if (type != null) {
                 var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a type, but was used as variable here:", node);
-                throw new Report.Error(err.toString());
+                throw new Report.Error(node, err);
             }
 
             // Ok, not, let's define it

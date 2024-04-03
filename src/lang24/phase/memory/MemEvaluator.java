@@ -78,6 +78,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
     /**
      * Rounds a long up to the nearest multiple of 8.
+     *
      * @param size the long to round
      * @return
      */
@@ -92,6 +93,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     @Override
     public Object visit(AstNodes<? extends AstNode> nodes, Integer depth) {
         if (depth == null) {
+            // Root node
             depth = 0;
         }
         return AstFullVisitor.super.visit(nodes, depth);
@@ -121,24 +123,24 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     public Object visit(AstFunDefn funDefn, Integer depth) {
         this.maxCallSize = SL_SIZE;
 
-        long paramSize = 0;
-        for (var par : funDefn.pars) {
-            par.accept(this, depth);
-
-            var type = SemAn.ofType.get(par);
-            // Round parameters & arguments
-            long size = getSizeInBytes(type);
-
-            var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
-            Memory.parAccesses.put(par, memAcc);
-
-            paramSize += roundTo8(size);
-        }
-
-
-        long blockSize = 0;
-        long maxOfArgsAndReturn = 0;
         if (funDefn.stmt != null) {
+            long paramSize = 0;
+            for (var par : funDefn.pars) {
+                par.accept(this, depth);
+
+                var type = SemAn.ofType.get(par);
+                // Round parameters & arguments
+                long size = getSizeInBytes(type);
+
+                var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
+                Memory.parAccesses.put(par, memAcc);
+
+                paramSize += roundTo8(size);
+            }
+
+
+            long blockSize = 0;
+            long maxOfArgsAndReturn = 0;
             for (var defn : funDefn.defns) {
                 if (defn instanceof AstFunDefn) {
                     defn.accept(this, depth + 1);
@@ -161,18 +163,18 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
             funDefn.stmt.accept(this, depth + 1);
             maxOfArgsAndReturn = this.maxCallSize;
+
+            long size = blockSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
+
+            boolean isNested = depth > 0;
+            MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
+
+            var frame = new MemFrame(label, depth, blockSize, maxOfArgsAndReturn, size);
+            Memory.frames.put(funDefn, frame);
         }
 
-        long size = blockSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
 
-        boolean isNested = depth > 0;
-        MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
-
-        var frame = new MemFrame(label, depth, blockSize, maxOfArgsAndReturn, size);
-        Memory.frames.put(funDefn, frame);
-
-
-        return size;
+        return null;
     }
 
     @Override
