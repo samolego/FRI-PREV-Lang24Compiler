@@ -156,7 +156,6 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
 
-    // Todo
     @Override
     public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
@@ -187,7 +186,6 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     @Override
     public Object visit(AstCmpExpr cmpExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
-            // todo - what if not name expr?
             if (cmpExpr.expr instanceof AstNameExpr nameExpr) {
                 connectOrThrow(cmpExpr, nameExpr.name, false);
             }

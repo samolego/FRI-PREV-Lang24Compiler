@@ -407,7 +407,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             case NOT -> checkOrThrow(pfxExpr.expr, SemBoolType.type, arg);
             case PTR -> {
                 var type = pfxExpr.expr.accept(this, arg);
-                SemAn.isLVal.put(pfxExpr, true);
+                checkLValueOrThrow(pfxExpr.expr);
                 yield new SemPointerType(type);
             }
         };
@@ -569,7 +569,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         if (fnType.actualType() instanceof SemRecordType || fnType.actualType() instanceof SemUnionType) {
             var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Did you mean to return `^" + fnType + "`?")
                     .addSourceLine(funDefn)
-                    .addOffsetedSquiglyLines(funDefn.type, "Hint: try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
+                    .addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
 
             throw new Report.Error(err.toString());
         }
@@ -716,8 +716,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var type = new SemPointerType(ptrType.baseType.accept(this, arg));
         SemAn.ofType.put(ptrType, type);
 
-        // Todo : ask!
-        //checkLValueOrThrow(ptrType.baseType);
         return type;
     }
 
