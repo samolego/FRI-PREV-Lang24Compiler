@@ -22,8 +22,14 @@ import static java.lang.Math.max;
  * @author bostjan.slivnik@fri.uni-lj.si
  */
 public class MemEvaluator implements AstFullVisitor<Object, Integer> {
+    /**
+     * Size of static link in bytes.
+     */
     private final long SL_SIZE = getSizeInBytes(SemPointerType.type);
 
+    /**
+     * The maximum size of latest function call (max of arguments + SL, return value).
+     */
     private long maxCallSize = SL_SIZE;  // Static link always included
 
     /**
@@ -70,6 +76,11 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
         return roundTo8(size);
     }
 
+    /**
+     * Rounds a long up to the nearest multiple of 8.
+     * @param size the long to round
+     * @return
+     */
     private static long roundTo8(long size) {
         if (size % 8 != 0) {
             size += 8 - size % 8;
@@ -99,15 +110,18 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             // Static variable definition
             var memAcc = new MemAbsAccess(size, new MemLabel(varDefn.name));
             Memory.varAccesses.put(varDefn, memAcc);
-        }
+        }  // Otherwise it is an automatic variable definition, so it's handled in AstFunDefn
 
         varDefn.type.accept(this, depth);
 
         return size;
     }
 
+    // todo - don't calculate depth of functions with empty body
     @Override
     public Object visit(AstFunDefn funDefn, Integer depth) {
+        this.maxCallSize = SL_SIZE;
+
         long paramSize = 0;
         for (var par : funDefn.pars) {
             par.accept(this, depth);
@@ -124,47 +138,44 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
 
         long blockSize = 0;
-        for (var defn : funDefn.defns) {
-            if (defn instanceof AstFunDefn) {
-                defn.accept(this, depth + 1);
-            } else {
-                defn.accept(this, depth);
-            }
-
-            // Just variables interest us
-            if (defn instanceof AstVarDefn varDefn) {
-                var type = SemAn.ofType.get(defn);
-                long size = getSizeInBytes(type);
-                // todo - ask - should we round components?
-                blockSize += roundTo8(size);
-
-                // Automatic variable definition
-                var memAcc = new MemRelAccess(size, -blockSize, depth);
-
-                Memory.varAccesses.put(varDefn, memAcc);
-            }
-        }
-
-
-        this.maxCallSize = SL_SIZE;
+        long maxOfArgsAndReturn = 0;
         if (funDefn.stmt != null) {
+            for (var defn : funDefn.defns) {
+                if (defn instanceof AstFunDefn) {
+                    defn.accept(this, depth + 1);
+                } else {
+                    defn.accept(this, depth);
+                }
+
+                // Just variables interest us
+                if (defn instanceof AstVarDefn varDefn) {
+                    var type = SemAn.ofType.get(defn);
+                    long size = getSizeInBytes(type);
+                    blockSize += roundTo8(size);
+
+                    // Automatic variable definition
+                    var memAcc = new MemRelAccess(size, -blockSize, depth);
+
+                    Memory.varAccesses.put(varDefn, memAcc);
+                }
+            }
+
             funDefn.stmt.accept(this, depth + 1);
+            maxOfArgsAndReturn = this.maxCallSize;
         }
 
-        long size = blockSize + this.maxCallSize + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
+        long size = blockSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
 
         boolean isNested = depth > 0;
         MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
 
-        var frame = new MemFrame(label, depth, blockSize, this.maxCallSize, size);
-
+        var frame = new MemFrame(label, depth, blockSize, maxOfArgsAndReturn, size);
         Memory.frames.put(funDefn, frame);
 
 
         return size;
     }
 
-    // todo
     @Override
     public Object visit(AstAtomExpr atomExpr, Integer depth) {
         if (atomExpr.type == AstAtomExpr.Type.STR) {
@@ -188,7 +199,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             argSize += size;
         }
 
-        // todo - ask - should we round the return size as well?
+        // We also round the return variable
         long returnSize = getRoundedSizeInBytes(SemAn.ofType.get(callExpr));
 
         long callSize = max(argSize, returnSize);
@@ -215,7 +226,6 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             cmp.accept(this, -1);
 
             var type = SemAn.ofType.get(cmp);
-            // todo - ask - should we round components?
             long size = getSizeInBytes(type);
 
             // Depth is -1 for components of a record
@@ -223,7 +233,6 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             var memAcc = new MemRelAccess(size, cmpOffset, -1);
             Memory.cmpAccesses.put(cmp, memAcc);
 
-            // todo - ask - should we round components?
             offset += roundTo8(size);
         }
 
