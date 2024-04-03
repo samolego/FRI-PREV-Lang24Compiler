@@ -117,7 +117,6 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
         return size;
     }
 
-    // todo - don't calculate depth of functions with empty body
     @Override
     public Object visit(AstFunDefn funDefn, Integer depth) {
         this.maxCallSize = SL_SIZE;
