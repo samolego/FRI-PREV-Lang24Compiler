@@ -193,11 +193,22 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
         return AstFullVisitor.super.visit(cmpExpr, arg);
     }
 
+    /**
+     * Pregleda, če je definicija ciklična.
+     * @param defn Definicija, ki jo preverjamo.
+     * @return Definicija, ki je ciklična, če obstaja.
+     */
     private Optional<AstDefn> getCyclicDefinition(AstDefn defn) {
         var visited = new HashSet<>(Set.of(defn));
         return getCyclicDefinition(defn, visited);
     }
 
+    /**
+     * Pregleda, če je definicija ciklična.
+     * @param defn Definicija, ki jo preverjamo.
+     * @param visited Množica že obiskanih definicij.
+     * @return Definicija, ki je ciklična, če obstaja.
+     */
     private Optional<AstDefn> getCyclicDefinition(AstDefn defn, Set<AstDefn> visited) {
         // If this is record type, check its components
         if (defn.type instanceof AstRecType rec) {
@@ -216,11 +227,14 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
         var nextDefn = SemAn.definedAt.get(defn.type);
         if (nextDefn == null) {
+            // We came to the end of the chain, no cycle
             return Optional.empty();
         }
+
         if (visited.contains(nextDefn)) {
             return Optional.of(nextDefn);
         }
+
         visited.add(nextDefn);
 
         return getCyclicDefinition(nextDefn, visited);
@@ -238,7 +252,9 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
             if (!(defn instanceof AstTypDefn) && isType) {
                 // Not a type, but should be!
-                var err = new ErrorAtBuilder("Expected a type, but found definition name:")
+                var err = new ErrorAtBuilder("Definition of `" + defn.name() + "` is not a type definition:")
+                        .addSourceLine(defn)
+                        .addLine("\nBut it was tried to be used as a type here:")
                         .addSourceLine(node)
                         .addOffsetedSquiglyLines(node, "Hint: Replace this with a type.");
 
@@ -250,7 +266,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
             var cycle = getCyclicDefinition(defn);
             if (cycle.isPresent()) {
-                var err = new ErrorAtBuilder("Cyclic dependency detected:")
+                var err = new ErrorAtBuilder("Cyclic definition detected:")
                         .addUnderlinedSourceNode(cycle.get().type)
                         .addSourceLine(node)
                         .addOffsetedSquiglyLines(node, "Hint: Try removing one of the definitions.")

@@ -219,8 +219,11 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var nameType = new SemNameType(typDefn.name());
         nameType.define(SemVoidType.type);
         SemAn.isType.put(typDefn, nameType);
+        // End of dummy
 
+        // Actual type
         var type = typDefn.type.accept(this, arg);
+
         nameType = new SemNameType(typDefn.name());
         nameType.define(type);
         SemAn.isType.put(typDefn, nameType);
