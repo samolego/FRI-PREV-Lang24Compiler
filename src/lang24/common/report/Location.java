@@ -113,6 +113,4 @@ public class Location implements Locatable, Loggable {
 		return begLine + "." + begColumn + ":" + endLine + "." + endColumn;
 	}
 
-
-
 }

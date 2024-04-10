@@ -60,9 +60,8 @@ public class SemTypes<Type extends SemType> implements Iterable<Type> {
 
 	@Override
 	public void forEach(final Consumer<? super Type> action) throws NullPointerException {
-		for (final Type t : this) {
-            action.accept(t);
-        }
+		for (final Type t : this)
+			action.accept(t);
 	}
 
 	@Override
@@ -114,7 +113,7 @@ public class SemTypes<Type extends SemType> implements Iterable<Type> {
 
 	@Override
 	public String toString() {
-		final StringBuilder str = new StringBuilder();
+		final StringBuffer str = new StringBuffer();
 		str.append("(");
 		boolean fst = true;
 		for (SemType type : types) {
