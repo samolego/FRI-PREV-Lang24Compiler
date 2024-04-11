@@ -20,7 +20,7 @@ public class ImcSTMTS extends ImcStmt {
 	 * 
 	 * @param stmts The sequence of statements.
 	 */
-	public ImcSTMTS(Vector<ImcStmt> stmts) {
+	public ImcSTMTS(Collection<ImcStmt> stmts) {
 		this.stmts = new Vector<ImcStmt>(stmts);
 	}
 

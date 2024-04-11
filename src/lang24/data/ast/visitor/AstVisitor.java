@@ -20,156 +20,98 @@ public interface AstVisitor<Result, Argument> {
 	// lang24.data.ast.tree:
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstNodes<? extends AstNode> nodes, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstNodes<? extends AstNode> nodes, Argument arg);
 
 	// lang24.data.ast.tree.defn:
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstTypDefn typDefn, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstTypDefn typDefn, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstVarDefn varDefn, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstVarDefn varDefn, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstFunDefn funDefn, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstFunDefn funDefn, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstFunDefn.AstRefParDefn refParDefn, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstFunDefn.AstRefParDefn refParDefn, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstFunDefn.AstValParDefn valParDefn, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstFunDefn.AstValParDefn valParDefn, Argument arg);
 
 	// lang24.data.ast.tree.expr:
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstArrExpr arrExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstArrExpr arrExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstAtomExpr atomExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstAtomExpr atomExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstBinExpr binExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstBinExpr binExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstCallExpr callExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstCallExpr callExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstCastExpr castExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstCastExpr castExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstCmpExpr cmpExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstCmpExpr cmpExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstNameExpr nameExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstNameExpr nameExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstPfxExpr pfxExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstPfxExpr pfxExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstSfxExpr sfxExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstSfxExpr sfxExpr, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstSizeofExpr sizeofExpr, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstSizeofExpr sizeofExpr, Argument arg);
 
 	// lang24.data.ast.tree.stmt:
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstAssignStmt assignStmt, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstAssignStmt assignStmt, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstBlockStmt blockStmt, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstBlockStmt blockStmt, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstExprStmt exprStmt, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstExprStmt exprStmt, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstIfStmt ifStmt, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstIfStmt ifStmt, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstReturnStmt retStmt, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstReturnStmt retStmt, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstWhileStmt whileStmt, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstWhileStmt whileStmt, Argument arg);
 
 	// lang24.data.ast.tree.type:
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstArrType arrType, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstArrType arrType, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstAtomType atomType, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstAtomType atomType, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstNameType nameType, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstNameType nameType, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstPtrType ptrType, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstPtrType ptrType, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstStrType strType, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstStrType strType, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstUniType uniType, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstUniType uniType, Argument arg);
 
 	@SuppressWarnings({ "doclint:missing" })
-	public default Result visit(AstRecType.AstCmpDefn cmpDefn, Argument arg) {
-		throw new Report.InternalError();
-	}
+	Result visit(AstRecType.AstCmpDefn cmpDefn, Argument arg);
 
 }

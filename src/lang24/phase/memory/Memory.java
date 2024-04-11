@@ -21,7 +21,7 @@ public class Memory extends Phase {
 	public static final Attribute<AstVarDefn, MemAccess> varAccesses = new Attribute<AstVarDefn, MemAccess>();
 
 	/** Maps parameter declarations to accesses. */
-	public static final Attribute<AstFunDefn.AstParDefn, MemAccess> parAccesses = new Attribute<AstFunDefn.AstParDefn, MemAccess>();
+	public static final Attribute<AstFunDefn.AstParDefn, MemRelAccess> parAccesses = new Attribute<>();
 
 	/** Maps component declarations to accesses. */
 	public static final Attribute<AstRecType.AstCmpDefn, MemAccess> cmpAccesses = new Attribute<AstRecType.AstCmpDefn, MemAccess>();

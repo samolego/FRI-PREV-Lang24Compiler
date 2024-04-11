@@ -30,7 +30,7 @@ public class ImcCALL extends ImcExpr {
 	 * @param offs  The offsets of arguments.
 	 * @param args  The values of arguments.
 	 */
-	public ImcCALL(MemLabel label, Vector<Long> offs, Vector<ImcExpr> args) {
+	public ImcCALL(MemLabel label, Collection<Long> offs, Collection<ImcExpr> args) {
 		this.label = label;
 		this.offs = new Vector<Long>(offs);
 		this.args = new Vector<ImcExpr>(args);
