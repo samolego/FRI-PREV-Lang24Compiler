@@ -1,17 +1,22 @@
 package lang24.phase.memory;
 
 import lang24.common.report.Report;
-import lang24.data.ast.tree.*;
-import lang24.data.ast.tree.defn.*;
-import lang24.data.ast.tree.expr.*;
-import lang24.data.ast.tree.type.*;
-import lang24.data.ast.visitor.*;
-import lang24.data.mem.*;
+import lang24.data.ast.tree.AstNode;
+import lang24.data.ast.tree.AstNodes;
+import lang24.data.ast.tree.defn.AstFunDefn;
+import lang24.data.ast.tree.defn.AstVarDefn;
+import lang24.data.ast.tree.expr.AstAtomExpr;
+import lang24.data.ast.tree.expr.AstCallExpr;
+import lang24.data.ast.tree.type.AstRecType;
+import lang24.data.ast.tree.type.AstStrType;
+import lang24.data.ast.tree.type.AstUniType;
+import lang24.data.ast.visitor.AstFullVisitor;
+import lang24.data.mem.MemAbsAccess;
+import lang24.data.mem.MemFrame;
+import lang24.data.mem.MemLabel;
+import lang24.data.mem.MemRelAccess;
 import lang24.data.type.*;
-import lang24.phase.lexan.LexAn;
-import lang24.phase.seman.NameResolver;
 import lang24.phase.seman.SemAn;
-import lang24.phase.synan.SynAn;
 
 import static java.lang.Math.max;
 
@@ -38,7 +43,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
      * @param type The type to get the size of.
      * @return The size of the type in bytes.
      */
-    private static long getSizeInBytes(SemType type) {
+    public static long getSizeInBytes(SemType type) {
         return switch (type) {
             case SemVoidType ignored -> 0;
             case SemPointerType ignored -> 8;
@@ -83,11 +88,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
      * @return
      */
     private static long roundTo8(long size) {
-        if (size % 8 != 0) {
-            size += 8 - size % 8;
-        }
-
-        return size;
+        return 0xFFFF_FFFF_FFFF_FFF8L & (size + 7);
     }
 
     @Override
@@ -181,7 +182,8 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     public Object visit(AstAtomExpr atomExpr, Integer depth) {
         if (atomExpr.type == AstAtomExpr.Type.STR) {
             assert SemAn.ofType.get(atomExpr) == SemPointerType.stringType : "Wrong string pointer for node " + atomExpr.getText();
-            Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemPointerType.type), new MemLabel(), atomExpr.value));
+            var label = depth == 0 ? new MemLabel(atomExpr.value) : new MemLabel();
+            Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemPointerType.stringType), label, atomExpr.value));
         }
 
         return null;

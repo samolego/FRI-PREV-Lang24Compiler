@@ -1,10 +1,9 @@
 package lang24.data.ast.tree.type;
 
-import lang24.common.report.*;
-import lang24.data.ast.tree.*;
-import lang24.data.ast.tree.defn.*;
-import lang24.data.ast.visitor.*;
-import lang24.data.type.SemType;
+import lang24.common.report.Locatable;
+import lang24.data.ast.tree.AstNodes;
+import lang24.data.ast.tree.defn.AstDefn;
+import lang24.data.ast.visitor.AstVisitor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +20,8 @@ public abstract class AstRecType extends AstType {
 
 	/**
 	 * Maps the names of the components to their definitions.
+	 * Not actually needed, since we have the {@link #cmps} field, but it's
+	 * nicer for searching a component by name.
 	 */
 	public final Map<String, AstCmpDefn> cmpTypes;
 

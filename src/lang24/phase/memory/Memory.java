@@ -15,19 +15,19 @@ import lang24.phase.*;
 public class Memory extends Phase {
 
 	/** Maps function declarations to frames. */
-	public static final Attribute<AstFunDefn, MemFrame> frames = new Attribute<AstFunDefn, MemFrame>();
+	public static final Attribute<AstFunDefn, MemFrame> frames = new Attribute<>();
 
 	/** Maps variable declarations to accesses. */
-	public static final Attribute<AstVarDefn, MemAccess> varAccesses = new Attribute<AstVarDefn, MemAccess>();
+	public static final Attribute<AstVarDefn, MemAccess> varAccesses = new Attribute<>();
 
 	/** Maps parameter declarations to accesses. */
 	public static final Attribute<AstFunDefn.AstParDefn, MemRelAccess> parAccesses = new Attribute<>();
 
 	/** Maps component declarations to accesses. */
-	public static final Attribute<AstRecType.AstCmpDefn, MemAccess> cmpAccesses = new Attribute<AstRecType.AstCmpDefn, MemAccess>();
+	public static final Attribute<AstRecType.AstCmpDefn, MemRelAccess> cmpAccesses = new Attribute<>();
 
 	/** Maps string constants to accesses. */
-	public static final Attribute<AstAtomExpr, MemAbsAccess> strings = new Attribute<AstAtomExpr, MemAbsAccess>();
+	public static final Attribute<AstAtomExpr, MemAbsAccess> strings = new Attribute<>();
 
 	/**
 	 * Phase construction.

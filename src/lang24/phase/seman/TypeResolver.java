@@ -1,17 +1,21 @@
 package lang24.phase.seman;
 
-import java.util.*;
-
 import lang24.common.StringUtil;
-import lang24.common.report.*;
+import lang24.common.report.ErrorAtBuilder;
+import lang24.common.report.Report;
+import lang24.data.ast.tree.AstNode;
+import lang24.data.ast.tree.AstNodes;
 import lang24.data.ast.tree.Nameable;
-import lang24.data.ast.tree.*;
-import lang24.data.ast.tree.defn.*;
+import lang24.data.ast.tree.defn.AstFunDefn;
+import lang24.data.ast.tree.defn.AstTypDefn;
+import lang24.data.ast.tree.defn.AstVarDefn;
 import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.stmt.*;
 import lang24.data.ast.tree.type.*;
-import lang24.data.ast.visitor.*;
+import lang24.data.ast.visitor.AstFullVisitor;
 import lang24.data.type.*;
+
+import java.util.*;
 
 /**
  * @author bostjan.slivnik@fri.uni-lj.si
@@ -392,6 +396,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
         SemAn.ofType.put(cmpExpr, type);
 
+        // Connect with definition
+        SemAn.definedAt.put(cmpExpr, childDefn);
+
         return type;
     }
 
@@ -446,7 +453,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstSizeofExpr sizeofExpr, Object arg) {
-        AstFullVisitor.super.visit(sizeofExpr, arg);
+        sizeofExpr.type.accept(this, arg);
 
         SemAn.ofType.put(sizeofExpr, SemIntType.type);
         return SemIntType.type;
@@ -707,11 +714,26 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstNameType nameType, Object arg) {
-        var type = findTypeAssociation(nameType);
+        var defined = SemAn.definedAt.get(nameType);
+        var type = SemAn.isType.get(defined);
 
+        if (type == null) {
+            type = SemAn.ofType.get(defined);
+
+            if (type != null) {
+                var err = new ErrorAtBuilder("Name `" + nameType.name() + "` is actually a variable, but was used as type here:", nameType);
+                throw new Report.Error(nameType, err);
+            }
+
+            // Ok, not, let's define it
+            type = defined.accept(this, null);
+            SemAn.isType.put(defined, type);
+        }
+
+        type = type.actualType();
         SemAn.isType.put(nameType, type);
 
-        return type;
+        return type.actualType();
     }
 
     @Override
