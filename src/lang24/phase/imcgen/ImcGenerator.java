@@ -239,7 +239,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     public ImcInstr visit(AstCastExpr castExpr, AstFunDefn parentFn) {
         var exprImc = (ImcExpr) castExpr.expr.accept(this, parentFn);
 
-        var expr = SemAn.ofType.get(castExpr.type) instanceof SemCharType
+        var expr = SemAn.isType.get(castExpr.type) instanceof SemCharType
                 ? new ImcBINOP(ImcBINOP.Oper.AND, exprImc, new ImcCONST(0x0FFL))  // If char is cast, we must mod it with 256
                 : exprImc;  // Otherwise, use the written value
 
@@ -324,7 +324,12 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             case ADD -> expr;
             case SUB -> new ImcUNOP(ImcUNOP.Oper.NEG, expr);
             case NOT -> new ImcUNOP(ImcUNOP.Oper.NOT, expr);
-            case PTR -> new ImcMEM(expr);
+            case PTR -> {
+                if (expr instanceof ImcMEM) {
+                     yield expr;
+                }
+                yield new ImcMEM(expr);
+            }
         };
 
         ImcGen.exprImc.put(pfxExpr, imc);
