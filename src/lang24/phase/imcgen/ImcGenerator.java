@@ -18,6 +18,7 @@ import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemRelAccess;
 import lang24.data.type.SemArrayType;
 import lang24.data.type.SemCharType;
+import lang24.data.type.SemVoidType;
 import lang24.phase.memory.MemEvaluator;
 import lang24.phase.memory.Memory;
 import lang24.phase.seman.SemAn;
@@ -76,8 +77,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
         // Add offset to the array to get the memory access address
         var binOp = new ImcBINOP(ImcBINOP.Oper.ADD, array, offset);
-        var memAcc = new ImcMEM(binOp);
 
+        var memAcc = new ImcMEM(binOp);
         ImcGen.exprImc.put(arrExpr, memAcc);
 
         return memAcc;
@@ -132,7 +133,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             case VOID, PTR -> new ImcCONST(0L);
             case STR -> {
                 var stringMem = Memory.strings.get(atomExpr);
-                yield new ImcMEM(new ImcNAME(stringMem.label));
+                yield new ImcNAME(stringMem.label);
             }
         };
 
@@ -182,10 +183,14 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     public ImcInstr visit(AstCallExpr callExpr, AstFunDefn parentFn) {
         // Fill argument expressions
         var args = new LinkedList<ImcExpr>();
-        callExpr.args.forEach(argExpr -> args.add((ImcExpr) argExpr.accept(this, parentFn)));
+        for (AstExpr argExpr : callExpr.args) {
+            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
+            args.add(imcExpr);
+        }
 
         // Original function definition
         var fnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
+
         // Get memory label
         var frame = Memory.frames.get(fnDefn);
         var label = frame == null
@@ -230,11 +235,9 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
         // Our result is at leftExpr + offset
         var binImc = new ImcBINOP(ImcBINOP.Oper.ADD, leftExpr, new ImcCONST(memAccess.offset));
+        ImcGen.exprImc.put(cmpExpr, binImc);
 
-        var memImc = new ImcMEM(binImc);
-        ImcGen.exprImc.put(cmpExpr, memImc);
-
-        return memImc;
+        return binImc;
     }
 
     // todo - test this, ex7 rule
@@ -358,7 +361,12 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     @Override
     public ImcInstr visit(AstExprStmt exprStmt, AstFunDefn parentFn) {
-        return exprStmt.expr.accept(this, parentFn);
+        var expr = exprStmt.expr.accept(this, parentFn);
+
+        var imcStmt = new ImcESTMT((ImcExpr) expr);
+        ImcGen.stmtImc.put(exprStmt, imcStmt);
+
+        return imcStmt;
     }
 
     @Override
@@ -396,18 +404,26 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     @Override
     public ImcInstr visit(AstReturnStmt retStmt, AstFunDefn parentFn) {
-        var expr = (ImcExpr) retStmt.expr.accept(this, parentFn);
-
-        // Move the expression to the return value
-        var frame = Memory.frames.get(parentFn);
+        var type = SemAn.ofType.get(parentFn);
         var exitLabel = ImcGen.exitLabel.get(parentFn);
-
-        // Write the return value to the stack
-        var move = new ImcMOVE(new ImcMEM(new ImcTEMP(frame.RV)), expr);
 
         // Jump to the exit label
         var jump = new ImcJUMP(exitLabel);
 
+        if (type == SemVoidType.type) {
+            // Return statement in void function
+            ImcGen.stmtImc.put(retStmt, jump);
+            return jump;
+        }
+
+        // Non-void
+        var expr = (ImcExpr) retStmt.expr.accept(this, parentFn);
+
+        // Move the expression to the return value
+        var frame = Memory.frames.get(parentFn);
+
+        // Write the return value to the stack
+        var move = new ImcMOVE(new ImcTEMP(frame.RV), expr);
         var imcStmt = new ImcSTMTS(List.of(move, jump));
         ImcGen.stmtImc.put(retStmt, imcStmt);
 

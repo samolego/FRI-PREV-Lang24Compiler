@@ -28,4 +28,13 @@ public class MemLabel {
 		this.name = "_" + name;
 	}
 
+	@Override
+	public int hashCode() {
+		return name.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof MemLabel mlb && name.equals(mlb.name);
+	}
 }

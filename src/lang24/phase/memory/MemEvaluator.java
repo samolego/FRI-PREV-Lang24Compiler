@@ -124,46 +124,45 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     public Object visit(AstFunDefn funDefn, Integer depth) {
         this.maxCallSize = SL_SIZE;
 
-        if (funDefn.stmt != null) {
-            long paramSize = 0;
-            for (var par : funDefn.pars) {
-                par.accept(this, depth);
+        long paramSize = 0;
+        for (var par : funDefn.pars) {
+            par.accept(this, depth);
 
-                var type = SemAn.ofType.get(par);
-                // Round parameters & arguments
+            var type = SemAn.ofType.get(par);
+            // Round parameters & arguments
+            long size = getSizeInBytes(type);
+
+            var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
+            Memory.parAccesses.put(par, memAcc);
+
+            paramSize += roundTo8(size);
+        }
+
+        long blockSize = 0;
+        for (var defn : funDefn.defns) {
+            if (defn instanceof AstFunDefn) {
+                defn.accept(this, depth + 1);
+            } else {
+                defn.accept(this, depth);
+            }
+
+            // Just variables interest us
+            if (defn instanceof AstVarDefn varDefn) {
+                var type = SemAn.ofType.get(defn);
                 long size = getSizeInBytes(type);
+                blockSize += roundTo8(size);
 
-                var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
-                Memory.parAccesses.put(par, memAcc);
+                // Automatic variable definition
+                var memAcc = new MemRelAccess(size, -blockSize, depth);
 
-                paramSize += roundTo8(size);
+                Memory.varAccesses.put(varDefn, memAcc);
             }
+        }
 
-
-            long blockSize = 0;
-            long maxOfArgsAndReturn = 0;
-            for (var defn : funDefn.defns) {
-                if (defn instanceof AstFunDefn) {
-                    defn.accept(this, depth + 1);
-                } else {
-                    defn.accept(this, depth);
-                }
-
-                // Just variables interest us
-                if (defn instanceof AstVarDefn varDefn) {
-                    var type = SemAn.ofType.get(defn);
-                    long size = getSizeInBytes(type);
-                    blockSize += roundTo8(size);
-
-                    // Automatic variable definition
-                    var memAcc = new MemRelAccess(size, -blockSize, depth);
-
-                    Memory.varAccesses.put(varDefn, memAcc);
-                }
-            }
+        if (funDefn.stmt != null) {
 
             funDefn.stmt.accept(this, depth + 1);
-            maxOfArgsAndReturn = this.maxCallSize;
+            long maxOfArgsAndReturn = this.maxCallSize;
 
             long size = blockSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
 

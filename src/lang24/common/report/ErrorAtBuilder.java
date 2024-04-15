@@ -2,7 +2,9 @@ package lang24.common.report;
 
 import lang24.data.ast.tree.AstNode;
 import lang24.data.ast.tree.AstNodes;
+import lang24.data.ast.tree.defn.AstFunDefn;
 import lang24.data.ast.tree.stmt.AstStmt;
+import lang24.data.type.SemType;
 
 /**
  * Error builder that can add source code lines and underlines to the error message.
@@ -81,24 +83,23 @@ public class ErrorAtBuilder {
             offset = 0;
         }
 
-        return addSquiglyLines(node, offset, lineOffset, message);
+        return addSquiglyLines(node, offset, message, '^');
     }
 
     /**
      * Adds carets under the node with the specified offset.
      * @param location The location to underline.
      * @param colOffset The column offset.
-     * @param lineOffset The line offset.
      * @param message The message to add under the carets.
      * @return
      */
-    public ErrorAtBuilder addSquiglyLines(Locatable location, int colOffset, int lineOffset, String message) {
+    public ErrorAtBuilder addSquiglyLines(Locatable location, int colOffset, String message, char undelineChar) {
         var ln = "     |    ";
         sb.append(ln);
         sb.append(" ".repeat(colOffset));
 
         int caretRepeat = 1 + Math.max(0, location.location().endColumn - location.location().begColumn);
-        sb.append("^".repeat(caretRepeat));
+        sb.append(String.valueOf(undelineChar).repeat(caretRepeat));
 
         if (message != null && !message.isEmpty()) {
             sb.append("\n");
@@ -162,19 +163,32 @@ public class ErrorAtBuilder {
      * @param node The node to get the end line from.
      * @return
      */
-    public ErrorAtBuilder addSourceLineEnd(AstNode node) {
-        node = findStatementNode(node);
-        var ln = String.format("%4d |    ", node.location().endLine);
+    public ErrorAtBuilder addSourceLineEnd(AstFunDefn node) {
+        var ln = String.format("%4d |    ", node.stmt.location().endLine);
 
         // Make error like this:
         // <line number> | <line text>
         //                 ^^^^^^^^^^^
 
         sb.append(ln);
-        var lineTexts = node.getText().split("\n");
+        var lineTexts = node.stmt.getText().split("\n");
         final String lineText = lineTexts[lineTexts.length - 1];
         sb.append(lineText);
         sb.append("\n");
+
+        return this;
+    }
+
+
+    public ErrorAtBuilder addMissingReturnInfo(SemType type, String message) {
+        var ln = "     |        ";
+
+        sb.append(ln);
+        final String returnStr = "return [type " + type.toString() + "];";
+        sb.append(returnStr);
+        sb.append('\n');
+        var loc = new Location(0, 4, 0, 4 + returnStr.length() - 1);
+        this.addSquiglyLines(loc, 4, message, '+');
 
         return this;
     }

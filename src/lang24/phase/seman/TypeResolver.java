@@ -483,11 +483,13 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         for (final AstStmt stmt : blockStmt.stmts) {
             var type = stmt.accept(this, arg);
 
-            if (stmt instanceof AstExprStmt exprStmt && !(exprStmt.expr instanceof AstCallExpr)) {
+            // Todo - ask - are fn calls which do not return void allowed?
+            if (stmt instanceof AstExprStmt exprStmt /*&& !(exprStmt.expr instanceof AstCallExpr)*/) {
                 if (!equiv(type, SemVoidType.type)) {
-                    var err = new ErrorAtBuilder("Following expression is not a valid statement:")
+                    var err = new ErrorAtBuilder("Following expression is not a valid statement.")
+                            .addLine("Expected type `void`, but got `" + type + "`:")
                             .addSourceLine(stmt)
-                            .addOffsetedSquiglyLines(stmt, "Hint: Try removing this expression.");
+                            .addOffsetedSquiglyLines(stmt, "Hint: Try removing this expression or assigning it to a variable.");
                     throw new Report.Error(stmt, err);
                 }
             }
@@ -623,18 +625,21 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 .addSourceLine(funDefn);
         if (foundReturnType != null && foundReturnType.stmt != null) {
             if (equiv(fnType, SemVoidType.type)) {
-                err.addOffsetedSquiglyLines(funDefn.type, "Hint: try changing the return type to `" + foundReturnType.type + "`.")
+                err.addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing the return type to `" + foundReturnType.type + "`.")
+                        .addBlankSourceLine()
                         .addLine("Actual return type is `" + foundReturnType.type + "`:")
                         .addSourceLine(foundReturnType.stmt);
             } else {
                 err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
+                        .addBlankSourceLine()
                         .addLine("But the actual return type is `" + foundReturnType.type + "`:")
                         .addSourceLine(foundReturnType.stmt)
                         .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
             }
         } else {
-            err.addOffsetedSquiglyLines(funDefn.type, "Note: This function requires returning an expression of type `" + fnType + "`.")
-                    .addLine("But function end was reached without finding `return` statement:")
+            err.addOffsetedSquiglyLines(funDefn.type, "Note: This function should probably end with returning expression of type `" + fnType + "`.")
+                    .addBlankSourceLine()
+                    .addMissingReturnInfo(fnType, "Hint: Try adding `return` statement at the end of the function.")
                     .addSourceLineEnd(funDefn)
                     .addBlankSourceLine();
         }

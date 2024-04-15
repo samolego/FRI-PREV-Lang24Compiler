@@ -149,7 +149,7 @@ ERROR : . {
         var lineText = getInputStream().getText(new Interval(prevNL, nextNL - 1));
         var err = new ErrorAtBuilder("Lexing error: `" + getText() + "`")
                 .addSourceLine(location, lineText)
-                .addSquiglyLines(location, getCharPositionInLine() - 1, 0, "Unexpected symbol");
+                .addSquiglyLines(location, getCharPositionInLine() - 1, "Unexpected symbol", '^');
         throw new Report.Error(location, err);
 
 
