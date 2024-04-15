@@ -357,7 +357,21 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     @Override
     public SemType visit(AstCmpExpr cmpExpr, Object arg) {
-        var defn = findRecordVariableDefinition(cmpExpr);
+        var exprType = cmpExpr.expr.accept(this, null);
+
+        if (!(exprType instanceof SemRecordType rType)) {
+            var err = new ErrorAtBuilder("Type of `" + cmpExpr.expr.getText() + "` is not a record type, but `" + exprType + "`:")
+                    .addSourceLine(cmpExpr)
+                    .addOffsetedSquiglyLines(cmpExpr, "Note: Tried to access un-existing component `" + cmpExpr.name() + "` on type `" + exprType + "`.");
+
+            throw new Report.Error(cmpExpr, err);
+        }
+
+        var defn = record2ast.get(rType);
+
+        if (defn == null) {
+            throw new Report.InternalError();
+        }
 
         // Check if cmpExpr.expr has a child
         var childDefn = defn.cmpTypes.get(cmpExpr.name);
@@ -577,7 +591,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstFunDefn funDefn, Object arg) {
         var fnType = funDefn.type.accept(this, arg);
 
-        // Check return type - can't be structs or so.
+        // Check return type - can't be records.
         if (fnType.actualType() instanceof SemRecordType || fnType.actualType() instanceof SemUnionType) {
             var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Did you mean to return `^" + fnType + "`?")
                     .addSourceLine(funDefn)
@@ -655,10 +669,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
         var type = refParDefn.type.accept(this, arg);
 
-        if (type == SemVoidType.type) {
+        if (type == SemVoidType.type || type instanceof SemRecordType) {
             var err = new ErrorAtBuilder("Reference parameter `" + refParDefn.name() + "` cannot be of type `" + type + "`:")
-                    .addSourceLine(refParDefn.parent.parent)
-                    .addOffsetedSquiglyLines(refParDefn, "");
+                    .addSourceLine(refParDefn.parent.parent);
+
+            if (type instanceof SemRecordType) {
+                err.addOffsetedSquiglyLines(refParDefn.type, "Hint: Did you mean to use pointer type, `^" + refParDefn.type.getText() + "`?");
+            } else {
+                err.addOffsetedSquiglyLines(refParDefn.type, "Allowed reference parameter types are `int`, `char`, `bool`.");
+            }
             throw new Report.Error(refParDefn, err);
         }
 
@@ -671,10 +690,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstFunDefn.AstValParDefn valParDefn, Object arg) {
         var type = valParDefn.type.accept(this, arg);
 
-        if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType || type.actualType() instanceof SemUnionType) {
+        if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType) {
             var err = new ErrorAtBuilder("Value parameter cannot be of type `" + type + "`:")
-                    .addSourceLine(valParDefn.parent.parent)
-                    .addOffsetedSquiglyLines(valParDefn, "");
+                    .addSourceLine(valParDefn.parent.parent);
+
+            if (type.actualType() instanceof SemRecordType) {
+                err.addOffsetedSquiglyLines(valParDefn.type, "Hint: Did you mean to use pointer type, `^" + valParDefn.type.getText() + "`?");
+            } else {
+                err.addOffsetedSquiglyLines(valParDefn.type, "Allowed types are `int`, `char`, `bool`, `^T`.");
+            }
             throw new Report.Error(valParDefn, err);
         }
 
@@ -834,18 +858,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         }
 
         return type.actualType();
-    }
-
-
-    private AstRecType findRecordVariableDefinition(AstCmpExpr cmpExpr) {
-        var type = cmpExpr.expr.accept(this, null);
-        var defn = record2ast.get((SemRecordType) type);
-
-        if (defn == null) {
-            throw new Report.InternalError();
-        }
-
-        return defn;
     }
 
     public static class FoundReturnType {
