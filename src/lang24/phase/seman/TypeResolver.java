@@ -367,21 +367,21 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             throw new Report.Error(cmpExpr, err);
         }
 
-        var defn = record2ast.get(rType);
+        var astRecType = record2ast.get(rType);
 
-        if (defn == null) {
+        if (astRecType == null) {
             throw new Report.InternalError();
         }
 
         // Check if cmpExpr.expr has a child
-        var childDefn = defn.cmpTypes.get(cmpExpr.name);
+        var childDefn = astRecType.cmpTypes.get(cmpExpr.name);
 
         // Error - programmer tried to access invalid component
         if (childDefn == null) {
             // Loop through all nodes and try to find similar names
             AstRecType.AstCmpDefn similar = null;
             int minDist = Integer.MAX_VALUE;
-            for (var cmp : defn.cmpTypes.values()) {
+            for (var cmp : astRecType.cmpTypes.values()) {
                 if (similar == null) {
                     similar = cmp;
                     minDist = StringUtil.calculate(similar.name, cmpExpr.name);
@@ -402,7 +402,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 err.addOffsetedSquiglyLines(cmpExpr, "");
             }
             err.addLine("Note: the record is defined with these components:")
-                    .addSourceLine(defn);
+                    .addSourceLine(astRecType);
             throw new Report.Error(cmpExpr, err);
         }
 
@@ -485,7 +485,27 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstAssignStmt assignStmt, Object arg) {
         var typeDst = assignStmt.dst.accept(this, arg);
 
+        // Check source
         checkOrThrow(assignStmt.src, typeDst, arg);
+
+        // Only allow ints, chars, bool and pointers to be assigned
+        var allowedTypes = Set.of(SemCharType.type, SemIntType.type, SemVoidType.type, SemBoolType.type, SemPointerType.type);
+        boolean eq = false;
+        for (var allowedType : allowedTypes) {
+            if (equiv(allowedType, typeDst)) {
+                eq = true;
+                break;
+            }
+        }
+        if (!eq) {
+            // Not a valid assignment
+            var allowedStr = String.join(", ", allowedTypes.stream().map(Object::toString).toList());
+            var err = new ErrorAtBuilder("The assignment is not valid. Can only assign one of the following: " + allowedStr)
+                    .addSourceLine(assignStmt)
+                    .addOffsetedSquiglyLines(assignStmt, "Note: This assignment is of type `" + typeDst + " = " + typeDst + "`, but only above assignments are allowed!");
+            throw new Report.Error(assignStmt, err);
+        }
+
         SemAn.ofType.put(assignStmt, SemVoidType.type);
 
         checkLValueOrThrow(assignStmt.dst);

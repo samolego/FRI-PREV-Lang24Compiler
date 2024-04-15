@@ -4,6 +4,7 @@ import lang24.common.report.ErrorAtBuilder;
 import lang24.common.report.Report;
 import lang24.data.ast.tree.AstNode;
 import lang24.data.ast.tree.AstNodes;
+import lang24.data.ast.tree.defn.AstDefn;
 import lang24.data.ast.tree.defn.AstFunDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
 import lang24.data.ast.tree.expr.*;
@@ -34,10 +35,13 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
         for (var astNode : nodes) {
             var stmt = astNode.accept(this, parentFn);
-            if (stmt instanceof ImcExpr expr) {
-                stmtList.add(new ImcESTMT(expr));
-            } else {
-                stmtList.add((ImcStmt) stmt);
+            switch (stmt) {
+                case ImcExpr expr -> stmtList.add(new ImcESTMT(expr));
+                case ImcStmt imcStmt -> stmtList.add(imcStmt);
+                case null -> {
+                    assert astNode instanceof AstDefn : "Got null for non-defn!";
+                }
+                default -> throw new Report.InternalError();
             }
         }
 
@@ -62,18 +66,41 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         return null;
     }
 
+    // needed?
+    /*@Override
+    public ImcInstr visit(AstVarDefn varDefn, AstFunDefn arg) {
+        // todo ?? new ImcCONST(varDefn)
+        return null;
+    }
+
+    @Override
+    public ImcInstr visit(AstFunDefn.AstRefParDefn refParDefn, AstFunDefn arg) {
+        refParDefn.
+        return AstFullVisitor.super.visit(refParDefn, arg);
+    }
+
+    @Override
+    public ImcInstr visit(AstFunDefn.AstValParDefn valParDefn, AstFunDefn arg) {
+        return AstFullVisitor.super.visit(valParDefn, arg);
+    }*/
 
     @Override
     public ImcInstr visit(AstArrExpr arrExpr, AstFunDefn parentFn) {
         var array = (ImcExpr) arrExpr.arr.accept(this, parentFn);
+
+        // Remove wrapper MEM if it exists
+        if (array instanceof ImcMEM mem) {
+            array = mem.addr;
+        }
+
         var idx = (ImcExpr) arrExpr.idx.accept(this, parentFn);
 
         // Get size of the array type
         var arrType = (SemArrayType) SemAn.ofType.get(arrExpr.arr);
-        var typeSize = MemEvaluator.getSizeInBytes(arrType.elemType);
+        long elemTypeSize = MemEvaluator.getSizeInBytes(arrType.elemType);
 
         // Multiply index by size of the type to get offset
-        var offset = new ImcBINOP(ImcBINOP.Oper.MUL, idx, new ImcCONST(typeSize));
+        var offset = new ImcBINOP(ImcBINOP.Oper.MUL, idx, new ImcCONST(elemTypeSize));
 
         // Add offset to the array to get the memory access address
         var binOp = new ImcBINOP(ImcBINOP.Oper.ADD, array, offset);
@@ -100,8 +127,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var constImc = switch (atomExpr.type) {
             case BOOL -> new ImcCONST(Boolean.parseBoolean(valueStr) ? 1L : 0L);
             case CHAR -> {
-                // Remove quotes (-2)
-                int length = valueStr.length() - 2;
+                int length = valueStr.length() - 2;  // -2 = remove quotes
                 if (length == 1) {
                     yield new ImcCONST(valueStr.charAt(1));  // Get ascii value of the character
                 }
@@ -166,7 +192,6 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         };
 
         var binImc = new ImcBINOP(oper, fstExpr, sndExpr);
-
         ImcGen.exprImc.put(binExpr, binImc);
 
         return binImc;
@@ -215,8 +240,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var exprImc = (ImcExpr) castExpr.expr.accept(this, parentFn);
 
         var expr = SemAn.ofType.get(castExpr.type) instanceof SemCharType
-                ? new ImcBINOP(ImcBINOP.Oper.AND, exprImc, new ImcCONST(0x0FFL))
-                : exprImc;
+                ? new ImcBINOP(ImcBINOP.Oper.AND, exprImc, new ImcCONST(0x0FFL))  // If char is cast, we must mod it with 256
+                : exprImc;  // Otherwise, use the written value
 
         ImcGen.exprImc.put(castExpr, expr);
 
@@ -227,8 +252,13 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     public ImcInstr visit(AstCmpExpr cmpExpr, AstFunDefn parentFn) {
         var leftExpr = (ImcExpr) cmpExpr.expr.accept(this, parentFn);
 
+        if (leftExpr instanceof ImcMEM mem) {
+            leftExpr = mem.addr;
+        }
+
         // Get component ast definition
         var cmpDefn = (AstRecType.AstCmpDefn) SemAn.definedAt.get(cmpExpr);
+        // Find memory access
         var memAccess = Memory.cmpAccesses.get(cmpDefn);
 
         // Our result is at leftExpr + offset
