@@ -214,9 +214,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     public ImcInstr visit(AstCastExpr castExpr, AstFunDefn parentFn) {
         var exprImc = (ImcExpr) castExpr.expr.accept(this, parentFn);
 
-        // todo - istype or oftype?
         var expr = SemAn.ofType.get(castExpr.type) instanceof SemCharType
-                // Mod 256 todo - is this correct
                 ? new ImcBINOP(ImcBINOP.Oper.AND, exprImc, new ImcCONST(0x0FFL))
                 : exprImc;
 
@@ -323,8 +321,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var size = MemEvaluator.getSizeInBytes(type);
 
         var imc = new ImcCONST(size);
-
         ImcGen.exprImc.put(sizeofExpr, imc);
+
         return imc;
     }
 
@@ -333,7 +331,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var dstExpr = (ImcExpr) assignStmt.dst.accept(this, parentFn);
         var srcExpr = (ImcExpr) assignStmt.src.accept(this, parentFn);
 
-        // todo - hwo to handle st2 rule?
+        // todo - how to handle st2 rule?
         var assignImc = new ImcMOVE(dstExpr, srcExpr);
         ImcGen.stmtImc.put(assignStmt, assignImc);
 

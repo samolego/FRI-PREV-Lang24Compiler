@@ -497,8 +497,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         for (final AstStmt stmt : blockStmt.stmts) {
             var type = stmt.accept(this, arg);
 
-            // Todo - ask - are fn calls which do not return void allowed?
-            if (stmt instanceof AstExprStmt exprStmt /*&& !(exprStmt.expr instanceof AstCallExpr)*/) {
+            if (stmt instanceof AstExprStmt /*exprStmt && !(exprStmt.expr instanceof AstCallExpr)*/) {  // Read the specs wrong at first
                 if (!equiv(type, SemVoidType.type)) {
                     var err = new ErrorAtBuilder("Following expression is not a valid statement.")
                             .addLine("Expected type `void`, but got `" + type + "`:")
