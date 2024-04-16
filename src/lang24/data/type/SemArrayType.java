@@ -28,7 +28,8 @@ public class SemArrayType extends SemValueType {
 
 	@Override
 	public String toString() {
-		return "array[" + size + "]" + elemType.toString();
+		var sizeStr = size < 0 ? "" : Long.toString(size);
+		return "array[" + sizeStr + "]" + elemType.toString();
 	}
 
 	@Override

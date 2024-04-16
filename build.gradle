@@ -29,12 +29,17 @@ repositories {
 dependencies {
     antlr("org.antlr:antlr4:$project.antlr_version")
     implementation("org.antlr:antlr4-runtime:$project.antlr_version")
+
+    // Tests
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$project.junit_version")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$project.junit_version")
+    testImplementation("org.assertj:assertj-core:$project.assertj_version")
 }
 
 def mainClass = "${project.src_root_name}.Compiler"
-def lexanDir = "src/${project.src_root_name}/phase/lexan"
-def synanDir = "src/${project.src_root_name}/phase/synan"
 def phaseDir = "src/${project.src_root_name}/phase"
+def lexanDir = "$phaseDir/lexan"
+def synanDir = "$phaseDir/synan"
 def lexerName = project.lexer_file_name
 def parserName = project.parser_file_name
 
@@ -46,6 +51,21 @@ sourceSets {
         antlr {
             srcDirs = [lexanDir]
         }
+    }
+    test {
+        java {
+            srcDir 'test/java'
+        }
+        resources {
+            srcDir 'test/resources'
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events = ["passed", "skipped", "failed"]
     }
 }
 

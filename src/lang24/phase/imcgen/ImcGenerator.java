@@ -352,7 +352,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     @Override
     public ImcInstr visit(AstSizeofExpr sizeofExpr, AstFunDefn parentFn) {
-        var type = SemAn.ofType.get(sizeofExpr.type);
+        var type = SemAn.isType.get(sizeofExpr.type);
         var size = MemEvaluator.getSizeInBytes(type);
 
         var imc = new ImcCONST(size);

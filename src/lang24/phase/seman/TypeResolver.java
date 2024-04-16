@@ -193,8 +193,24 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 expectedTypeStr = String.format("one of [%s]", expectedTypes.stream().map(SemType::toString).reduce((a, b) -> a + ", " + b).get());
             }
             var err = new ErrorAtBuilder("Type mismatch! Expected " + expectedTypeStr + ", but got `" + actualType + "`:")
-                    .addSourceLine(node)
-                    .addOffsetedSquiglyLines(node, "This expression has type `" + actualType + "`, which is wrong.");
+                    .addSourceLine(node);
+
+            boolean deref = false;
+            if (actualType instanceof SemPointerType ptr) {
+                // Check for potential dereference
+                for (var expected : expectedTypes) {
+                    if (equiv(ptr.baseType, expected)) {
+                        deref = true;
+                        break;
+                    }
+                }
+            }
+
+            if (deref) {
+                err.addOffsetedSquiglyLines(node, "Hint: Try dereferencing this expression with `^" + node.getText() + "`.");
+            } else {
+                err.addOffsetedSquiglyLines(node, "This expression has type `" + actualType + "`, which is wrong.");
+            }
             throw new Report.Error(node, err);
         }
 
@@ -245,7 +261,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         checkOrThrow(arrExpr.idx, SemIntType.type, arg);
 
         var type = arrExpr.arr.accept(this, arg);
-        var tp = ((SemArrayType) type.actualType()).elemType;
+
+        if (!(type instanceof SemArrayType arrayType)) {
+            var err = new ErrorAtBuilder("Type of `" + arrExpr.arr.getText() + "` is not an array type, but `" + type + "`:")
+                    .addSourceLine(arrExpr)
+                    .addOffsetedSquiglyLines(arrExpr, "Note: Tried to access element `" + arrExpr.idx.getText() + "` on type `" + type + "`.");
+
+            throw new Report.Error(arrExpr, err);
+        }
+        var tp = arrayType.elemType;
 
         SemAn.ofType.put(arrExpr, tp);
 
@@ -832,28 +856,6 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         SemAn.ofType.put(cmpDefn, type);
         return type;
     }
-
-
-    private SemType findTypeAssociation(AstNameType node) {
-        var defined = SemAn.definedAt.get(node);
-        var type = SemAn.isType.get(defined);
-
-        if (type == null) {
-            type = SemAn.ofType.get(defined);
-
-            if (type != null) {
-                var err = new ErrorAtBuilder("Name `" + node.name() + "` is actually a variable, but was used as type here:", node);
-                throw new Report.Error(node, err);
-            }
-
-            // Ok, not, let's define it
-            type = defined.accept(this, null);
-            SemAn.isType.put(defined, type);
-        }
-
-        return type.actualType();
-    }
-
 
     private <T extends AstNode & Nameable> SemType findVariableType(T node) {
         var defined = SemAn.definedAt.get(node);
