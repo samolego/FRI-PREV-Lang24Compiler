@@ -24,6 +24,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     private static final Map<SemRecordType, AstRecType> record2ast = new TreeMap<>(Comparator.comparing(semRecordType -> semRecordType.id));
 
+    private static final Set<SemType> PRIMITIVES = Set.of(SemCharType.type, SemIntType.type, SemVoidType.type, SemBoolType.type, SemPointerType.type);
+    private static final String ALLOWED_PRIMITIVE_TYPES = String.join(", ", PRIMITIVES.stream().map(Object::toString).toList());
+
     /**
      * Return type that was found when parsing function.
      */
@@ -379,28 +382,16 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         // Error - programmer tried to access invalid component
         if (childDefn == null) {
             // Loop through all nodes and try to find similar names
-            AstRecType.AstCmpDefn similar = null;
-            int minDist = Integer.MAX_VALUE;
-            for (var cmp : astRecType.cmpTypes.values()) {
-                if (similar == null) {
-                    similar = cmp;
-                    minDist = StringUtil.calculate(similar.name, cmpExpr.name);
-                } else {
-                    int dist = StringUtil.calculate(cmp.name, cmpExpr.name);
+            var similar = StringUtil.findSimilar(cmpExpr.name, astRecType.cmpTypes.values().stream().map(Nameable::name).iterator());
 
-                    if (dist < minDist) {
-                        similar = cmp;
-                        minDist = dist;
-                    }
-                }
-            }
             var err = new ErrorAtBuilder("Tried to access invalid component `" + cmpExpr.name + "`:")
                     .addSourceLine(cmpExpr);
-            if (similar != null && minDist < 3) {
-                err.addOffsetedSquiglyLines(cmpExpr, "Hint: Did you mean `" + similar.name + "`?");
+            if (similar.isPresent()) {
+                err.addOffsetedSquiglyLines(cmpExpr, "Hint: Did you mean `" + similar.get() + "`?");
             } else {
                 err.addOffsetedSquiglyLines(cmpExpr, "");
             }
+
             err.addLine("Note: the record is defined with these components:")
                     .addSourceLine(astRecType);
             throw new Report.Error(cmpExpr, err);
@@ -489,9 +480,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         checkOrThrow(assignStmt.src, typeDst, arg);
 
         // Only allow ints, chars, bool and pointers to be assigned
-        var allowedTypes = Set.of(SemCharType.type, SemIntType.type, SemVoidType.type, SemBoolType.type, SemPointerType.type);
         boolean eq = false;
-        for (var allowedType : allowedTypes) {
+        for (var allowedType : PRIMITIVES) {
             if (equiv(allowedType, typeDst)) {
                 eq = true;
                 break;
@@ -499,8 +489,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         }
         if (!eq) {
             // Not a valid assignment
-            var allowedStr = String.join(", ", allowedTypes.stream().map(Object::toString).toList());
-            var err = new ErrorAtBuilder("The assignment is not valid. Can only assign one of the following: " + allowedStr)
+            var err = new ErrorAtBuilder("The assignment is not valid. Can only assign one of the following: " + ALLOWED_PRIMITIVE_TYPES)
                     .addSourceLine(assignStmt)
                     .addOffsetedSquiglyLines(assignStmt, "Note: This assignment is of type `" + typeDst + " = " + typeDst + "`, but only above assignments are allowed!");
             throw new Report.Error(assignStmt, err);
@@ -611,8 +600,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var fnType = funDefn.type.accept(this, arg);
 
         // Check return type - can't be records.
-        if (fnType.actualType() instanceof SemRecordType || fnType.actualType() instanceof SemUnionType) {
-            var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Did you mean to return `^" + fnType + "`?")
+        boolean allowReturnType = false;
+        for (var allowed : PRIMITIVES) {
+            if (equiv(allowed, fnType.actualType())) {
+                allowReturnType = true;
+                break;
+            }
+        }
+        if (!allowReturnType) {
+            var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Available return types are: " + ALLOWED_PRIMITIVE_TYPES + ".")
                     .addSourceLine(funDefn)
                     .addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
 

@@ -1,6 +1,8 @@
 package lang24.common;
 
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Optional;
 
 
 public class StringUtil {
@@ -42,5 +44,31 @@ public class StringUtil {
 
     public static int costOfSubstitution(char a, char b) {
         return a == b ? 0 : 1;
+    }
+
+    public static Optional<String> findSimilar(String original, Iterator<String> defns) {
+        int minDist = Integer.MAX_VALUE;
+        String similar = null;
+        while (defns.hasNext()) {
+            var cmp = defns.next();
+
+            if (similar == null) {
+                similar = cmp;
+                minDist = StringUtil.calculate(similar, original);
+            } else {
+                int dist = StringUtil.calculate(cmp, original);
+
+                if (dist < minDist) {
+                    similar = cmp;
+                    minDist = dist;
+                }
+            }
+        }
+
+        if (minDist < 3) {
+            return Optional.of(similar);
+        } else {
+            return Optional.empty();
+        }
     }
 }

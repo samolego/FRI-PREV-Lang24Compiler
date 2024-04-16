@@ -1,15 +1,24 @@
 package lang24.phase.seman;
 
-import java.util.*;
-import lang24.common.report.*;
+import lang24.common.report.Report;
 import lang24.data.ast.tree.defn.AstDefn;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Objects;
 
 /**
  * A symbol table.
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class SymbTable {
+public class SymbTable implements Iterable<String> {
+
+	@Override
+	public Iterator<String> iterator() {
+		return allDefnsOfAllNames.keySet().iterator();
+	}
 
 	/**
 	 * A symbol table record denoting a definition of a name within a certain scope.

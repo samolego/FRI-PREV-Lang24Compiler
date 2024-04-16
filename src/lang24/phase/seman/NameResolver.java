@@ -1,5 +1,6 @@
 package lang24.phase.seman;
 
+import lang24.common.StringUtil;
 import lang24.common.report.*;
 import lang24.data.ast.tree.*;
 import lang24.data.ast.tree.defn.*;
@@ -47,6 +48,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
     /**
      * Defines a name or throws an error if it is already defined.
+     *
      * @param node The node which name points to.
      * @param name The name to define.
      */
@@ -108,7 +110,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                 defineOrThrow(funDefn, name);
             }
             case SECOND_PASS -> {
-                funDefn.type.accept(this,  PassType.SECOND_PASS);
+                funDefn.type.accept(this, PassType.SECOND_PASS);
 
                 this.symbTable.pushScope();
 
@@ -195,6 +197,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
     /**
      * Pregleda, če je definicija ciklična.
+     *
      * @param defn Definicija, ki jo preverjamo.
      * @return Definicija, ki je ciklična, če obstaja.
      */
@@ -205,7 +208,8 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
     /**
      * Pregleda, če je definicija ciklična.
-     * @param defn Definicija, ki jo preverjamo.
+     *
+     * @param defn    Definicija, ki jo preverjamo.
      * @param visited Množica že obiskanih definicij.
      * @return Definicija, ki je ciklična, če obstaja.
      */
@@ -274,10 +278,16 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
                 throw new Report.Error(node, err);
             }
         } catch (SymbTable.CannotFndNameException e) {
+            // Try to find similar name
+            var similar = StringUtil.findSimilar(name, this.symbTable.iterator());
+
             var err = new ErrorAtBuilder("Name `" + name + "` is not defined. Used here:")
-                    .addSourceLine(node)
-                    .addOffsetedSquiglyLines(node, "Hint: Try adding a definition named `" + name + "` before using it.")
-                    .toString();
+                    .addSourceLine(node);
+            if (similar.isPresent()) {
+                err.addOffsetedSquiglyLines(node, "Hint: There is a similar definition, did you mean to use `" + similar.get() + "`?");
+            } else {
+                err.addOffsetedSquiglyLines(node, "Hint: Try adding a definition named `" + name + "` before using it.");
+            }
             throw new Report.Error(node, err);
         }
     }
