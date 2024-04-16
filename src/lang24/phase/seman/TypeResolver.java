@@ -24,8 +24,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
     private static final Map<SemRecordType, AstRecType> record2ast = new TreeMap<>(Comparator.comparing(semRecordType -> semRecordType.id));
 
-    private static final Set<SemType> PRIMITIVES = Set.of(SemCharType.type, SemIntType.type, SemVoidType.type, SemBoolType.type, SemPointerType.type);
-    private static final String ALLOWED_PRIMITIVE_TYPES = String.join(", ", PRIMITIVES.stream().map(Object::toString).toList());
+    private static final Set<SemType> PRIMITIVES_NO_VOID = Set.of(SemCharType.type, SemIntType.type, SemBoolType.type, SemPointerType.type);
+    private static final Set<SemType> PRIMITIVES_WITH_VOID;
+    private static final String ALLOWED_PRIMITIVE_TYPES;
+
+    static {
+        PRIMITIVES_WITH_VOID = new HashSet<>(PRIMITIVES_NO_VOID);
+        PRIMITIVES_WITH_VOID.add(SemVoidType.type);
+        ALLOWED_PRIMITIVE_TYPES = String.join(", ", PRIMITIVES_WITH_VOID.stream().map(Object::toString).toList());
+    }
 
     /**
      * Return type that was found when parsing function.
@@ -173,18 +180,10 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
      * @throws Report.Error if the type of the node is not one of the expected types.
      */
     private SemType checkOrThrow(AstNode node, Set<SemType> expectedTypes, Object arg) {
+        assert !expectedTypes.isEmpty() : "Expected types cannot be empty!";
         final var actualType = node.accept(this, arg);
 
-        boolean eq = false;
-
-        for (SemType expectedType : expectedTypes) {
-            if (equiv(actualType, expectedType)) {
-                eq = true;
-                break;
-            }
-        }
-
-        if (!eq) {
+        if (wrongType(actualType, expectedTypes)) {
             String expectedTypeStr;
             if (expectedTypes.size() == 1) {
                 expectedTypeStr = String.format("`%s`", expectedTypes.iterator().next().toString());
@@ -224,9 +223,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
      * @param node The node to check.
      */
     private void checkLValueOrThrow(AstNode node) {
-        Boolean islval = SemAn.isLVal.get(node);
+        Boolean isLval = SemAn.isLVal.get(node);
 
-        if (islval == null || !islval) {
+        if (isLval == null || !isLval) {
             LValResolver.throwNotLValue(node);
         }
     }
@@ -269,12 +268,12 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
             throw new Report.Error(arrExpr, err);
         }
-        var tp = arrayType.elemType;
+        var retType = arrayType.elemType;
 
-        SemAn.ofType.put(arrExpr, tp);
+        SemAn.ofType.put(arrExpr, retType);
 
         checkLValueOrThrow(arrExpr.arr);
-        return tp;
+        return retType;
     }
 
     @Override
@@ -446,6 +445,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             case NOT -> checkOrThrow(pfxExpr.expr, SemBoolType.type, arg);
             case PTR -> {
                 var type = pfxExpr.expr.accept(this, arg);
+                // v8 rule, need to check for lvalue as well
                 checkLValueOrThrow(pfxExpr.expr);
                 yield new SemPointerType(type);
             }
@@ -460,16 +460,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstSfxExpr sfxExpr, Object arg) {
         var retType = switch (sfxExpr.oper) {
             case AstSfxExpr.Oper.PTR -> {
+                // Mark as lvalue even if sfxExpr.expr might not be pointer; check that later
+                SemAn.isLVal.put(sfxExpr, true);
                 var type = sfxExpr.expr.accept(this, arg);
 
                 if (type instanceof SemPointerType ptrType) {
-                    // Also correct the lvalue
-                    SemAn.isLVal.put(sfxExpr, true);
                     yield ptrType.baseType;
                 }
 
-                SemAn.isLVal.put(sfxExpr, false);
-
+                // Invalid dereference
                 var err = new ErrorAtBuilder("Dereference operator `^` can only be applied to a pointer type, but got `" + type + "`:")
                         .addSourceLine(sfxExpr);
                 throw new Report.Error(sfxExpr, err);
@@ -504,14 +503,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         checkOrThrow(assignStmt.src, typeDst, arg);
 
         // Only allow ints, chars, bool and pointers to be assigned
-        boolean eq = false;
-        for (var allowedType : PRIMITIVES) {
-            if (equiv(allowedType, typeDst)) {
-                eq = true;
-                break;
-            }
-        }
-        if (!eq) {
+        if (wrongType(typeDst, PRIMITIVES_WITH_VOID)) {
             // Not a valid assignment
             var err = new ErrorAtBuilder("The assignment is not valid. Can only assign one of the following: " + ALLOWED_PRIMITIVE_TYPES)
                     .addSourceLine(assignStmt)
@@ -624,15 +616,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     public SemType visit(AstFunDefn funDefn, Object arg) {
         var fnType = funDefn.type.accept(this, arg);
 
-        // Check return type - can't be records.
-        boolean allowReturnType = false;
-        for (var allowed : PRIMITIVES) {
-            if (equiv(allowed, fnType.actualType())) {
-                allowReturnType = true;
-                break;
-            }
-        }
-        if (!allowReturnType) {
+        // Check return type - can't be records / arrays
+        if (wrongType(fnType.actualType(), PRIMITIVES_WITH_VOID)) {
             var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Available return types are: " + ALLOWED_PRIMITIVE_TYPES + ".")
                     .addSourceLine(funDefn)
                     .addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
@@ -644,6 +629,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
         for (var param : funDefn.pars) {
             param.accept(this, arg);
+
+            // Check if parameters are lvalues
             checkLValueOrThrow(param);
         }
 
@@ -711,19 +698,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     @Override
     public SemType visit(AstFunDefn.AstRefParDefn refParDefn, Object arg) {
         var type = refParDefn.type.accept(this, arg);
-
-        if (type == SemVoidType.type || type instanceof SemRecordType) {
-            var err = new ErrorAtBuilder("Reference parameter `" + refParDefn.name() + "` cannot be of type `" + type + "`:")
-                    .addSourceLine(refParDefn.parent.parent);
-
-            if (type instanceof SemRecordType) {
-                err.addOffsetedSquiglyLines(refParDefn.type, "Hint: Did you mean to use pointer type, `^" + refParDefn.type.getText() + "`?");
-            } else {
-                err.addOffsetedSquiglyLines(refParDefn.type, "Allowed reference parameter types are `int`, `char`, `bool`.");
-            }
-            throw new Report.Error(refParDefn, err);
-        }
-
+        checkParameter(refParDefn, type);
         SemAn.ofType.put(refParDefn, type);
 
         return type;
@@ -732,22 +707,39 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
     @Override
     public SemType visit(AstFunDefn.AstValParDefn valParDefn, Object arg) {
         var type = valParDefn.type.accept(this, arg);
-
-        if (type.actualType() == SemVoidType.type || type.actualType() instanceof SemRecordType) {
-            var err = new ErrorAtBuilder("Value parameter cannot be of type `" + type + "`:")
-                    .addSourceLine(valParDefn.parent.parent);
-
-            if (type.actualType() instanceof SemRecordType) {
-                err.addOffsetedSquiglyLines(valParDefn.type, "Hint: Did you mean to use pointer type, `^" + valParDefn.type.getText() + "`?");
-            } else {
-                err.addOffsetedSquiglyLines(valParDefn.type, "Allowed types are `int`, `char`, `bool`, `^T`.");
-            }
-            throw new Report.Error(valParDefn, err);
-        }
-
+        checkParameter(valParDefn, type);
         SemAn.ofType.put(valParDefn, type);
 
         return type;
+    }
+
+    private void checkParameter(AstFunDefn.AstParDefn defn, SemType type) {
+        if (wrongType(type, PRIMITIVES_NO_VOID)) {
+            var err = new ErrorAtBuilder("Parameter `" + defn.name() + "` cannot be of type `" + type + "`:")
+                    .addSourceLine(defn.parent.parent);
+
+            if (type instanceof SemRecordType) {
+                err.addOffsetedSquiglyLines(defn.type, "Hint: Did you mean to use pointer type, `^" + defn.type.getText() + "`?");
+            } else {
+                err.addOffsetedSquiglyLines(defn.type, "Allowed reference parameter types are `int`, `char`, `bool`.");
+            }
+            throw new Report.Error(defn, err);
+        }
+    }
+
+    /**
+     * Whether type is wrong (not present in allowed types).
+     * @param type Type to check.
+     * @param allowedTypes Allowed types.
+     * @return {@code true} if type is wrong, {@code false} if ok.
+     */
+    private boolean wrongType(SemType type, Iterable<SemType> allowedTypes) {
+        for (var allowedType : allowedTypes) {
+            if (equiv(type, allowedType)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

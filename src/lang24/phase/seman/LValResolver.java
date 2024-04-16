@@ -4,17 +4,14 @@ import lang24.common.report.ErrorAtBuilder;
 import lang24.common.report.Report;
 import lang24.data.ast.tree.AstNode;
 import lang24.data.ast.tree.defn.AstFunDefn;
+import lang24.data.ast.tree.defn.AstTypDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
 import lang24.data.ast.tree.expr.*;
-import lang24.data.ast.tree.stmt.AstAssignStmt;
-import lang24.data.ast.tree.type.AstNameType;
-import lang24.data.ast.visitor.*;
-import lang24.data.type.SemPointerType;
+import lang24.data.ast.visitor.AstFullVisitor;
 
 /**
- * Lvalue resolver.
- * 
- * @author bostjan.slivnik@fri.uni-lj.si
+ * Lvalue resolver. This fills the isLVal attribute of expressions.
+ * Some checks are performed in TypeResolver.
  */
 public class LValResolver implements AstFullVisitor<Boolean, Object> {
 
@@ -23,7 +20,7 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 	}
 
 	public static void throwNotLValue(AstNode expr) {
-		var err = new ErrorAtBuilder("The following expression is not a valid:")
+		var err = new ErrorAtBuilder("The following expression is not a valid lvalue:")
 				.addSourceLine(expr)
 				.addOffsetedSquiglyLines(expr, "Hint: Try replacing this with valid lvalue.");
 		throw new Report.Error(expr, err);
@@ -50,6 +47,7 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 	@Override
 	public Boolean visit(AstSfxExpr sfxExpr, Object arg) {
 		// Handled in TypeResolver
+		sfxExpr.expr.accept(this, arg);
 		return true;
     }
 
@@ -95,24 +93,14 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 		return false;
 	}
 
-
-
 	@Override
-	public Boolean visit(AstAssignStmt assignStmt, Object arg) {
-		var dstLVal = assignStmt.dst.accept(this, arg);
-		assignStmt.src.accept(this, arg);
+	public Boolean visit(AstNameExpr nameExpr, Object arg) {
+		var defn = SemAn.definedAt.get(nameExpr);
 
-		if (dstLVal != null && dstLVal) {
+		if (defn instanceof AstTypDefn) {
 			return false;
 		}
 
-		throwNotLValue(assignStmt.dst);
-		return false;
-	}
-
-
-	@Override
-	public Boolean visit(AstNameExpr nameExpr, Object arg) {
 		SemAn.isLVal.put(nameExpr, true);
 		return true;
 	}
