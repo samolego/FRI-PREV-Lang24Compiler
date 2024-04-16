@@ -207,7 +207,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             }
 
             if (deref) {
-                err.addOffsetedSquiglyLines(node, "Hint: Try dereferencing this expression with `^" + node.getText() + "`.");
+                err.addOffsetedSquiglyLines(node, "Hint: Try dereferencing this expression using `^" + node.getText() + "`.");
             } else {
                 err.addOffsetedSquiglyLines(node, "This expression has type `" + actualType + "`, which is wrong.");
             }
@@ -584,6 +584,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         var type = retStmt.expr.accept(this, arg);
         var foundReturn = new FoundReturnType(type);
         foundReturn.stmt = retStmt;
+
         this.foundReturnType = foundReturn;
 
         // Check parent function for its return type and compare
@@ -648,10 +649,11 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
         funDefn.defns.accept(this, arg);
 
-        if (funDefn.stmt != null) {
-            this.currentReturningFunction = funDefn;
-            this.foundReturnType = null;
+        var previousFn = this.currentReturningFunction;
+        this.currentReturningFunction = funDefn;
+        this.foundReturnType = null;
 
+        if (funDefn.stmt != null) {
             checkOrThrow(funDefn.stmt, SemVoidType.type, arg);
 
             if (foundReturnType == null) {
@@ -667,6 +669,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 }
             }
         }
+
+        this.currentReturningFunction = previousFn;
 
         return fnType;
     }
