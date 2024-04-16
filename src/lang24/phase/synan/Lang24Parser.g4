@@ -297,8 +297,8 @@ atom returns [AstExpr ast]
     | prefix_operator atm=atom {
         $ast = new AstPfxExpr(loc($start, $atm.stop), $prefix_operator.op, $atm.ast);
     }
-    | LT type GT expression {
-        $ast = new AstCastExpr(loc($start, $expression.stop), $type.ast, $expression.ast);
+    | LT type GT atom {
+        $ast = new AstCastExpr(loc($start, $atom.stop), $type.ast, $atom.ast);
     }
     | SIZEOF LPAREN type RPAREN {
         $ast = new AstSizeofExpr(loc($start, $RPAREN), $type.ast);
