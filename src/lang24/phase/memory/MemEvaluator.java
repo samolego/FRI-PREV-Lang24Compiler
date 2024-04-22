@@ -64,7 +64,8 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
                 }
                 yield size;
             }
-            case SemArrayType semArrayType -> semArrayType.size * getSizeInBytes(semArrayType.elemType);
+            // Array elements are always aligned to 8 bytes
+            case SemArrayType semArrayType -> semArrayType.size * getRoundedSizeInBytes(semArrayType.elemType);
             case null, default -> throw new Report.InternalError();
         };
     }
@@ -78,16 +79,16 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
      */
     private static long getRoundedSizeInBytes(SemType type) {
         long size = getSizeInBytes(type);
-        return roundTo8(size);
+        return ceilTo8(size);
     }
 
     /**
-     * Rounds a long up to the nearest multiple of 8.
+     * Ceils a long up to the nearest multiple of 8.
      *
      * @param size the long to round
      * @return
      */
-    private static long roundTo8(long size) {
+    private static long ceilTo8(long size) {
         return 0xFFFF_FFFF_FFFF_FFF8L & (size + 7);
     }
 
@@ -135,7 +136,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
             Memory.parAccesses.put(par, memAcc);
 
-            paramSize += roundTo8(size);
+            paramSize += ceilTo8(size);
         }
 
         long blockSize = 0;
@@ -150,7 +151,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             if (defn instanceof AstVarDefn varDefn) {
                 var type = SemAn.ofType.get(defn);
                 long size = getSizeInBytes(type);
-                blockSize += roundTo8(size);
+                blockSize += ceilTo8(size);
 
                 // Automatic variable definition
                 var memAcc = new MemRelAccess(size, -blockSize, depth);
@@ -233,7 +234,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             var memAcc = new MemRelAccess(size, cmpOffset, -1);
             Memory.cmpAccesses.put(cmp, memAcc);
 
-            offset += roundTo8(size);
+            offset += ceilTo8(size);
         }
 
         return offset;

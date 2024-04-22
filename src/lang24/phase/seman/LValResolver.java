@@ -79,19 +79,6 @@ public class LValResolver implements AstFullVisitor<Boolean, Object> {
 		return false;
 	}
 
-	@Override
-	public Boolean visit(AstCastExpr castExpr, Object arg) {
-		var exprLVal = castExpr.expr.accept(this, arg);
-
-		if (exprLVal != null && exprLVal) {
-			SemAn.isLVal.put(castExpr, true);
-			castExpr.type.accept(this, arg);
-
-			return true;
-		}
-
-		return false;
-	}
 
 	@Override
 	public Boolean visit(AstNameExpr nameExpr, Object arg) {
