@@ -1,9 +1,11 @@
 package lang24.data.imc.code.expr;
 
-import java.util.*;
-import lang24.common.logger.*;
-import lang24.data.mem.*;
-import lang24.data.imc.visitor.*;
+import lang24.common.logger.Logger;
+import lang24.data.imc.visitor.ImcVisitor;
+import lang24.data.mem.MemLabel;
+
+import java.util.List;
+import java.util.Vector;
 
 /**
  * Function call.
@@ -30,10 +32,10 @@ public class ImcCALL extends ImcExpr {
 	 * @param offs  The offsets of arguments.
 	 * @param args  The values of arguments.
 	 */
-	public ImcCALL(MemLabel label, Collection<Long> offs, Collection<ImcExpr> args) {
+	public ImcCALL(MemLabel label, List<Long> offs, List<ImcExpr> args) {
 		this.label = label;
-		this.offs = new Vector<Long>(offs);
-		this.args = new Vector<ImcExpr>(args);
+		this.offs = new Vector<>(offs);
+		this.args = new Vector<>(args);
 	}
 
 	@Override

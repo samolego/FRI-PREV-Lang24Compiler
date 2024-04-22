@@ -1,9 +1,10 @@
 package lang24.data.imc.code.stmt;
 
-import java.util.*;
+import lang24.common.logger.Logger;
+import lang24.data.imc.visitor.ImcVisitor;
 
-import lang24.common.logger.*;
-import lang24.data.imc.visitor.*;
+import java.util.List;
+import java.util.Vector;
 
 /**
  * Sequence of statements.
@@ -20,7 +21,7 @@ public class ImcSTMTS extends ImcStmt {
 	 * 
 	 * @param stmts The sequence of statements.
 	 */
-	public ImcSTMTS(Collection<ImcStmt> stmts) {
+	public ImcSTMTS(List<ImcStmt> stmts) {
 		this.stmts = new Vector<ImcStmt>(stmts);
 	}
 

@@ -5,7 +5,7 @@ package lang24.data.mem;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class MemLabel {
+public class MemLabel implements Comparable<MemLabel> {
 
 	/** The name of a label. */
 	public final String name;
@@ -36,5 +36,15 @@ public class MemLabel {
 	@Override
 	public boolean equals(Object obj) {
 		return obj instanceof MemLabel mlb && name.equals(mlb.name);
+	}
+
+	@Override
+	public String toString() {
+		return name;
+	}
+
+	@Override
+	public int compareTo(MemLabel memLabel) {
+		return name.compareTo(memLabel.name);
 	}
 }

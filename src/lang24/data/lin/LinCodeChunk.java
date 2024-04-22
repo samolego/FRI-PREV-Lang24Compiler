@@ -1,9 +1,11 @@
 package lang24.data.lin;
 
-import java.util.*;
+import lang24.data.imc.code.stmt.ImcStmt;
+import lang24.data.mem.MemFrame;
+import lang24.data.mem.MemLabel;
 
-import lang24.data.mem.*;
-import lang24.data.imc.code.stmt.*;
+import java.util.List;
+import java.util.Vector;
 
 /**
  * A chuck of code.
@@ -36,9 +38,9 @@ public class LinCodeChunk {
 	 * @param exitLabel  The function's body exit label, i.e., the label at which
 	 *                   the epilogue starts.
 	 */
-	public LinCodeChunk(MemFrame frame, Vector<ImcStmt> stmts, MemLabel entryLabel, MemLabel exitLabel) {
+	public LinCodeChunk(MemFrame frame, List<ImcStmt> stmts, MemLabel entryLabel, MemLabel exitLabel) {
 		this.frame = frame;
-		this.stmts = new Vector<ImcStmt>(stmts);
+		this.stmts = new Vector<>(stmts);
 		this.entryLabel = entryLabel;
 		this.exitLabel = exitLabel;
 	}
@@ -49,7 +51,7 @@ public class LinCodeChunk {
 	 * @return The statements of a function body.
 	 */
 	public Vector<ImcStmt> stmts() {
-		return new Vector<ImcStmt>(stmts);
+		return new Vector<>(stmts);
 	}
 
 }

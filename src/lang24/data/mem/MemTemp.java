@@ -5,7 +5,7 @@ package lang24.data.mem;
  *
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class MemTemp {
+public class MemTemp implements Comparable<MemTemp> {
 
 	/** The name of a temporary variable. */
 	public final long temp;
@@ -24,4 +24,8 @@ public class MemTemp {
 		return "T" + temp;
 	}
 
+	@Override
+	public int compareTo(MemTemp memTemp) {
+		return Long.compare(this.temp, memTemp.temp);
+	}
 }
