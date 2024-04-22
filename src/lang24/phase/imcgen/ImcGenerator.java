@@ -7,17 +7,46 @@ import lang24.data.ast.tree.AstNodes;
 import lang24.data.ast.tree.defn.AstDefn;
 import lang24.data.ast.tree.defn.AstFunDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
-import lang24.data.ast.tree.expr.*;
-import lang24.data.ast.tree.stmt.*;
+import lang24.data.ast.tree.expr.AstArrExpr;
+import lang24.data.ast.tree.expr.AstAtomExpr;
+import lang24.data.ast.tree.expr.AstBinExpr;
+import lang24.data.ast.tree.expr.AstCallExpr;
+import lang24.data.ast.tree.expr.AstCastExpr;
+import lang24.data.ast.tree.expr.AstCmpExpr;
+import lang24.data.ast.tree.expr.AstExpr;
+import lang24.data.ast.tree.expr.AstNameExpr;
+import lang24.data.ast.tree.expr.AstPfxExpr;
+import lang24.data.ast.tree.expr.AstSfxExpr;
+import lang24.data.ast.tree.expr.AstSizeofExpr;
+import lang24.data.ast.tree.stmt.AstAssignStmt;
+import lang24.data.ast.tree.stmt.AstBlockStmt;
+import lang24.data.ast.tree.stmt.AstExprStmt;
+import lang24.data.ast.tree.stmt.AstIfStmt;
+import lang24.data.ast.tree.stmt.AstReturnStmt;
+import lang24.data.ast.tree.stmt.AstWhileStmt;
 import lang24.data.ast.tree.type.AstRecType;
 import lang24.data.ast.visitor.AstFullVisitor;
 import lang24.data.imc.code.ImcInstr;
-import lang24.data.imc.code.expr.*;
+import lang24.data.imc.code.expr.ImcBINOP;
 import lang24.data.imc.code.expr.ImcBINOP.Oper;
-import lang24.data.imc.code.stmt.*;
+import lang24.data.imc.code.expr.ImcCALL;
+import lang24.data.imc.code.expr.ImcCONST;
+import lang24.data.imc.code.expr.ImcExpr;
+import lang24.data.imc.code.expr.ImcMEM;
+import lang24.data.imc.code.expr.ImcNAME;
+import lang24.data.imc.code.expr.ImcTEMP;
+import lang24.data.imc.code.expr.ImcUNOP;
+import lang24.data.imc.code.stmt.ImcCJUMP;
+import lang24.data.imc.code.stmt.ImcESTMT;
+import lang24.data.imc.code.stmt.ImcJUMP;
+import lang24.data.imc.code.stmt.ImcLABEL;
+import lang24.data.imc.code.stmt.ImcMOVE;
+import lang24.data.imc.code.stmt.ImcSTMTS;
+import lang24.data.imc.code.stmt.ImcStmt;
 import lang24.data.mem.MemAbsAccess;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemRelAccess;
+import lang24.data.mem.MemTemp;
 import lang24.data.type.SemArrayType;
 import lang24.data.type.SemCharType;
 import lang24.data.type.SemVoidType;
@@ -207,13 +236,6 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
      */
     @Override
     public ImcInstr visit(AstCallExpr callExpr, AstFunDefn parentFn) {
-        // Fill argument expressions
-        var args = new LinkedList<ImcExpr>();
-        for (AstExpr argExpr : callExpr.args) {
-            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
-            args.add(imcExpr);
-        }
-
         // Original function definition
         var fnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
 
@@ -223,7 +245,23 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
                 ? new MemLabel(fnDefn.name())  // Prototype
                 : frame.label;  // Function definition in the same file
 
+        // Fill argument expressions
+        var args = new LinkedList<ImcExpr>();
+
+        // Static link (or dummy for prototypes)
+        var sl = new ImcTEMP(frame != null ? frame.FP : new MemTemp());
+        args.add(sl);
+
+        for (AstExpr argExpr : callExpr.args) {
+            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
+            args.add(imcExpr);
+        }
+
         var offsets = new LinkedList<Long>();
+
+        // Include static link in the offsets
+        offsets.add(MemEvaluator.SL_SIZE);
+
         // Get offsets of arguments
         for (var fnArg : fnDefn.pars) {
             var access = Memory.parAccesses.get(fnArg);
@@ -326,10 +364,10 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             case SUB -> new ImcUNOP(ImcUNOP.Oper.NEG, expr);
             case NOT -> new ImcUNOP(ImcUNOP.Oper.NOT, expr);
             case PTR -> {
-                if (expr instanceof ImcMEM) {
-                    yield expr;
+                if (expr instanceof ImcMEM mem) {
+                    yield mem.addr;
                 }
-                yield new ImcMEM(expr);
+                throw new Report.InternalError();
             }
         };
 
@@ -342,14 +380,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     public ImcInstr visit(AstSfxExpr sfxExpr, AstFunDefn parentFn) {
         var expr = (ImcExpr) sfxExpr.expr.accept(this, parentFn);
 
-        var imc = switch (sfxExpr.oper) {
-            // De-reference = remove the MEM wrapper
-            case PTR -> {
-                if (expr instanceof ImcMEM mem) {
-                    yield mem.addr;
-                }
-                throw new Report.InternalError();
-            }
+        ImcExpr imc = switch (sfxExpr.oper) {
+            case PTR -> new ImcMEM(expr);
         };
 
         ImcGen.exprImc.put(sfxExpr, imc);
