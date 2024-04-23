@@ -137,6 +137,10 @@ clean {
 
 run {
     enableAssertions = true
+    def isDebug = System.getenv("IDEA_RUNNER") == "debugger"
+    // Set `INTP_DEBUG=true` environment variable to true to enable debug mode
+    System.setProperty("INTP_DEBUG", isDebug.toString())
+
     // Default args
     var xsl = getPropertyOrDefault("xsl", "lib/xsl")
     var loggedPhase = getPropertyOrDefault("loggedPhase", "all")

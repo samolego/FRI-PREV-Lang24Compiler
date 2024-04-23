@@ -58,6 +58,8 @@ import java.util.List;
 
 public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
+    private static final ImcExpr STATIC_LINK_DUMMY = new ImcCONST(541);
+
     @Override
     public ImcInstr visit(AstNodes<? extends AstNode> nodes, AstFunDefn currentFn) {
         var stmtList = new LinkedList<ImcStmt>();
@@ -264,7 +266,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
         // Static link (or dummy for prototypes)
         var currentFrame = Memory.frames.get(currentFn);
-        ImcExpr sl = new ImcCONST(541);
+        ImcExpr sl = ImcGenerator.STATIC_LINK_DUMMY;
         if (calledFrame != null && calledFrame.depth > 0L) {
             long depthDiff = currentFrame.depth - calledFrame.depth + 1;
             // Need to go through static links depthDiff times
@@ -557,17 +559,19 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     @Override
     public ImcInstr visit(AstWhileStmt whileStmt, AstFunDefn currentFn) {
-        var cond = (ImcExpr) whileStmt.cond.accept(this, currentFn);
-
-        var stmt = (ImcStmt) whileStmt.stmt.accept(this, currentFn);
+        var condExpr = (ImcExpr) whileStmt.cond.accept(this, currentFn);
+        var stmtExpr = (ImcStmt) whileStmt.stmt.accept(this, currentFn);
 
         var stmts = new LinkedList<ImcStmt>();
         var loopLabel = new MemLabel();
+        var bodyLabel = new MemLabel();
         var exitLabel = new MemLabel();
 
         stmts.add(new ImcLABEL(loopLabel));
-        stmts.add(new ImcCJUMP(cond, loopLabel, exitLabel));
-        stmts.add(stmt);
+        stmts.add(new ImcCJUMP(condExpr, bodyLabel, exitLabel));
+        stmts.add(new ImcLABEL(bodyLabel));
+        stmts.add(stmtExpr);
+        stmts.add(new ImcJUMP(loopLabel));
         stmts.add(new ImcLABEL(exitLabel));
 
         var imcStmt = new ImcSTMTS(stmts);

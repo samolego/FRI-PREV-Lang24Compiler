@@ -15,8 +15,18 @@ import lang24.data.mem.MemAbsAccess;
 import lang24.data.mem.MemFrame;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemRelAccess;
-import lang24.data.type.*;
+import lang24.data.type.SemArrayType;
+import lang24.data.type.SemBoolType;
+import lang24.data.type.SemCharType;
+import lang24.data.type.SemIntType;
+import lang24.data.type.SemPointerType;
+import lang24.data.type.SemStructType;
+import lang24.data.type.SemType;
+import lang24.data.type.SemUnionType;
+import lang24.data.type.SemVoidType;
 import lang24.phase.seman.SemAn;
+
+import java.util.regex.Pattern;
 
 import static java.lang.Math.max;
 
@@ -26,11 +36,16 @@ import static java.lang.Math.max;
  *
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class MemEvaluator implements AstFullVisitor<Object, Integer> {
+public class MemEvaluator implements AstFullVisitor<Void, Integer> {
     /**
      * Size of static link in bytes.
      */
     private final long SL_SIZE = getSizeInBytes(SemPointerType.type);
+    /**
+     * Regex pattern for matching hex numbers (\ hex hex).
+     */
+    private static final Pattern HEX_REGEX_PATTERN = Pattern.compile("\\\\[0-9A-F]{2}");
+    private static final boolean DO_HEX_ESC = Boolean.parseBoolean(System.getenv().getOrDefault("DO_HEX_ESC", "false"));
 
     /**
      * The maximum size of latest function call (max of arguments + SL, return value).
@@ -93,7 +108,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstNodes<? extends AstNode> nodes, Integer depth) {
+    public Void visit(AstNodes<? extends AstNode> nodes, Integer depth) {
         if (depth == null) {
             // Root node
             depth = 0;
@@ -103,7 +118,7 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
 
     @Override
-    public Object visit(AstVarDefn varDefn, Integer depth) {
+    public Void visit(AstVarDefn varDefn, Integer depth) {
         // Get type of the variable
         var type = SemAn.ofType.get(varDefn);
 
@@ -118,11 +133,11 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
         varDefn.type.accept(this, depth);
 
-        return size;
+        return null;
     }
 
     @Override
-    public Object visit(AstFunDefn funDefn, Integer depth) {
+    public Void visit(AstFunDefn funDefn, Integer depth) {
         this.maxCallSize = SL_SIZE;
 
         long paramSize = 0;
@@ -179,18 +194,38 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
     }
 
     @Override
-    public Object visit(AstAtomExpr atomExpr, Integer depth) {
+    public Void visit(AstAtomExpr atomExpr, Integer depth) {
         if (atomExpr.type == AstAtomExpr.Type.STR) {
             assert SemAn.ofType.get(atomExpr) == SemPointerType.stringType : "Wrong string pointer for node " + atomExpr.getText();
-            var label = depth == 0 ? new MemLabel(atomExpr.value) : new MemLabel();
-            Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemPointerType.stringType), label, atomExpr.value));
+
+            var parsedStr = atomExpr.value
+                    .substring(1, atomExpr.value.length() - 1)  // Remove quotes
+                    .replaceAll("\\\\n", "\n")  // Replace \n with newline
+                    .replaceAll("\\\\\\\\", "\\\\")  // Replace \\ with \
+                    .replaceAll("\\\\\"", "\"");  // Replace \" with "
+
+
+            if (DO_HEX_ESC) {
+                var hexMatcher = HEX_REGEX_PATTERN.matcher(parsedStr);
+
+                while (hexMatcher.find()) {
+                    var hex = hexMatcher.group().substring(1);
+                    char charValue = (char) Integer.parseInt(hex, 16);
+                    parsedStr = parsedStr.replace(hexMatcher.group(), String.valueOf(charValue));
+                }
+
+                // Add null terminator
+                parsedStr = parsedStr + "\0";
+            }
+            long length = parsedStr.length();
+            Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemCharType.type) * length, new MemLabel(), parsedStr));
         }
 
         return null;
     }
 
     @Override
-    public Object visit(AstCallExpr callExpr, Integer depth) {
+    public Void visit(AstCallExpr callExpr, Integer depth) {
         long argSize = SL_SIZE; // We need at least static link for each function
         for (var arg : callExpr.args) {
             arg.accept(this, depth);
@@ -212,16 +247,18 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
 
     @Override
-    public Object visit(AstStrType strType, Integer depth) {
-        return processRecordType(strType);
+    public Void visit(AstStrType strType, Integer depth) {
+        processRecordType(strType);
+        return null;
     }
 
     @Override
-    public Object visit(AstUniType uniType, Integer depth) {
-        return processRecordType(uniType);
+    public Void visit(AstUniType uniType, Integer depth) {
+        processRecordType(uniType);
+        return null;
     }
 
-    private long processRecordType(AstRecType recType) {
+    private void processRecordType(AstRecType recType) {
         long offset = 0;
         for (var cmp : recType.cmps) {
             cmp.accept(this, -1);
@@ -236,7 +273,5 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
 
             offset += ceilTo8(size);
         }
-
-        return offset;
     }
 }
