@@ -22,7 +22,7 @@ import java.util.Set;
  * resolver. The results of the name resolver are stored in
  * {@link lang24.phase.seman.SemAn#definedAt}.
  */
-public class NameResolver implements AstFullVisitor<Object, PassType> {
+public class NameResolver implements AstFullVisitor<Void, PassType> {
 
     /**
      * Constructs a new name resolver.
@@ -37,7 +37,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstNodes<? extends AstNode> nodes, PassType arg) {
+    public Void visit(AstNodes<? extends AstNode> nodes, PassType arg) {
         if (arg == null) {
             AstFullVisitor.super.visit(nodes, PassType.FIRST_PASS);
             arg = PassType.SECOND_PASS;
@@ -74,7 +74,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstBlockStmt blockStmt, PassType arg) {
+    public Void visit(AstBlockStmt blockStmt, PassType arg) {
         this.symbTable.pushScope();
         AstFullVisitor.super.visit(blockStmt, arg);
         this.symbTable.popScope();
@@ -83,7 +83,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
     @Override
-    public Object visit(AstTypDefn typDefn, PassType arg) {
+    public Void visit(AstTypDefn typDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = typDefn.name;
             defineOrThrow(typDefn, name);
@@ -93,7 +93,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
     @Override
-    public Object visit(AstVarDefn varDefn, PassType arg) {
+    public Void visit(AstVarDefn varDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = varDefn.name;
             defineOrThrow(varDefn, name);
@@ -103,7 +103,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
     @Override
-    public Object visit(AstFunDefn funDefn, PassType arg) {
+    public Void visit(AstFunDefn funDefn, PassType arg) {
         switch (arg) {
             case FIRST_PASS -> {
                 var name = funDefn.name;
@@ -138,7 +138,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstFunDefn.AstRefParDefn refParDefn, PassType arg) {
+    public Void visit(AstFunDefn.AstRefParDefn refParDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = refParDefn.name;
             defineOrThrow(refParDefn, name);
@@ -148,7 +148,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
     @Override
-    public Object visit(AstFunDefn.AstValParDefn valParDefn, PassType arg) {
+    public Void visit(AstFunDefn.AstValParDefn valParDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = valParDefn.name;
             defineOrThrow(valParDefn, name);
@@ -159,7 +159,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
+    public Void visit(AstRecType.AstCmpDefn cmpDefn, PassType arg) {
         if (arg == PassType.FIRST_PASS) {
             var name = cmpDefn.name;
             // Define the name in the node
@@ -186,7 +186,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstCmpExpr cmpExpr, PassType arg) {
+    public Void visit(AstCmpExpr cmpExpr, PassType arg) {
         /*if (arg == PassType.SECOND_PASS) {  // todo - afaik not needed
             if (cmpExpr.expr instanceof AstNameExpr nameExpr) {
                 connectOrThrow(cmpExpr, nameExpr.name, false);
@@ -294,7 +294,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstCallExpr callExpr, PassType arg) {
+    public Void visit(AstCallExpr callExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = callExpr.name;
             connectOrThrow(callExpr, name, false);
@@ -305,7 +305,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
 
 
     @Override
-    public Object visit(AstNameExpr nameExpr, PassType arg) {
+    public Void visit(AstNameExpr nameExpr, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = nameExpr.name;
             connectOrThrow(nameExpr, name, false);
@@ -315,7 +315,7 @@ public class NameResolver implements AstFullVisitor<Object, PassType> {
     }
 
     @Override
-    public Object visit(AstNameType nameType, PassType arg) {
+    public Void visit(AstNameType nameType, PassType arg) {
         if (arg == PassType.SECOND_PASS) {
             var name = nameType.name;
             connectOrThrow(nameType, name, true);
