@@ -78,25 +78,20 @@ public class ChunkGenerator implements AstFullVisitor<Void, List<ImcStmt>> {
         var stmts = fillStatements(body);
 
         // Get function information
-        var frame = Memory.frames.get(funDefn);
+        var fnFrame = Memory.frames.get(funDefn);
 
         // Prologue
         var entryLabel = ImcGen.entryLabel.get(funDefn);
-
-        // Save the old FP
-
-
         stmts.addFirst(new ImcLABEL(entryLabel));
 
         // Epilogue
         var exitLabel = ImcGen.exitLabel.get(funDefn);
         stmts.add(new ImcLABEL(exitLabel));
-        // Return value is saved in MemEvaluator.java
-        // Resore the old FP
+        // Return value is already saved in MemEvaluator.java
 
 
         // Create function code chunk
-        var codeChunk = new LinCodeChunk(frame, stmts, entryLabel, exitLabel);
+        var codeChunk = new LinCodeChunk(fnFrame, stmts, entryLabel, exitLabel);
         ImcLin.addCodeChunk(codeChunk);
 
         return null;

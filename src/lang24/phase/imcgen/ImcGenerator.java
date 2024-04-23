@@ -6,6 +6,7 @@ import lang24.data.ast.tree.AstNode;
 import lang24.data.ast.tree.AstNodes;
 import lang24.data.ast.tree.defn.AstDefn;
 import lang24.data.ast.tree.defn.AstFunDefn;
+import lang24.data.ast.tree.defn.AstFunDefn.AstRefParDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
 import lang24.data.ast.tree.expr.AstArrExpr;
 import lang24.data.ast.tree.expr.AstAtomExpr;
@@ -13,7 +14,6 @@ import lang24.data.ast.tree.expr.AstBinExpr;
 import lang24.data.ast.tree.expr.AstCallExpr;
 import lang24.data.ast.tree.expr.AstCastExpr;
 import lang24.data.ast.tree.expr.AstCmpExpr;
-import lang24.data.ast.tree.expr.AstExpr;
 import lang24.data.ast.tree.expr.AstNameExpr;
 import lang24.data.ast.tree.expr.AstPfxExpr;
 import lang24.data.ast.tree.expr.AstSfxExpr;
@@ -256,20 +256,18 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var fnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
 
         // Get memory label
-        var frame = Memory.frames.get(fnDefn);
-        var label = frame == null
+        var calledFrame = Memory.frames.get(fnDefn);
+        var label = calledFrame == null
                 ? new MemLabel(fnDefn.name())  // Prototype
-                : frame.label;  // Function definition in the same file
+                : calledFrame.label;  // Function definition in the same file
 
-        // Fill argument expressions
-        var args = new LinkedList<ImcExpr>();
 
         // Static link (or dummy for prototypes)
+        var parentFrame = Memory.frames.get(parentFn);
         ImcExpr sl;
-        if (frame != null && frame.depth > 0L) {
-            var parentFrame = Memory.frames.get(parentFn);
-            long depthDiff = parentFrame.depth - frame.depth;
-            sl = new ImcTEMP(frame.FP);
+        if (calledFrame != null && parentFrame.depth > 0L) {
+            long depthDiff = calledFrame.depth + 1 - parentFrame.depth;
+            sl = new ImcTEMP(calledFrame.FP);
             for (int i = 0; i < depthDiff; i++) {
                 sl = new ImcMEM(sl);
             }
@@ -277,23 +275,42 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             sl = new ImcCONST(0);
         }
 
+        // Fill argument expressions
+        var args = new LinkedList<ImcExpr>();
         args.add(sl);
 
-        for (AstExpr argExpr : callExpr.args) {
-            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
-            args.add(imcExpr);
-        }
 
         var offsets = new LinkedList<Long>();
-
         // Include static link in the offsets
         offsets.add(0L);
 
-        // Get offsets of arguments
-        for (var fnArg : fnDefn.pars) {
-            var access = Memory.parAccesses.get(fnArg);
+        var callArgsIter = callExpr.args.iterator();
+        var fnParDefnsIter = fnDefn.pars.iterator();
+
+        while (callArgsIter.hasNext() && fnParDefnsIter.hasNext()) {
+            var argExpr = callArgsIter.next();
+            var fnParDefn = fnParDefnsIter.next();
+
+            // Get argument expression
+            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
+
+            // Warning! If parameter is a reference, we must pass the address of the argument
+            if (fnParDefn instanceof AstRefParDefn) {
+                if (imcExpr instanceof ImcMEM mem) {
+                    imcExpr = mem.addr;
+                } else {
+                    // Expected a memory access, got something else
+                    throw new Report.InternalError();
+                }
+            }
+
+            args.add(imcExpr);
+
+            // Get offset of argument
+            var access = Memory.parAccesses.get(fnParDefn);
             offsets.add(access.offset);
         }
+
 
         var callImc = new ImcCALL(label, offsets, args);
         ImcGen.exprImc.put(callExpr, callImc);
@@ -345,38 +362,37 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             default -> throw new Report.InternalError();
         };
 
-        // Inner memory access (will be used in the MEM instruction)
-        var imc = switch (access) {
+        // Address of the parameter
+        var address = switch (access) {
             case MemAbsAccess absAccess -> {
                 var label = absAccess.label;
                 yield new ImcNAME(label);
             }
             case MemRelAccess relAccess -> {
-                var frame = Memory.frames.get(parentFn);
+                var parentFrame = Memory.frames.get(parentFn);
 
-                // Check if inside current function
-                if (relAccess.depth == frame.depth) {
-                    // Inside current function
-                    var offset = new ImcCONST(relAccess.offset);
-                    yield new ImcBINOP(ImcBINOP.Oper.ADD, new ImcTEMP(frame.FP), offset);
-                } else {
-                    // Go through static link(s)
-                    long diff = relAccess.depth - frame.depth;
+                long depthDiff = parentFrame.depth - relAccess.depth;
+                ImcExpr temp = new ImcTEMP(parentFrame.FP);
 
-                    ImcExpr temp = new ImcTEMP(frame.FP);
-                    for (int i = 0; i < diff; i++) {
-                        temp = new ImcMEM(temp);
-                    }
-
-                    var offset = new ImcCONST(relAccess.offset);
-                    yield new ImcBINOP(ImcBINOP.Oper.ADD, temp, offset);
+                // Go through static link(s) if needed
+                for (int i = 0; i < depthDiff; i++) {
+                    temp = new ImcMEM(temp);
                 }
+
+                var offset = new ImcCONST(relAccess.offset);
+                yield new ImcBINOP(ImcBINOP.Oper.ADD, temp, offset);
             }
             default -> throw new Report.InternalError();
         };
 
         // Memory access instruction
-        var memInc = new ImcMEM(imc);
+        var memInc = new ImcMEM(address);
+
+        // If defn is reference, apply one more MEM over it
+        if (defn instanceof AstRefParDefn) {
+            memInc = new ImcMEM(memInc);
+        }
+
         ImcGen.exprImc.put(nameExpr, memInc);
 
         return memInc;
@@ -429,6 +445,18 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     @Override
     public ImcInstr visit(AstAssignStmt assignStmt, AstFunDefn parentFn) {
         var dstExpr = (ImcExpr) assignStmt.dst.accept(this, parentFn);
+        var defn = SemAn.definedAt.get(assignStmt.dst);
+
+        if (defn instanceof AstRefParDefn) {
+            // Destination is a reference, we must get the address
+            if (dstExpr instanceof ImcMEM mem) {
+                dstExpr = mem.addr;
+            } else {
+                // Expected a memory access, got something else
+                throw new Report.InternalError();
+            }
+        }
+
         var srcExpr = (ImcExpr) assignStmt.src.accept(this, parentFn);
 
         // todo - how to handle st2 rule?

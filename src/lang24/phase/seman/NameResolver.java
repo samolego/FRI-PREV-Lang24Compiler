@@ -185,16 +185,6 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
     }
 
 
-    @Override
-    public Void visit(AstCmpExpr cmpExpr, PassType arg) {
-        /*if (arg == PassType.SECOND_PASS) {  // todo - afaik not needed
-            if (cmpExpr.expr instanceof AstNameExpr nameExpr) {
-                connectOrThrow(cmpExpr, nameExpr.name, false);
-            }
-        }*/
-        return AstFullVisitor.super.visit(cmpExpr, arg);
-    }
-
     /**
      * Pregleda, če je definicija ciklična.
      *
