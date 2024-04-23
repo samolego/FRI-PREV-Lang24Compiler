@@ -48,8 +48,8 @@ public class MemEvaluator implements AstFullVisitor<Object, Integer> {
             case SemVoidType ignored -> 0;
             case SemPointerType ignored -> 8;
             case SemIntType ignored -> 8;
-            case SemBoolType ignored -> 1;
-            case SemCharType ignored -> 1;
+            case SemBoolType ignored -> 8;
+            case SemCharType ignored -> 8;
             case SemStructType semStructType -> {
                 long size = 0;
                 for (var cmp : semStructType.cmpTypes) {

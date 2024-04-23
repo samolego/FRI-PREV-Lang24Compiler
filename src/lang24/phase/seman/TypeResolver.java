@@ -649,6 +649,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                     functionReturnError(funDefn, false);
                 }
             } else {
+                funDefn.hasReturnStmt = true;
                 boolean eq = equiv(fnType, this.foundReturnType.type);
                 // Throw error if not equivalent
                 if (!eq) {

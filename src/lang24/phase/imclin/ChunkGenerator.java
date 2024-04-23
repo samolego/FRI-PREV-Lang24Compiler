@@ -8,8 +8,6 @@ import lang24.data.ast.visitor.AstFullVisitor;
 import lang24.data.imc.code.ImcInstr;
 import lang24.data.imc.code.expr.ImcCALL;
 import lang24.data.imc.code.expr.ImcExpr;
-import lang24.data.imc.code.expr.ImcMEM;
-import lang24.data.imc.code.expr.ImcNAME;
 import lang24.data.imc.code.expr.ImcTEMP;
 import lang24.data.imc.code.stmt.ImcLABEL;
 import lang24.data.imc.code.stmt.ImcMOVE;
@@ -25,10 +23,11 @@ import lang24.phase.memory.Memory;
 import java.util.LinkedList;
 import java.util.List;
 
-public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
+public class ChunkGenerator implements AstFullVisitor<Void, List<ImcStmt>> {
 
     /**
      * Returns a list of statements from the provided statement.
+     *
      * @param statement The statement to get the list of statements from.
      * @return A list of statements from a statement.
      */
@@ -40,7 +39,8 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
 
     /**
      * Fills a list with statements from the provided statement.
-     * @param statement The statement to get the statements from.
+     *
+     * @param statement     The statement to get the statements from.
      * @param statementList The list to fill.
      */
     private void fillStatements(ImcStmt statement, List<ImcStmt> statementList) {
@@ -54,7 +54,7 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
     }
 
     @Override
-    public Object visit(AstVarDefn varDefn, List<ImcStmt> stmtList) {
+    public Void visit(AstVarDefn varDefn, List<ImcStmt> stmtList) {
         // Get memory location
         var memAcc = Memory.varAccesses.get(varDefn);
         if (memAcc instanceof MemAbsAccess absAcc) {
@@ -67,28 +67,35 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
     }
 
     @Override
-    public Object visit(AstFunDefn funDefn, List<ImcStmt> stmtList) {
+    public Void visit(AstFunDefn funDefn, List<ImcStmt> stmtList) {
         if (funDefn.stmt == null) {
             return null;
         }
         AstFullVisitor.super.visit(funDefn, stmtList);
 
+        // Get the body of the function & unpack ImcSTMTS to List<ImcStmt>
         var body = ImcGen.stmtImc.get(funDefn.stmt);
+        var stmts = fillStatements(body);
 
         // Get function information
         var frame = Memory.frames.get(funDefn);
 
-        var entryLabel = ImcGen.entryLabel.get(funDefn);
-        var exitLabel = ImcGen.exitLabel.get(funDefn);
-
-        var stmts = fillStatements(body);
-
         // Prologue
+        var entryLabel = ImcGen.entryLabel.get(funDefn);
+
+        // Save the old FP
+
+
         stmts.addFirst(new ImcLABEL(entryLabel));
 
         // Epilogue
+        var exitLabel = ImcGen.exitLabel.get(funDefn);
         stmts.add(new ImcLABEL(exitLabel));
+        // Return value is saved in MemEvaluator.java
+        // Resore the old FP
 
+
+        // Create function code chunk
         var codeChunk = new LinCodeChunk(frame, stmts, entryLabel, exitLabel);
         ImcLin.addCodeChunk(codeChunk);
 
@@ -97,7 +104,7 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
 
 
     @Override
-    public Object visit(AstAtomExpr atomExpr, List<ImcStmt> stmtList) {
+    public Void visit(AstAtomExpr atomExpr, List<ImcStmt> stmtList) {
         if (atomExpr.type == AstAtomExpr.Type.STR) {
             var acc = Memory.strings.get(atomExpr);
             var dataChunk = new LinDataChunk(acc);
@@ -110,7 +117,7 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
 
     // Todo
     @Override
-    public Object visit(AstCallExpr callExpr, List<ImcStmt> stmtList) {
+    public Void visit(AstCallExpr callExpr, List<ImcStmt> stmtList) {
         // Visit the arguments
         callExpr.args.accept(this, stmtList);
 
@@ -122,15 +129,10 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
         // Linearize the call imc
         // Put each parameter in new temp, if it's named / call
         for (ImcExpr imcExpr : callImc.args) {
-            if (imcExpr instanceof ImcCALL || (imcExpr instanceof ImcMEM mem && mem.addr instanceof ImcNAME)) {
-                // Create a new temp for the parameter
-                var temp = new ImcTEMP(new MemTemp());
-                var moved = new ImcMOVE(temp, imcExpr);
-                linearized.add(moved);
-            } else {
-                // If it's not a call or a name, just add it to the linearized
-                linearized.add(imcExpr);
-            }
+            // Create a new temp for the parameter
+            var temp = new ImcTEMP(new MemTemp());
+            var moved = new ImcMOVE(temp, imcExpr);
+            linearized.add(moved);
         }
 
         linearized.add(callImc);
@@ -144,19 +146,19 @@ public class ChunkGenerator implements AstFullVisitor<Object, List<ImcStmt>> {
     /*
     // Todo
     @Override
-    public Object visit(AstIfStmt ifStmt, List<ImcStmt> stmtList) {
+    public Void visit(AstIfStmt ifStmt, List<ImcStmt> stmtList) {
         var imcStmt = ImcGen.stmtImc.get(ifStmt);
     }
 
     // Todo
     @Override
-    public Object visit(AstReturnStmt retStmt, List<ImcStmt> stmtList) {
+    public Void visit(AstReturnStmt retStmt, List<ImcStmt> stmtList) {
         return null;
     }
 
     // Todo
     @Override
-    public Object visit(AstWhileStmt whileStmt, List<ImcStmt> stmtList) {
+    public Void visit(AstWhileStmt whileStmt, List<ImcStmt> stmtList) {
         return null;
     }*/
 }

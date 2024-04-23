@@ -46,7 +46,6 @@ import lang24.data.imc.code.stmt.ImcStmt;
 import lang24.data.mem.MemAbsAccess;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemRelAccess;
-import lang24.data.mem.MemTemp;
 import lang24.data.type.SemArrayType;
 import lang24.data.type.SemCharType;
 import lang24.data.type.SemVoidType;
@@ -90,20 +89,37 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         funDefn.defns.accept(this, funDefn);
 
         if (funDefn.stmt != null) {
-            funDefn.stmt.accept(this, funDefn);
-        }
+            // Not a prototype
+            var stmts = funDefn.stmt.accept(this, funDefn);
 
-        // DEBUG: Return statement in void function also assigns to a temp
-        if (true) {  // todo
-            // Move the expression to the return value
-            //var frame = Memory.frames.get(funDefn);
-            //var move = new ImcMOVE(new ImcTEMP(frame.RV), new ImcCONST(0L));
+            // Force set the RV to 0 if there is no return statement
+            if (!funDefn.hasReturnStmt) {
+                // Move the expression to the return value
+                var frame = Memory.frames.get(funDefn);
+                var dummyReturn = new ImcCONST(0);
 
-            //var imcStmt = new ImcSTMTS(List.of(move, jump));
-            //ImcGen.stmtImc.put(retStmt, imcStmt);
-            //return imcStmt;
+                var jump = new ImcJUMP(exitLabel);
+                var move = new ImcMOVE(new ImcTEMP(frame.RV), dummyReturn);
+
+                // New statement list for the function
+                var newStmts = switch (stmts) {
+                    case ImcSTMTS stmtsList -> {
+
+                        stmtsList.stmts.add(move);
+                        stmtsList.stmts.add(jump);
+
+                        yield stmtsList;
+                    }
+                    // Single expression
+                    case ImcExpr expr -> new ImcSTMTS(List.of(new ImcESTMT(expr), move, jump));
+                    case ImcStmt stmt -> new ImcSTMTS(List.of(stmt, move, jump));
+                    case null, default -> throw new Report.InternalError();
+                };
+
+                // Overwrite original
+                ImcGen.stmtImc.put(funDefn.stmt, newStmts);
+            }
         }
-        // End debug
 
         return null;
     }
@@ -249,7 +265,18 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var args = new LinkedList<ImcExpr>();
 
         // Static link (or dummy for prototypes)
-        var sl = new ImcTEMP(frame != null ? frame.FP : new MemTemp());
+        ImcExpr sl;
+        if (frame != null && frame.depth > 0L) {
+            var parentFrame = Memory.frames.get(parentFn);
+            long depthDiff = parentFrame.depth - frame.depth;
+            sl = new ImcTEMP(frame.FP);
+            for (int i = 0; i < depthDiff; i++) {
+                sl = new ImcMEM(sl);
+            }
+        } else {
+            sl = new ImcCONST(0);
+        }
+
         args.add(sl);
 
         for (AstExpr argExpr : callExpr.args) {
@@ -260,7 +287,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var offsets = new LinkedList<Long>();
 
         // Include static link in the offsets
-        offsets.add(MemEvaluator.SL_SIZE);
+        offsets.add(0L);
 
         // Get offsets of arguments
         for (var fnArg : fnDefn.pars) {
@@ -481,14 +508,14 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         // Jump to the exit label
         var jump = new ImcJUMP(exitLabel);
 
-        if (type == SemVoidType.type) {
+        /*if (type == SemVoidType.type) {
             // Return statement in void function
             ImcGen.stmtImc.put(retStmt, jump);
             return jump;
-        }
+        }*/
 
-        // Non-void
-        var expr = (ImcExpr) retStmt.expr.accept(this, parentFn);
+        // To keep interpreter happy, we also make void functions return <something>
+        var expr = type == SemVoidType.type ? new ImcCONST(0) : (ImcExpr) retStmt.expr.accept(this, parentFn);
 
         // Move the expression to the return value
         var frame = Memory.frames.get(parentFn);

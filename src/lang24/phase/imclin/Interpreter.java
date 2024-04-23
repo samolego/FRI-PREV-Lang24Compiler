@@ -24,7 +24,6 @@ import lang24.data.mem.MemFrame;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemTemp;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
@@ -74,7 +73,7 @@ public class Interpreter {
         this.dataMemLabels = new TreeMap<MemLabel, Long>();
         for (LinDataChunk dataChunk : dataChunks) {
             if (debug) {
-                System.out.printf("### %s @ %d\n", dataChunk.label.name, tempLD(HP, false));
+                System.out.printf("### %s @ %s\n", dataChunk.label.name, toHex(tempLD(HP, false)));
             }
             this.dataMemLabels.put(dataChunk.label, tempLD(HP, false));
             if (dataChunk.init != null) {
@@ -99,13 +98,17 @@ public class Interpreter {
         }
     }
 
+    private String toHex(long addr) {
+        return String.format("0x%016X", addr);
+    }
+
     private void memST(Long address, Long value) {
         memST(address, value, debug);
     }
 
     private void memST(Long address, Long value, boolean debug) {
         if (debug)
-            System.out.printf("### [%d] <- %d\n", address, value);
+            System.out.printf("### [%s] <- %d(=%s)\n", toHex(address), value, toHex(value));
         for (int b = 0; b <= 7; b++) {
             long longval = value % 0x100;
             byte byteval = (byte) longval;
@@ -124,7 +127,7 @@ public class Interpreter {
             Byte byteval = memory.get(address + b);
             if (byteval == null) {
                 byteval = (byte) (random.nextLong() / 0x100);
-                Report.warning(String.format("INTERPRETER: Uninitialized memory location: 0x%016X", address + b));
+                Report.warning(String.format("INTERPRETER: Uninitialized memory location: %s", toHex(address + b)));
                 // throw new Report.Error("INTERPRETER: Uninitialized memory location " +
                 // (address + b) + ".");
             }
@@ -132,7 +135,7 @@ public class Interpreter {
             value = (value * 0x100) + (longval < 0 ? longval + 0x100 : longval);
         }
         if (debug)
-            System.out.printf("### %d <- [%d]\n", value, address);
+            System.out.printf("### %d <- [%s]\n", value, toHex(address));
         return value;
     }
 
@@ -144,19 +147,19 @@ public class Interpreter {
         temps.put(temp, value);
         if (debug) {
             if (temp == SP) {
-                System.out.printf("### SP <- %d\n", value);
+                System.out.printf("### SP <- %s\n", toHex(value));
                 return;
             }
             if (temp == FP) {
-                System.out.printf("### FP <- %d\n", value);
+                System.out.printf("### FP <- %s\n", toHex(value));
                 return;
             }
             if (temp == RV) {
-                System.out.printf("### RV <- %d\n", value);
+                System.out.printf("### RV <- %s\n", toHex(value));
                 return;
             }
             if (temp == HP) {
-                System.out.printf("### HP <- %d\n", value);
+                System.out.printf("### HP <- %s\n", toHex(value));
                 return;
             }
             System.out.printf("### T%d <- %d\n", temp.temp, value);
@@ -175,22 +178,22 @@ public class Interpreter {
         }
         if (debug) {
             if (temp == SP) {
-                System.out.printf("### %d <- SP\n", value);
+                System.out.printf("### %s <- SP\n", toHex(value));
                 return value;
             }
             if (temp == FP) {
-                System.out.printf("### %d <- FP\n", value);
+                System.out.printf("### %s <- FP\n", toHex(value));
                 return value;
             }
             if (temp == RV) {
-                System.out.printf("### %d <- RV\n", value);
+                System.out.printf("### %s <- RV\n", toHex(value));
                 return value;
             }
             if (temp == HP) {
-                System.out.printf("### %d <- HP\n", value);
+                System.out.printf("### %s <- HP\n", toHex(value));
                 return value;
             }
-            System.out.printf("### %d <- T%d\n", value, temp.temp);
+            System.out.printf("### %d <- T%d (%d = %s)\n", value, temp.temp, value, toHex(value));
             return value;
         }
         return value;
@@ -351,7 +354,6 @@ public class Interpreter {
 
         private void call(ImcCALL imcCall) {
             long offset = 0L;
-            // Why don't we push static link?
             for (ImcExpr callArg : imcCall.args) {
                 Long callValue = callArg.accept(new ExprInterpreter(), null);
                 memST(tempLD(SP) + offset, callValue);
@@ -418,7 +420,7 @@ public class Interpreter {
 
             // Store registers and FP.
             storedMemTemps = temps;
-            temps = new HashMap<MemTemp, Long>(temps);
+            temps = new TreeMap<>(temps);
             // Store RA.
             // Create a stack frame.
             FP = frame.FP;
@@ -437,7 +439,7 @@ public class Interpreter {
             while (label != chunk.exitLabel) {
                 if (debug) {
                     pc++;
-                    System.out.printf("### %s (%d):\n", chunk.frame.label.name, pc);
+                    System.out.printf("### %s (%s):\n", chunk.frame.label.name, toHex(pc));
                     if (pc == 1000000)
                         break;
                 }

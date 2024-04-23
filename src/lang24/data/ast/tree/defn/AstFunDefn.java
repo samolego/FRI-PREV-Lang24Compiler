@@ -1,10 +1,10 @@
 package lang24.data.ast.tree.defn;
 
-import lang24.common.report.*;
-import lang24.data.ast.tree.*;
-import lang24.data.ast.tree.stmt.*;
-import lang24.data.ast.tree.type.*;
-import lang24.data.ast.visitor.*;
+import lang24.common.report.Locatable;
+import lang24.data.ast.tree.AstNodes;
+import lang24.data.ast.tree.stmt.AstStmt;
+import lang24.data.ast.tree.type.AstType;
+import lang24.data.ast.visitor.AstVisitor;
 
 /**
  * A definition of a function.
@@ -18,6 +18,8 @@ public class AstFunDefn extends AstDefn {
 
 	/** The code. */
 	public final AstStmt stmt;
+
+	public boolean hasReturnStmt = false;
 
 	/** The local definitions in this function. */
 	public final AstNodes<AstDefn> defns;
