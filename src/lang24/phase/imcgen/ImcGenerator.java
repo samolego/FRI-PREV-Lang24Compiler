@@ -186,7 +186,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
                 if (length == 3) {
                     // \ hex hex
-                    long num = Long.parseLong(valueStr.substring(2, length), 16);
+                    long num = Long.parseLong(valueStr.substring(2, length + 1), 16);
                     yield new ImcCONST(num);
                 }
 

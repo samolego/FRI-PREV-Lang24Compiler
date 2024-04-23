@@ -1,17 +1,35 @@
 package lang24;
 
-import java.io.*;
-import java.nio.file.*;
-import java.nio.file.attribute.*;
-import java.util.*;
-import lang24.common.report.*;
-import lang24.phase.lexan.*;
-import lang24.phase.synan.*;
-import lang24.phase.abstr.*;
-import lang24.phase.seman.*;
-import lang24.phase.memory.*;
-import lang24.phase.imcgen.*;
-import lang24.phase.imclin.*;
+import lang24.common.report.Report;
+import lang24.phase.abstr.Abstr;
+import lang24.phase.abstr.AbstrLogger;
+import lang24.phase.imcgen.ImcGen;
+import lang24.phase.imcgen.ImcGenerator;
+import lang24.phase.imcgen.ImcLogger;
+import lang24.phase.imclin.ChunkGenerator;
+import lang24.phase.imclin.ImcLin;
+import lang24.phase.imclin.Interpreter;
+import lang24.phase.lexan.LexAn;
+import lang24.phase.memory.MemEvaluator;
+import lang24.phase.memory.MemLogger;
+import lang24.phase.memory.Memory;
+import lang24.phase.seman.LValResolver;
+import lang24.phase.seman.NameResolver;
+import lang24.phase.seman.SemAn;
+import lang24.phase.seman.SemAnLogger;
+import lang24.phase.seman.TypeResolver;
+import lang24.phase.synan.SynAn;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Vector;
 
 /**
  * The LANG'24 compiler.
@@ -27,7 +45,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen", "imclin"));
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
