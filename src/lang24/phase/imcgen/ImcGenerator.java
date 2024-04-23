@@ -59,11 +59,11 @@ import java.util.List;
 public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     @Override
-    public ImcInstr visit(AstNodes<? extends AstNode> nodes, AstFunDefn parentFn) {
+    public ImcInstr visit(AstNodes<? extends AstNode> nodes, AstFunDefn currentFn) {
         var stmtList = new LinkedList<ImcStmt>();
 
         for (var astNode : nodes) {
-            var stmt = astNode.accept(this, parentFn);
+            var stmt = astNode.accept(this, currentFn);
             switch (stmt) {
                 case ImcExpr expr -> stmtList.add(new ImcESTMT(expr));
                 case ImcStmt imcStmt -> stmtList.add(imcStmt);
@@ -78,7 +78,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstFunDefn funDefn, AstFunDefn parentFn) {
+    public ImcInstr visit(AstFunDefn funDefn, AstFunDefn currentFn) {
         var entryLabel = new MemLabel();
         var exitLabel = new MemLabel();
 
@@ -125,15 +125,15 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstArrExpr arrExpr, AstFunDefn parentFn) {
-        var array = (ImcExpr) arrExpr.arr.accept(this, parentFn);
+    public ImcInstr visit(AstArrExpr arrExpr, AstFunDefn currentFn) {
+        var array = (ImcExpr) arrExpr.arr.accept(this, currentFn);
 
         // Remove wrapper MEM if it exists
         if (array instanceof ImcMEM mem) {
             array = mem.addr;
         }
 
-        var idx = (ImcExpr) arrExpr.idx.accept(this, parentFn);
+        var idx = (ImcExpr) arrExpr.idx.accept(this, currentFn);
 
         // Get size of the array type
         var arrType = (SemArrayType) SemAn.ofType.get(arrExpr.arr);
@@ -155,12 +155,12 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     /**
      * Constant expressions.
      *
-     * @param atomExpr The atom expression of AST.
-     * @param parentFn The parent function definition.
+     * @param atomExpr  The atom expression of AST.
+     * @param currentFn The parent function definition.
      * @return The intermediate code instruction.
      */
     @Override
-    public ImcInstr visit(AstAtomExpr atomExpr, AstFunDefn parentFn) {
+    public ImcInstr visit(AstAtomExpr atomExpr, AstFunDefn currentFn) {
         var valueStr = atomExpr.value;
 
         // Get constant value
@@ -215,10 +215,10 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstBinExpr binExpr, AstFunDefn parentFn) {
+    public ImcInstr visit(AstBinExpr binExpr, AstFunDefn currentFn) {
         // Get child expressions
-        var fstExpr = (ImcExpr) binExpr.fstExpr.accept(this, parentFn);
-        var sndExpr = (ImcExpr) binExpr.sndExpr.accept(this, parentFn);
+        var fstExpr = (ImcExpr) binExpr.fstExpr.accept(this, currentFn);
+        var sndExpr = (ImcExpr) binExpr.sndExpr.accept(this, currentFn);
 
         // Define operator
         final var oper = switch (binExpr.oper) {
@@ -246,33 +246,32 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     /**
      * Function call expressions.
      *
-     * @param callExpr The call expression.
-     * @param parentFn The parent function definition.
+     * @param callExpr  The call expression.
+     * @param currentFn The parent function definition.
      * @return The intermediate code instruction.
      */
     @Override
-    public ImcInstr visit(AstCallExpr callExpr, AstFunDefn parentFn) {
+    public ImcInstr visit(AstCallExpr callExpr, AstFunDefn currentFn) {
         // Original function definition
-        var fnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
+        var callFnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
 
         // Get memory label
-        var calledFrame = Memory.frames.get(fnDefn);
+        var calledFrame = Memory.frames.get(callFnDefn);
         var label = calledFrame == null
-                ? new MemLabel(fnDefn.name())  // Prototype
+                ? new MemLabel(callFnDefn.name())  // Prototype
                 : calledFrame.label;  // Function definition in the same file
 
 
         // Static link (or dummy for prototypes)
-        var parentFrame = Memory.frames.get(parentFn);
-        ImcExpr sl;
-        if (calledFrame != null && parentFrame.depth > 0L) {
-            long depthDiff = calledFrame.depth + 1 - parentFrame.depth;
-            sl = new ImcTEMP(calledFrame.FP);
+        var currentFrame = Memory.frames.get(currentFn);
+        ImcExpr sl = new ImcCONST(541);
+        if (calledFrame != null && calledFrame.depth > 0L) {
+            long depthDiff = currentFrame.depth - calledFrame.depth + 1;
+            // Need to go through static links depthDiff times
+            sl = new ImcTEMP(currentFrame.FP);
             for (int i = 0; i < depthDiff; i++) {
                 sl = new ImcMEM(sl);
             }
-        } else {
-            sl = new ImcCONST(0);
         }
 
         // Fill argument expressions
@@ -285,14 +284,14 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         offsets.add(0L);
 
         var callArgsIter = callExpr.args.iterator();
-        var fnParDefnsIter = fnDefn.pars.iterator();
+        var fnParDefnsIter = callFnDefn.pars.iterator();
 
         while (callArgsIter.hasNext() && fnParDefnsIter.hasNext()) {
             var argExpr = callArgsIter.next();
             var fnParDefn = fnParDefnsIter.next();
 
             // Get argument expression
-            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
+            var imcExpr = (ImcExpr) argExpr.accept(this, currentFn);
 
             // Warning! If parameter is a reference, we must pass the address of the argument
             if (fnParDefn instanceof AstRefParDefn) {
@@ -319,8 +318,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstCastExpr castExpr, AstFunDefn parentFn) {
-        var exprImc = (ImcExpr) castExpr.expr.accept(this, parentFn);
+    public ImcInstr visit(AstCastExpr castExpr, AstFunDefn currentFn) {
+        var exprImc = (ImcExpr) castExpr.expr.accept(this, currentFn);
 
         var expr = SemAn.isType.get(castExpr.type) instanceof SemCharType
                 ? new ImcBINOP(Oper.MOD, exprImc, new ImcCONST(0x0FFL))  // If char is cast, we must mod it with 256
@@ -332,8 +331,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstCmpExpr cmpExpr, AstFunDefn parentFn) {
-        var leftExpr = (ImcExpr) cmpExpr.expr.accept(this, parentFn);
+    public ImcInstr visit(AstCmpExpr cmpExpr, AstFunDefn currentFn) {
+        var leftExpr = (ImcExpr) cmpExpr.expr.accept(this, currentFn);
 
         if (leftExpr instanceof ImcMEM mem) {
             leftExpr = mem.addr;
@@ -353,7 +352,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     // ex7 rule
     @Override
-    public ImcInstr visit(AstNameExpr nameExpr, AstFunDefn parentFn) {
+    public ImcInstr visit(AstNameExpr nameExpr, AstFunDefn currentFn) {
         var defn = SemAn.definedAt.get(nameExpr);
 
         var access = switch (defn) {
@@ -369,10 +368,10 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
                 yield new ImcNAME(label);
             }
             case MemRelAccess relAccess -> {
-                var parentFrame = Memory.frames.get(parentFn);
+                var currentFrame = Memory.frames.get(currentFn);
 
-                long depthDiff = parentFrame.depth - relAccess.depth;
-                ImcExpr temp = new ImcTEMP(parentFrame.FP);
+                long depthDiff = currentFrame.depth - relAccess.depth;
+                ImcExpr temp = new ImcTEMP(currentFrame.FP);
 
                 // Go through static link(s) if needed
                 for (int i = 0; i < depthDiff; i++) {
@@ -399,8 +398,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstPfxExpr pfxExpr, AstFunDefn parentFn) {
-        var expr = (ImcExpr) pfxExpr.expr.accept(this, parentFn);
+    public ImcInstr visit(AstPfxExpr pfxExpr, AstFunDefn currentFn) {
+        var expr = (ImcExpr) pfxExpr.expr.accept(this, currentFn);
 
         var imc = switch (pfxExpr.oper) {
             case ADD -> expr;
@@ -420,8 +419,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
     // A5 rule
     @Override
-    public ImcInstr visit(AstSfxExpr sfxExpr, AstFunDefn parentFn) {
-        var expr = (ImcExpr) sfxExpr.expr.accept(this, parentFn);
+    public ImcInstr visit(AstSfxExpr sfxExpr, AstFunDefn currentFn) {
+        var expr = (ImcExpr) sfxExpr.expr.accept(this, currentFn);
 
         ImcExpr imc = switch (sfxExpr.oper) {
             case PTR -> new ImcMEM(expr);
@@ -432,7 +431,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstSizeofExpr sizeofExpr, AstFunDefn parentFn) {
+    public ImcInstr visit(AstSizeofExpr sizeofExpr, AstFunDefn currentFn) {
         var type = SemAn.isType.get(sizeofExpr.type);
         var size = MemEvaluator.getSizeInBytes(type);
 
@@ -443,8 +442,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstAssignStmt assignStmt, AstFunDefn parentFn) {
-        var dstExpr = (ImcExpr) assignStmt.dst.accept(this, parentFn);
+    public ImcInstr visit(AstAssignStmt assignStmt, AstFunDefn currentFn) {
+        var dstExpr = (ImcExpr) assignStmt.dst.accept(this, currentFn);
         var defn = SemAn.definedAt.get(assignStmt.dst);
 
         if (defn instanceof AstRefParDefn) {
@@ -457,7 +456,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             }
         }
 
-        var srcExpr = (ImcExpr) assignStmt.src.accept(this, parentFn);
+        var srcExpr = (ImcExpr) assignStmt.src.accept(this, currentFn);
 
         // todo - how to handle st2 rule?
         var assignImc = new ImcMOVE(dstExpr, srcExpr);
@@ -467,11 +466,11 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstBlockStmt blockStmt, AstFunDefn parentFn) {
+    public ImcInstr visit(AstBlockStmt blockStmt, AstFunDefn currentFn) {
         var stmts = new LinkedList<ImcStmt>();
 
         for (var stmt : blockStmt.stmts) {
-            var child = stmt.accept(this, parentFn);
+            var child = stmt.accept(this, currentFn);
             if (child instanceof ImcExpr expr) {
                 stmts.add(new ImcESTMT(expr));
             } else {
@@ -486,8 +485,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstExprStmt exprStmt, AstFunDefn parentFn) {
-        var expr = exprStmt.expr.accept(this, parentFn);
+    public ImcInstr visit(AstExprStmt exprStmt, AstFunDefn currentFn) {
+        var expr = exprStmt.expr.accept(this, currentFn);
 
         var imcStmt = new ImcESTMT((ImcExpr) expr);
         ImcGen.stmtImc.put(exprStmt, imcStmt);
@@ -496,13 +495,13 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstIfStmt ifStmt, AstFunDefn parentFn) {
-        var cond = (ImcExpr) ifStmt.cond.accept(this, parentFn);
-        var thenStmt = (ImcStmt) ifStmt.thenStmt.accept(this, parentFn);
+    public ImcInstr visit(AstIfStmt ifStmt, AstFunDefn currentFn) {
+        var cond = (ImcExpr) ifStmt.cond.accept(this, currentFn);
+        var thenStmt = (ImcStmt) ifStmt.thenStmt.accept(this, currentFn);
 
         ImcStmt elseStmt = null;
         if (ifStmt.elseStmt != null) {
-            elseStmt = (ImcStmt) ifStmt.elseStmt.accept(this, parentFn);
+            elseStmt = (ImcStmt) ifStmt.elseStmt.accept(this, currentFn);
         }
 
         var stmts = new LinkedList<ImcStmt>();
@@ -529,9 +528,9 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstReturnStmt retStmt, AstFunDefn parentFn) {
-        var type = SemAn.ofType.get(parentFn);
-        var exitLabel = ImcGen.exitLabel.get(parentFn);
+    public ImcInstr visit(AstReturnStmt retStmt, AstFunDefn currentFn) {
+        var type = SemAn.ofType.get(currentFn);
+        var exitLabel = ImcGen.exitLabel.get(currentFn);
 
         // Jump to the exit label
         var jump = new ImcJUMP(exitLabel);
@@ -543,10 +542,10 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         }*/
 
         // To keep interpreter happy, we also make void functions return <something>
-        var expr = type == SemVoidType.type ? new ImcCONST(0) : (ImcExpr) retStmt.expr.accept(this, parentFn);
+        var expr = type == SemVoidType.type ? new ImcCONST(0) : (ImcExpr) retStmt.expr.accept(this, currentFn);
 
         // Move the expression to the return value
-        var frame = Memory.frames.get(parentFn);
+        var frame = Memory.frames.get(currentFn);
 
         // Write the return value to the stack
         var move = new ImcMOVE(new ImcTEMP(frame.RV), expr);
@@ -557,10 +556,10 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstWhileStmt whileStmt, AstFunDefn parentFn) {
-        var cond = (ImcExpr) whileStmt.cond.accept(this, parentFn);
+    public ImcInstr visit(AstWhileStmt whileStmt, AstFunDefn currentFn) {
+        var cond = (ImcExpr) whileStmt.cond.accept(this, currentFn);
 
-        var stmt = (ImcStmt) whileStmt.stmt.accept(this, parentFn);
+        var stmt = (ImcStmt) whileStmt.stmt.accept(this, currentFn);
 
         var stmts = new LinkedList<ImcStmt>();
         var loopLabel = new MemLabel();
