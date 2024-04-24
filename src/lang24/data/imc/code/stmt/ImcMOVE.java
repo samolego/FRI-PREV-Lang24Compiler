@@ -28,7 +28,7 @@ public class ImcMOVE extends ImcStmt {
 	}
 
 	@Override
-	public <Result, Arg> Result accept(ImcVisitor<Result, Arg> visitor, Arg accArg) {
+	public <Result, Arg> Result accept(AbstractImcVisitor<Result, Arg> visitor, Arg accArg) {
 		return visitor.visit(this, accArg);
 	}
 

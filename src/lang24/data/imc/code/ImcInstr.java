@@ -8,6 +8,6 @@ import lang24.data.imc.visitor.*;
  */
 public abstract class ImcInstr implements Loggable {
 
-	public abstract <Result, Arg> Result accept(ImcVisitor<Result, Arg> visitor, Arg accArg);
+	public abstract <Result, Arg> Result accept(AbstractImcVisitor<Result, Arg> visitor, Arg accArg);
 
 }

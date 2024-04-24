@@ -507,21 +507,36 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         }
 
         var stmts = new LinkedList<ImcStmt>();
+
+        // Labels
         var thenLabel = new MemLabel();
         var elseLabel = new MemLabel();
+        var exitLabel = new MemLabel();
 
-        var cjump = new ImcCJUMP(cond, thenLabel, elseLabel);
+        // Jump to exit and exit label
+        var imcExitLbl = new ImcLABEL(exitLabel);
+        var jumpToExit = new ImcJUMP(exitLabel);
+
+        // Whether it has else part
+        boolean hasElseStatements = elseStmt != null;
+
+        var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
         stmts.add(cjump);
+
+        // Else part
+        if (hasElseStatements) {
+            stmts.add(new ImcLABEL(elseLabel));
+            stmts.add(elseStmt);
+            stmts.add(jumpToExit);
+        }
 
         // If-then part
         stmts.add(new ImcLABEL(thenLabel));
         stmts.add(thenStmt);
+        stmts.add(jumpToExit);
 
-        // Else part
-        stmts.add(new ImcLABEL(elseLabel));
-        if (elseStmt != null) {
-            stmts.add(elseStmt);
-        }
+        // Add exit label
+        stmts.add(imcExitLbl);
 
         var imcStmt = new ImcSTMTS(stmts);
         ImcGen.stmtImc.put(ifStmt, imcStmt);

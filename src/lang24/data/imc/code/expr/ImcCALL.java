@@ -1,7 +1,7 @@
 package lang24.data.imc.code.expr;
 
 import lang24.common.logger.Logger;
-import lang24.data.imc.visitor.ImcVisitor;
+import lang24.data.imc.visitor.AbstractImcVisitor;
 import lang24.data.mem.MemLabel;
 
 import java.util.List;
@@ -39,7 +39,7 @@ public class ImcCALL extends ImcExpr {
 	}
 
 	@Override
-	public <Result, Arg> Result accept(ImcVisitor<Result, Arg> visitor, Arg accArg) {
+	public <Result, Arg> Result accept(AbstractImcVisitor<Result, Arg> visitor, Arg accArg) {
 		return visitor.visit(this, accArg);
 	}
 

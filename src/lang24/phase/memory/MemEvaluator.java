@@ -199,7 +199,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             assert SemAn.ofType.get(atomExpr) == SemPointerType.stringType : "Wrong string pointer for node " + atomExpr.getText();
 
             var parsedStr = atomExpr.value
-                    .substring(1, atomExpr.value.length() - 1)  // Remove quotes
+                    //.substring(1, atomExpr.value.length() - 1)  // Remove quotes
                     .replaceAll("\\\\n", "\n")  // Replace \n with newline
                     .replaceAll("\\\\\\\\", "\\\\")  // Replace \\ with \
                     .replaceAll("\\\\\"", "\"");  // Replace \" with "

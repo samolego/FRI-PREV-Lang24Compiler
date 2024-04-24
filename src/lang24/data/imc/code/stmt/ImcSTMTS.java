@@ -1,7 +1,7 @@
 package lang24.data.imc.code.stmt;
 
 import lang24.common.logger.Logger;
-import lang24.data.imc.visitor.ImcVisitor;
+import lang24.data.imc.visitor.AbstractImcVisitor;
 
 import java.util.List;
 import java.util.Vector;
@@ -26,7 +26,7 @@ public class ImcSTMTS extends ImcStmt {
 	}
 
 	@Override
-	public <Result, Arg> Result accept(ImcVisitor<Result, Arg> visitor, Arg accArg) {
+	public <Result, Arg> Result accept(AbstractImcVisitor<Result, Arg> visitor, Arg accArg) {
 		return visitor.visit(this, accArg);
 	}
 
