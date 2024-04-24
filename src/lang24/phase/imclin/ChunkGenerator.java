@@ -41,25 +41,26 @@ public class ChunkGenerator implements AstFullVisitor<Void, List<ImcStmt>> {
         // Statement list for the body of the function
         var bodyStmts = new LinkedList<ImcStmt>();
 
-        // Prologue
-        var entryLabel = ImcGen.entryLabel.get(funDefn);
-        bodyStmts.add(new ImcLABEL(entryLabel));
-
-
         // Get the body of the function & unpack ImcSTMTS to List<ImcStmt>
         var body = ImcGen.stmtImc.get(funDefn.stmt);
         body.accept(new CodeLinearizator(), bodyStmts);
 
+        // Sort the blocks of code
+        var permutedStmts = new BlockPermuter(bodyStmts).permute_bulic_tepe();
+
+        // Prologue
+        var entryLabel = ImcGen.entryLabel.get(funDefn);
+        permutedStmts.addFirst(new ImcLABEL(entryLabel));
 
         // Epilogue
         var exitLabel = ImcGen.exitLabel.get(funDefn);
-        bodyStmts.add(new ImcLABEL(exitLabel));
+        permutedStmts.add(new ImcLABEL(exitLabel));
 
         // Get function information
         var fnFrame = Memory.frames.get(funDefn);
 
         // Create function code chunk
-        var codeChunk = new LinCodeChunk(fnFrame, bodyStmts, entryLabel, exitLabel);
+        var codeChunk = new LinCodeChunk(fnFrame, permutedStmts, entryLabel, exitLabel);
         ImcLin.addCodeChunk(codeChunk);
 
         return null;

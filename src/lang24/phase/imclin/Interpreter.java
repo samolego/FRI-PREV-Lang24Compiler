@@ -127,7 +127,7 @@ public class Interpreter {
             Byte byteval = memory.get(address + b);
             if (byteval == null) {
                 byteval = (byte) (random.nextLong() / 0x100);
-                Report.warning(String.format("INTERPRETER: Uninitialized memory location: %s", toHex(address + b)));
+                //Report.warning(String.format("INTERPRETER: Uninitialized memory location: %s", toHex(address + b)));
                 // throw new Report.Error("INTERPRETER: Uninitialized memory location " +
                 // (address + b) + ".");
             }
