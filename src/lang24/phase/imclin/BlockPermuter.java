@@ -14,6 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+// todo - fix the permute() method
 public class BlockPermuter {
     private final List<ImcStmt> stmts;
 

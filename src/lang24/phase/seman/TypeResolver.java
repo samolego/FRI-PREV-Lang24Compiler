@@ -17,8 +17,9 @@ import lang24.data.type.*;
 
 import java.util.*;
 
+// todo - if user defines a function, same as prototype, but with different signature, it should be an error!
 /**
- * @author bostjan.slivnik@fri.uni-lj.si
+ * Type checking and type resolution.
  */
 public class TypeResolver implements AstFullVisitor<SemType, Object> {
 
