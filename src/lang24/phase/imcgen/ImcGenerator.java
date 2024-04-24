@@ -501,9 +501,12 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var cond = (ImcExpr) ifStmt.cond.accept(this, currentFn);
         var thenStmt = (ImcStmt) ifStmt.thenStmt.accept(this, currentFn);
 
+        // Whether it has else part
+        boolean hasElseStatements = false;
         ImcStmt elseStmt = null;
         if (ifStmt.elseStmt != null) {
             elseStmt = (ImcStmt) ifStmt.elseStmt.accept(this, currentFn);
+            hasElseStatements = true;
         }
 
         var stmts = new LinkedList<ImcStmt>();
@@ -517,9 +520,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var imcExitLbl = new ImcLABEL(exitLabel);
         var jumpToExit = new ImcJUMP(exitLabel);
 
-        // Whether it has else part
-        boolean hasElseStatements = elseStmt != null;
-
+        // If no else part, jump to exit directly
         var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
         stmts.add(cjump);
 

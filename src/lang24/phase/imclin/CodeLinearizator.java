@@ -1,6 +1,7 @@
 package lang24.phase.imclin;
 
-import lang24.common.Pair;
+import lang24.common.report.Report;
+import lang24.data.imc.code.ImcInstr;
 import lang24.data.imc.code.expr.ImcBINOP;
 import lang24.data.imc.code.expr.ImcCALL;
 import lang24.data.imc.code.expr.ImcCONST;
@@ -28,39 +29,29 @@ import java.util.List;
  */
 public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStmt>> {
 
-    private static Pair<ImcTEMP, ImcMOVE> createMove(ImcExpr expr) {
+    /**
+     * Creates a move statement that moves the given expression to a new temporary variable.
+     * @param expr The expression to move
+     * @return {@link TempMove} with the temporary variable and the move statement
+     */
+    private static TempMove createMove(ImcExpr expr) {
         var temp = new ImcTEMP(new MemTemp());
-        return new Pair<>(temp, new ImcMOVE(temp, expr));
+        return new TempMove(temp, new ImcMOVE(temp, expr));
     }
 
     @Override
     public ImcExpr visit(ImcBINOP binOp, List<ImcStmt> linStmts) {
-        boolean changed = false;
 
-        var first = binOp.fstExpr;
-        var newFirst = first.accept(this, linStmts);
-        if (newFirst != first) {
-            var moved = createMove(newFirst);
-            linStmts.add(moved.right());
+        // Check first expression for any changes
+        var newFirst = binOp.fstExpr.accept(this, linStmts);
 
-            first = moved.left();
-            changed = true;
-        }
-
-        var second = binOp.sndExpr;
-        var newSecond = second.accept(this, linStmts);
-        if (newSecond != second) {
-            var moved = createMove(newSecond);
-            linStmts.add(moved.right());
-
-            second = moved.left();
-            changed = true;
-        }
+        // Check second expression for any changes
+        var newSecond = binOp.sndExpr.accept(this, linStmts);
 
 
-        if (changed) {
-            // Create new binop with changed
-            return new ImcBINOP(binOp.oper, first, second);
+        if (newFirst != binOp.fstExpr || newSecond != binOp.sndExpr) {
+            // Create new binop with changed args
+            return new ImcBINOP(binOp.oper, newFirst, newSecond);
         }
 
         // Return old value, as it has not changed
@@ -79,21 +70,27 @@ public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStm
         // Unpack the arguments
         var newArgs = new LinkedList<ImcExpr>();
         for (var arg : call.args) {
-            var argExpr = arg.accept(this, linStmts);
+            var newArg = arg.accept(this, linStmts);
 
-            var temp = argExpr;
-            if (argExpr != arg) {
-                temp = new ImcTEMP(new MemTemp());
-                var moved = new ImcMOVE(temp, arg);
+            var temp = newArg;
+            if (newArg != arg || containsMem(newArg)) {
+                var moveToTemp = createMove(newArg);
+                temp = moveToTemp.tempVar();
 
-                linStmts.add(moved);
+                linStmts.add(moveToTemp.moveStmt());
             }
 
             newArgs.add(temp);
         }
 
         // Create new ImcCALL
-        return new ImcCALL(call.label, call.offs, newArgs);
+        var newCall = new ImcCALL(call.label, call.offs, newArgs);
+
+        // Move the result to a temporary variable
+        var moveToTemp = createMove(newCall);
+        linStmts.add(moveToTemp.moveStmt());
+
+        return moveToTemp.tempVar();
     }
 
     @Override
@@ -115,6 +112,7 @@ public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStm
         return constant;
     }
 
+    // Pomoje ni treba dodajat ker edina stvar, ki jo lahko spremeni estmt je call, ki pa pade ven v MOVE
     @Override
     public ImcExpr visit(ImcESTMT eStmt, List<ImcStmt> linStmts) {
         var newExpr = eStmt.expr.accept(this, linStmts);
@@ -145,36 +143,17 @@ public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStm
 
     @Override
     public ImcExpr visit(ImcMEM mem, List<ImcStmt> linStmts) {
-        var newAddr = mem.addr.accept(this, linStmts);
-
-        return new ImcMEM(newAddr);
+        mem.addr.accept(this, linStmts);
+        return mem;
     }
 
     @Override
     public ImcExpr visit(ImcMOVE move, List<ImcStmt> linStmts) {
-        boolean changed = false;
-
         var newDst = move.dst.accept(this, linStmts);
-        if (newDst != move.dst) {
-            var moved = createMove(newDst);
-            linStmts.add(moved.right());
-
-            newDst = moved.left();
-            changed = true;
-        }
-
         var newSrc = move.src.accept(this, linStmts);
-        if (newSrc != move.src) {
-            var moved = createMove(newSrc);
-
-            linStmts.add(moved.right());
-
-            newSrc = moved.left();
-            changed = true;
-        }
 
         var newMove = move;
-        if (changed) {
+        if (newDst != move.dst || newSrc != move.src) {
             newMove = new ImcMOVE(newDst, newSrc);
         }
 
@@ -193,12 +172,12 @@ public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStm
         sExpr.stmt.accept(this, linStmts);
         var newExpr = sExpr.expr.accept(this, linStmts);
 
-        if (newExpr == sExpr.expr) {
-            // Stayed the same, no need to change it
-            return sExpr;
+        if (newExpr != sExpr.expr) {
+            return new ImcSEXPR(sExpr.stmt, newExpr);
         }
 
-        return new ImcSEXPR(sExpr.stmt, newExpr);
+        // Stayed the same, no need to change it
+        return sExpr;
     }
 
     @Override
@@ -220,11 +199,36 @@ public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStm
     public ImcExpr visit(ImcUNOP unOp, List<ImcStmt> linStmts) {
         var newSubExpr = unOp.subExpr.accept(this, linStmts);
 
-        if (newSubExpr == unOp.subExpr) {
-            // Stayed the same, no need to change it
-            return unOp;
+        if (newSubExpr != unOp.subExpr) {
+            return new ImcUNOP(unOp.oper, newSubExpr);
         }
 
-        return new ImcUNOP(unOp.oper, newSubExpr);
+        // Stayed the same, no need to change it
+        return unOp;
+    }
+
+
+    private boolean containsMem(ImcInstr expr) {
+        return switch (expr) {
+            case ImcMEM ignored -> true;
+            case ImcBINOP binOp -> containsMem(binOp.fstExpr) || containsMem(binOp.sndExpr);
+            case ImcCALL call -> call.args.stream().anyMatch(this::containsMem);
+            case ImcCONST ignored -> false;
+            case ImcSEXPR sExpr -> containsMem(sExpr.expr);
+            case ImcUNOP unOp -> containsMem(unOp.subExpr);
+            // Statements
+            case ImcTEMP ignored -> false;
+            case ImcCJUMP cjump -> containsMem(cjump.cond);
+            case ImcESTMT imcESTMT -> containsMem(imcESTMT.expr);
+            case ImcJUMP ignored -> false;
+            case ImcLABEL ignored -> false;
+            case ImcMOVE move -> containsMem(move.dst) || containsMem(move.src);
+            case ImcSTMTS stmts -> stmts.stmts.stream().anyMatch(this::containsMem);
+            case ImcNAME ignored -> false;
+
+            default -> throw new Report.InternalError();
+        };
     }
 }
+
+record TempMove(ImcTEMP tempVar, ImcMOVE moveStmt) { }
