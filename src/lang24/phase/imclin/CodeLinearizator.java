@@ -112,7 +112,7 @@ public class CodeLinearizator implements AbstractImcVisitor<ImcExpr, List<ImcStm
         return constant;
     }
 
-    // Pomoje ni treba dodajat ker edina stvar, ki jo lahko spremeni estmt je call, ki pa pade ven v MOVE
+    // Pomoje ni treba dodajat, ker edina stvar, ki jo lahko spremeni estmt je call, ki pa pade ven v MOVE - mini optimizacija?
     @Override
     public ImcExpr visit(ImcESTMT eStmt, List<ImcStmt> linStmts) {
         var newExpr = eStmt.expr.accept(this, linStmts);

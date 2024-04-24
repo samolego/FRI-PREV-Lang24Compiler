@@ -3,9 +3,7 @@ package lang24;
 import lang24.common.report.Report;
 import lang24.phase.abstr.Abstr;
 import lang24.phase.abstr.AbstrLogger;
-import lang24.phase.imcgen.ImcGen;
-import lang24.phase.imcgen.ImcGenerator;
-import lang24.phase.imcgen.ImcLogger;
+import lang24.phase.imcgen.*;
 import lang24.phase.imclin.ChunkGenerator;
 import lang24.phase.imclin.ImcLin;
 import lang24.phase.imclin.Interpreter;
@@ -206,7 +204,7 @@ public class Compiler {
 
 				// Intermediate code generation.
 				try (ImcGen imcGen = new ImcGen()) {
-					Abstr.tree.accept(new ImcGenerator(), null);
+					Abstr.tree.accept(new IG2(), null);
 					AbstrLogger logger = new AbstrLogger(imcGen.logger);
 					logger.addSubvisitor(new SemAnLogger(imcGen.logger));
 					logger.addSubvisitor(new MemLogger(imcGen.logger));

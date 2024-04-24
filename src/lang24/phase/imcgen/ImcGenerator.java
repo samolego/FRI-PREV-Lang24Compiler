@@ -6,43 +6,14 @@ import lang24.data.ast.tree.AstNode;
 import lang24.data.ast.tree.AstNodes;
 import lang24.data.ast.tree.defn.AstDefn;
 import lang24.data.ast.tree.defn.AstFunDefn;
-import lang24.data.ast.tree.defn.AstFunDefn.AstRefParDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
-import lang24.data.ast.tree.expr.AstArrExpr;
-import lang24.data.ast.tree.expr.AstAtomExpr;
-import lang24.data.ast.tree.expr.AstBinExpr;
-import lang24.data.ast.tree.expr.AstCallExpr;
-import lang24.data.ast.tree.expr.AstCastExpr;
-import lang24.data.ast.tree.expr.AstCmpExpr;
-import lang24.data.ast.tree.expr.AstNameExpr;
-import lang24.data.ast.tree.expr.AstPfxExpr;
-import lang24.data.ast.tree.expr.AstSfxExpr;
-import lang24.data.ast.tree.expr.AstSizeofExpr;
-import lang24.data.ast.tree.stmt.AstAssignStmt;
-import lang24.data.ast.tree.stmt.AstBlockStmt;
-import lang24.data.ast.tree.stmt.AstExprStmt;
-import lang24.data.ast.tree.stmt.AstIfStmt;
-import lang24.data.ast.tree.stmt.AstReturnStmt;
-import lang24.data.ast.tree.stmt.AstWhileStmt;
+import lang24.data.ast.tree.expr.*;
+import lang24.data.ast.tree.stmt.*;
 import lang24.data.ast.tree.type.AstRecType;
 import lang24.data.ast.visitor.AstFullVisitor;
 import lang24.data.imc.code.ImcInstr;
-import lang24.data.imc.code.expr.ImcBINOP;
-import lang24.data.imc.code.expr.ImcBINOP.Oper;
-import lang24.data.imc.code.expr.ImcCALL;
-import lang24.data.imc.code.expr.ImcCONST;
-import lang24.data.imc.code.expr.ImcExpr;
-import lang24.data.imc.code.expr.ImcMEM;
-import lang24.data.imc.code.expr.ImcNAME;
-import lang24.data.imc.code.expr.ImcTEMP;
-import lang24.data.imc.code.expr.ImcUNOP;
-import lang24.data.imc.code.stmt.ImcCJUMP;
-import lang24.data.imc.code.stmt.ImcESTMT;
-import lang24.data.imc.code.stmt.ImcJUMP;
-import lang24.data.imc.code.stmt.ImcLABEL;
-import lang24.data.imc.code.stmt.ImcMOVE;
-import lang24.data.imc.code.stmt.ImcSTMTS;
-import lang24.data.imc.code.stmt.ImcStmt;
+import lang24.data.imc.code.expr.*;
+import lang24.data.imc.code.stmt.*;
 import lang24.data.mem.MemAbsAccess;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemRelAccess;
@@ -58,14 +29,12 @@ import java.util.List;
 
 public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
-    private static final ImcExpr STATIC_LINK_DUMMY = new ImcCONST(541);
-
     @Override
-    public ImcInstr visit(AstNodes<? extends AstNode> nodes, AstFunDefn currentFn) {
+    public ImcInstr visit(AstNodes<? extends AstNode> nodes, AstFunDefn parentFn) {
         var stmtList = new LinkedList<ImcStmt>();
 
         for (var astNode : nodes) {
-            var stmt = astNode.accept(this, currentFn);
+            var stmt = astNode.accept(this, parentFn);
             switch (stmt) {
                 case ImcExpr expr -> stmtList.add(new ImcESTMT(expr));
                 case ImcStmt imcStmt -> stmtList.add(imcStmt);
@@ -80,62 +49,51 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstFunDefn funDefn, AstFunDefn currentFn) {
+    public ImcInstr visit(AstFunDefn funDefn, AstFunDefn parentFn) {
         var entryLabel = new MemLabel();
         var exitLabel = new MemLabel();
 
         ImcGen.entryLabel.put(funDefn, entryLabel);
         ImcGen.exitLabel.put(funDefn, exitLabel);
 
-        funDefn.pars.accept(this, funDefn);
-        funDefn.defns.accept(this, funDefn);
+        funDefn.pars.accept(this, parentFn);
+        funDefn.defns.accept(this, parentFn);
 
         if (funDefn.stmt != null) {
-            // Not a prototype
-            var stmts = funDefn.stmt.accept(this, funDefn);
-
-            // Force set the RV to 0 if there is no return statement
-            if (!funDefn.hasReturnStmt) {
-                // Move the expression to the return value
-                var frame = Memory.frames.get(funDefn);
-                var dummyReturn = new ImcCONST(0);
-
-                var jump = new ImcJUMP(exitLabel);
-                var move = new ImcMOVE(new ImcTEMP(frame.RV), dummyReturn);
-
-                // New statement list for the function
-                var newStmts = switch (stmts) {
-                    case ImcSTMTS stmtsList -> {
-
-                        stmtsList.stmts.add(move);
-                        stmtsList.stmts.add(jump);
-
-                        yield stmtsList;
-                    }
-                    // Single expression
-                    case ImcExpr expr -> new ImcSTMTS(List.of(new ImcESTMT(expr), move, jump));
-                    case ImcStmt stmt -> new ImcSTMTS(List.of(stmt, move, jump));
-                    case null, default -> throw new Report.InternalError();
-                };
-
-                // Overwrite original
-                ImcGen.stmtImc.put(funDefn.stmt, newStmts);
-            }
+            funDefn.stmt.accept(this, funDefn);
         }
 
         return null;
     }
 
+    // needed?
+    /*@Override
+    public ImcInstr visit(AstVarDefn varDefn, AstFunDefn arg) {
+        // todo ?? new ImcCONST(varDefn)
+        return null;
+    }
+
     @Override
-    public ImcInstr visit(AstArrExpr arrExpr, AstFunDefn currentFn) {
-        var array = (ImcExpr) arrExpr.arr.accept(this, currentFn);
+    public ImcInstr visit(AstFunDefn.AstRefParDefn refParDefn, AstFunDefn arg) {
+        refParDefn.
+        return AstFullVisitor.super.visit(refParDefn, arg);
+    }
+
+    @Override
+    public ImcInstr visit(AstFunDefn.AstValParDefn valParDefn, AstFunDefn arg) {
+        return AstFullVisitor.super.visit(valParDefn, arg);
+    }*/
+
+    @Override
+    public ImcInstr visit(AstArrExpr arrExpr, AstFunDefn parentFn) {
+        var array = (ImcExpr) arrExpr.arr.accept(this, parentFn);
 
         // Remove wrapper MEM if it exists
         if (array instanceof ImcMEM mem) {
             array = mem.addr;
         }
 
-        var idx = (ImcExpr) arrExpr.idx.accept(this, currentFn);
+        var idx = (ImcExpr) arrExpr.idx.accept(this, parentFn);
 
         // Get size of the array type
         var arrType = (SemArrayType) SemAn.ofType.get(arrExpr.arr);
@@ -157,12 +115,12 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     /**
      * Constant expressions.
      *
-     * @param atomExpr  The atom expression of AST.
-     * @param currentFn The parent function definition.
+     * @param atomExpr The atom expression of AST.
+     * @param parentFn The parent function definition.
      * @return The intermediate code instruction.
      */
     @Override
-    public ImcInstr visit(AstAtomExpr atomExpr, AstFunDefn currentFn) {
+    public ImcInstr visit(AstAtomExpr atomExpr, AstFunDefn parentFn) {
         var valueStr = atomExpr.value;
 
         // Get constant value
@@ -175,18 +133,12 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
                 }
                 if (length == 2) {
                     // Either \\ or \n or \'
-                    if (valueStr.charAt(2) != 'n') {
-                        // \\ or \'
-                        yield new ImcCONST(valueStr.charAt(2));
-                    } else {
-                        // \n
-                        yield new ImcCONST('\n');
-                    }
+                    yield new ImcCONST(valueStr.charAt(2));
                 }
 
                 if (length == 3) {
                     // \ hex hex
-                    long num = Long.parseLong(valueStr.substring(2, length + 1), 16);
+                    long num = Long.parseLong(valueStr.substring(2, length), 16);
                     yield new ImcCONST(num);
                 }
 
@@ -217,10 +169,10 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstBinExpr binExpr, AstFunDefn currentFn) {
+    public ImcInstr visit(AstBinExpr binExpr, AstFunDefn parentFn) {
         // Get child expressions
-        var fstExpr = (ImcExpr) binExpr.fstExpr.accept(this, currentFn);
-        var sndExpr = (ImcExpr) binExpr.sndExpr.accept(this, currentFn);
+        var fstExpr = (ImcExpr) binExpr.fstExpr.accept(this, parentFn);
+        var sndExpr = (ImcExpr) binExpr.sndExpr.accept(this, parentFn);
 
         // Define operator
         final var oper = switch (binExpr.oper) {
@@ -248,70 +200,34 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     /**
      * Function call expressions.
      *
-     * @param callExpr  The call expression.
-     * @param currentFn The parent function definition.
+     * @param callExpr The call expression.
+     * @param parentFn The parent function definition.
      * @return The intermediate code instruction.
      */
     @Override
-    public ImcInstr visit(AstCallExpr callExpr, AstFunDefn currentFn) {
-        // Original function definition
-        var callFnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
-
-        // Get memory label
-        var calledFrame = Memory.frames.get(callFnDefn);
-        var label = calledFrame == null
-                ? new MemLabel(callFnDefn.name())  // Prototype
-                : calledFrame.label;  // Function definition in the same file
-
-
-        // Static link (or dummy for prototypes)
-        var currentFrame = Memory.frames.get(currentFn);
-        ImcExpr sl = ImcGenerator.STATIC_LINK_DUMMY;
-        if (calledFrame != null && calledFrame.depth > 0L) {
-            long depthDiff = currentFrame.depth - calledFrame.depth + 1;
-            // Need to go through static links depthDiff times
-            sl = new ImcTEMP(currentFrame.FP);
-            for (int i = 0; i < depthDiff; i++) {
-                sl = new ImcMEM(sl);
-            }
-        }
-
+    public ImcInstr visit(AstCallExpr callExpr, AstFunDefn parentFn) {
         // Fill argument expressions
         var args = new LinkedList<ImcExpr>();
-        args.add(sl);
-
-
-        var offsets = new LinkedList<Long>();
-        // Include static link in the offsets
-        offsets.add(0L);
-
-        var callArgsIter = callExpr.args.iterator();
-        var fnParDefnsIter = callFnDefn.pars.iterator();
-
-        while (callArgsIter.hasNext() && fnParDefnsIter.hasNext()) {
-            var argExpr = callArgsIter.next();
-            var fnParDefn = fnParDefnsIter.next();
-
-            // Get argument expression
-            var imcExpr = (ImcExpr) argExpr.accept(this, currentFn);
-
-            // Warning! If parameter is a reference, we must pass the address of the argument
-            if (fnParDefn instanceof AstRefParDefn) {
-                if (imcExpr instanceof ImcMEM mem) {
-                    imcExpr = mem.addr;
-                } else {
-                    // Expected a memory access, got something else
-                    throw new Report.InternalError();
-                }
-            }
-
+        for (AstExpr argExpr : callExpr.args) {
+            var imcExpr = (ImcExpr) argExpr.accept(this, parentFn);
             args.add(imcExpr);
-
-            // Get offset of argument
-            var access = Memory.parAccesses.get(fnParDefn);
-            offsets.add(access.offset);
         }
 
+        // Original function definition
+        var fnDefn = (AstFunDefn) SemAn.definedAt.get(callExpr);
+
+        // Get memory label
+        var frame = Memory.frames.get(fnDefn);
+        var label = frame == null
+                ? new MemLabel(fnDefn.name())  // Prototype
+                : frame.label;  // Function definition in the same file
+
+        var offsets = new LinkedList<Long>();
+        // Get offsets of arguments
+        for (var fnArg : fnDefn.pars) {
+            var access = Memory.parAccesses.get(fnArg);
+            offsets.add(access.offset);
+        }
 
         var callImc = new ImcCALL(label, offsets, args);
         ImcGen.exprImc.put(callExpr, callImc);
@@ -320,11 +236,11 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstCastExpr castExpr, AstFunDefn currentFn) {
-        var exprImc = (ImcExpr) castExpr.expr.accept(this, currentFn);
+    public ImcInstr visit(AstCastExpr castExpr, AstFunDefn parentFn) {
+        var exprImc = (ImcExpr) castExpr.expr.accept(this, parentFn);
 
         var expr = SemAn.isType.get(castExpr.type) instanceof SemCharType
-                ? new ImcBINOP(Oper.MOD, exprImc, new ImcCONST(0x0FFL))  // If char is cast, we must mod it with 256
+                ? new ImcBINOP(ImcBINOP.Oper.AND, exprImc, new ImcCONST(0x0FFL))  // If char is cast, we must mod it with 256
                 : exprImc;  // Otherwise, use the written value
 
         ImcGen.exprImc.put(castExpr, expr);
@@ -333,8 +249,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstCmpExpr cmpExpr, AstFunDefn currentFn) {
-        var leftExpr = (ImcExpr) cmpExpr.expr.accept(this, currentFn);
+    public ImcInstr visit(AstCmpExpr cmpExpr, AstFunDefn parentFn) {
+        var leftExpr = (ImcExpr) cmpExpr.expr.accept(this, parentFn);
 
         if (leftExpr instanceof ImcMEM mem) {
             leftExpr = mem.addr;
@@ -352,9 +268,9 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         return binImc;
     }
 
-    // ex7 rule
+    // todo - test this, ex7 rule
     @Override
-    public ImcInstr visit(AstNameExpr nameExpr, AstFunDefn currentFn) {
+    public ImcInstr visit(AstNameExpr nameExpr, AstFunDefn parentFn) {
         var defn = SemAn.definedAt.get(nameExpr);
 
         var access = switch (defn) {
@@ -363,55 +279,56 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
             default -> throw new Report.InternalError();
         };
 
-        // Address of the parameter
-        var address = switch (access) {
+        // Inner memory access (will be used in the MEM instruction)
+        var imc = switch (access) {
             case MemAbsAccess absAccess -> {
                 var label = absAccess.label;
                 yield new ImcNAME(label);
             }
             case MemRelAccess relAccess -> {
-                var currentFrame = Memory.frames.get(currentFn);
+                var frame = Memory.frames.get(parentFn);
 
-                long depthDiff = currentFrame.depth - relAccess.depth;
-                ImcExpr temp = new ImcTEMP(currentFrame.FP);
+                // Check if inside current function
+                if (relAccess.depth == frame.depth) {
+                    // Inside current function
+                    var offset = new ImcCONST(relAccess.offset);
+                    yield new ImcBINOP(ImcBINOP.Oper.ADD, new ImcTEMP(frame.FP), offset);
+                } else {
+                    // Go through static link(s)
+                    long diff = relAccess.depth - frame.depth;
 
-                // Go through static link(s) if needed
-                for (int i = 0; i < depthDiff; i++) {
-                    temp = new ImcMEM(temp);
+                    ImcExpr temp = new ImcTEMP(frame.FP);
+                    for (int i = 0; i < diff; i++) {
+                        temp = new ImcMEM(temp);
+                    }
+
+                    var offset = new ImcCONST(relAccess.offset);
+                    yield new ImcBINOP(ImcBINOP.Oper.ADD, temp, offset);
                 }
-
-                var offset = new ImcCONST(relAccess.offset);
-                yield new ImcBINOP(ImcBINOP.Oper.ADD, temp, offset);
             }
             default -> throw new Report.InternalError();
         };
 
         // Memory access instruction
-        var memInc = new ImcMEM(address);
-
-        // If defn is reference, apply one more MEM over it
-        if (defn instanceof AstRefParDefn) {
-            memInc = new ImcMEM(memInc);
-        }
-
+        var memInc = new ImcMEM(imc);
         ImcGen.exprImc.put(nameExpr, memInc);
 
         return memInc;
     }
 
     @Override
-    public ImcInstr visit(AstPfxExpr pfxExpr, AstFunDefn currentFn) {
-        var expr = (ImcExpr) pfxExpr.expr.accept(this, currentFn);
+    public ImcInstr visit(AstPfxExpr pfxExpr, AstFunDefn parentFn) {
+        var expr = (ImcExpr) pfxExpr.expr.accept(this, parentFn);
 
         var imc = switch (pfxExpr.oper) {
             case ADD -> expr;
             case SUB -> new ImcUNOP(ImcUNOP.Oper.NEG, expr);
             case NOT -> new ImcUNOP(ImcUNOP.Oper.NOT, expr);
             case PTR -> {
-                if (expr instanceof ImcMEM mem) {
-                    yield mem.addr;
+                if (expr instanceof ImcMEM) {
+                    yield expr;
                 }
-                throw new Report.InternalError();
+                yield new ImcMEM(expr);
             }
         };
 
@@ -419,13 +336,14 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
         return imc;
     }
 
-    // A5 rule
+    // Todo A5 rule
     @Override
-    public ImcInstr visit(AstSfxExpr sfxExpr, AstFunDefn currentFn) {
-        var expr = (ImcExpr) sfxExpr.expr.accept(this, currentFn);
+    public ImcInstr visit(AstSfxExpr sfxExpr, AstFunDefn parentFn) {
+        var expr = (ImcExpr) sfxExpr.expr.accept(this, parentFn);
 
-        ImcExpr imc = switch (sfxExpr.oper) {
-            case PTR -> new ImcMEM(expr);
+        var imc = switch (sfxExpr.oper) {
+            case PTR -> // What to do here? Todo
+                    new ImcMEM(expr);
         };
 
         ImcGen.exprImc.put(sfxExpr, imc);
@@ -433,7 +351,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstSizeofExpr sizeofExpr, AstFunDefn currentFn) {
+    public ImcInstr visit(AstSizeofExpr sizeofExpr, AstFunDefn parentFn) {
         var type = SemAn.isType.get(sizeofExpr.type);
         var size = MemEvaluator.getSizeInBytes(type);
 
@@ -444,21 +362,9 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstAssignStmt assignStmt, AstFunDefn currentFn) {
-        var dstExpr = (ImcExpr) assignStmt.dst.accept(this, currentFn);
-        var defn = SemAn.definedAt.get(assignStmt.dst);
-
-        if (defn instanceof AstRefParDefn) {
-            // Destination is a reference, we must get the address
-            if (dstExpr instanceof ImcMEM mem) {
-                dstExpr = mem.addr;
-            } else {
-                // Expected a memory access, got something else
-                throw new Report.InternalError();
-            }
-        }
-
-        var srcExpr = (ImcExpr) assignStmt.src.accept(this, currentFn);
+    public ImcInstr visit(AstAssignStmt assignStmt, AstFunDefn parentFn) {
+        var dstExpr = (ImcExpr) assignStmt.dst.accept(this, parentFn);
+        var srcExpr = (ImcExpr) assignStmt.src.accept(this, parentFn);
 
         // todo - how to handle st2 rule?
         var assignImc = new ImcMOVE(dstExpr, srcExpr);
@@ -468,11 +374,11 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstBlockStmt blockStmt, AstFunDefn currentFn) {
+    public ImcInstr visit(AstBlockStmt blockStmt, AstFunDefn parentFn) {
         var stmts = new LinkedList<ImcStmt>();
 
         for (var stmt : blockStmt.stmts) {
-            var child = stmt.accept(this, currentFn);
+            var child = stmt.accept(this, parentFn);
             if (child instanceof ImcExpr expr) {
                 stmts.add(new ImcESTMT(expr));
             } else {
@@ -487,8 +393,8 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstExprStmt exprStmt, AstFunDefn currentFn) {
-        var expr = exprStmt.expr.accept(this, currentFn);
+    public ImcInstr visit(AstExprStmt exprStmt, AstFunDefn parentFn) {
+        var expr = exprStmt.expr.accept(this, parentFn);
 
         var imcStmt = new ImcESTMT((ImcExpr) expr);
         ImcGen.stmtImc.put(exprStmt, imcStmt);
@@ -497,47 +403,31 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstIfStmt ifStmt, AstFunDefn currentFn) {
-        var cond = (ImcExpr) ifStmt.cond.accept(this, currentFn);
-        var thenStmt = (ImcStmt) ifStmt.thenStmt.accept(this, currentFn);
+    public ImcInstr visit(AstIfStmt ifStmt, AstFunDefn parentFn) {
+        var cond = (ImcExpr) ifStmt.cond.accept(this, parentFn);
+        var thenStmt = (ImcStmt) ifStmt.thenStmt.accept(this, parentFn);
 
-        // Whether it has else part
-        boolean hasElseStatements = false;
         ImcStmt elseStmt = null;
         if (ifStmt.elseStmt != null) {
-            elseStmt = (ImcStmt) ifStmt.elseStmt.accept(this, currentFn);
-            hasElseStatements = true;
+            elseStmt = (ImcStmt) ifStmt.elseStmt.accept(this, parentFn);
         }
 
         var stmts = new LinkedList<ImcStmt>();
-
-        // Labels
         var thenLabel = new MemLabel();
         var elseLabel = new MemLabel();
-        var exitLabel = new MemLabel();
 
-        // Jump to exit and exit label
-        var imcExitLbl = new ImcLABEL(exitLabel);
-        var jumpToExit = new ImcJUMP(exitLabel);
-
-        // If no else part, jump to exit directly
-        var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
+        var cjump = new ImcCJUMP(cond, thenLabel, elseLabel);
         stmts.add(cjump);
-
-        // Else part
-        if (hasElseStatements) {
-            stmts.add(new ImcLABEL(elseLabel));
-            stmts.add(elseStmt);
-            stmts.add(jumpToExit);
-        }
 
         // If-then part
         stmts.add(new ImcLABEL(thenLabel));
         stmts.add(thenStmt);
-        stmts.add(jumpToExit);
 
-        // Add exit label
-        stmts.add(imcExitLbl);
+        // Else part
+        stmts.add(new ImcJUMP(elseLabel));
+        if (elseStmt != null) {
+            stmts.add(elseStmt);
+        }
 
         var imcStmt = new ImcSTMTS(stmts);
         ImcGen.stmtImc.put(ifStmt, imcStmt);
@@ -546,24 +436,24 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstReturnStmt retStmt, AstFunDefn currentFn) {
-        var type = SemAn.ofType.get(currentFn);
-        var exitLabel = ImcGen.exitLabel.get(currentFn);
+    public ImcInstr visit(AstReturnStmt retStmt, AstFunDefn parentFn) {
+        var type = SemAn.ofType.get(parentFn);
+        var exitLabel = ImcGen.exitLabel.get(parentFn);
 
         // Jump to the exit label
         var jump = new ImcJUMP(exitLabel);
 
-        /*if (type == SemVoidType.type) {
+        if (type == SemVoidType.type) {
             // Return statement in void function
             ImcGen.stmtImc.put(retStmt, jump);
             return jump;
-        }*/
+        }
 
-        // To keep interpreter happy, we also make void functions return <something>
-        var expr = type == SemVoidType.type ? new ImcCONST(0) : (ImcExpr) retStmt.expr.accept(this, currentFn);
+        // Non-void
+        var expr = (ImcExpr) retStmt.expr.accept(this, parentFn);
 
         // Move the expression to the return value
-        var frame = Memory.frames.get(currentFn);
+        var frame = Memory.frames.get(parentFn);
 
         // Write the return value to the stack
         var move = new ImcMOVE(new ImcTEMP(frame.RV), expr);
@@ -574,20 +464,18 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
     }
 
     @Override
-    public ImcInstr visit(AstWhileStmt whileStmt, AstFunDefn currentFn) {
-        var condExpr = (ImcExpr) whileStmt.cond.accept(this, currentFn);
-        var stmtExpr = (ImcStmt) whileStmt.stmt.accept(this, currentFn);
+    public ImcInstr visit(AstWhileStmt whileStmt, AstFunDefn parentFn) {
+        var cond = (ImcExpr) whileStmt.cond.accept(this, parentFn);
+
+        var stmt = (ImcStmt) whileStmt.stmt.accept(this, parentFn);
 
         var stmts = new LinkedList<ImcStmt>();
         var loopLabel = new MemLabel();
-        var bodyLabel = new MemLabel();
         var exitLabel = new MemLabel();
 
         stmts.add(new ImcLABEL(loopLabel));
-        stmts.add(new ImcCJUMP(condExpr, bodyLabel, exitLabel));
-        stmts.add(new ImcLABEL(bodyLabel));
-        stmts.add(stmtExpr);
-        stmts.add(new ImcJUMP(loopLabel));
+        stmts.add(new ImcCJUMP(cond, loopLabel, exitLabel));
+        stmts.add(stmt);
         stmts.add(new ImcLABEL(exitLabel));
 
         var imcStmt = new ImcSTMTS(stmts);
