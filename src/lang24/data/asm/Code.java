@@ -1,7 +1,10 @@
 package lang24.data.asm;
 
-import java.util.*;
-import lang24.data.mem.*;
+import lang24.data.mem.MemFrame;
+import lang24.data.mem.MemLabel;
+
+import java.util.List;
+import java.util.Vector;
 
 /**
  * A fragment of code.
@@ -44,11 +47,11 @@ public class Code {
 	 * @param instrs     Assembly instructions representing the bofy of the
 	 *                   function.
 	 */
-	public Code(MemFrame frame, MemLabel entryLabel, MemLabel exitLabel, Vector<AsmInstr> instrs) {
+	public Code(MemFrame frame, MemLabel entryLabel, MemLabel exitLabel, List<AsmInstr> instrs) {
 		this.frame = frame;
 		this.entryLabel = entryLabel;
 		this.exitLabel = exitLabel;
-		this.instrs = new Vector<AsmInstr>(instrs);
+		this.instrs = new Vector<>(instrs);
 	}
 
 }

@@ -222,7 +222,7 @@ public class Compiler {
 					Abstr.tree.accept(new ChunkGenerator(), null);
 					imclin.log();
 
-					if (true) {
+					if (Boolean.parseBoolean(System.getenv().getOrDefault("INTP_MODE", "false"))) {
 						Interpreter interpreter = new Interpreter(ImcLin.dataChunks(), ImcLin.codeChunks());
 						System.out.println("EXIT CODE: " + interpreter.run("_main"));
 					}
