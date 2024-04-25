@@ -3,7 +3,10 @@ package lang24;
 import lang24.common.report.Report;
 import lang24.phase.abstr.Abstr;
 import lang24.phase.abstr.AbstrLogger;
-import lang24.phase.imcgen.*;
+import lang24.phase.asmgen.AsmGen;
+import lang24.phase.imcgen.IG2;
+import lang24.phase.imcgen.ImcGen;
+import lang24.phase.imcgen.ImcLogger;
 import lang24.phase.imclin.ChunkGenerator;
 import lang24.phase.imclin.ImcLin;
 import lang24.phase.imclin.Interpreter;
@@ -43,7 +46,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<String>(
-			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen", "imclin"));
+			Arrays.asList("none", "all", "lexan", "synan", "abstr", "seman", "memory", "imcgen", "imclin", "asmgen"));
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
@@ -225,6 +228,14 @@ public class Compiler {
 					}
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
+					break;
+
+				// Machine code generation.
+				try (AsmGen asmgen = new AsmGen()) {
+					asmgen.genAsmCodes();
+					asmgen.log();
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("amsgen"))
 					break;
 
 				break;
