@@ -390,16 +390,16 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
         };
 
         // Memory access instruction
-        var memInc = new ImcMEM(address);
+        var memImc = new ImcMEM(address);
 
         // If defn is reference, apply one more MEM over it
         if (defn instanceof AstRefParDefn) {
-            memInc = new ImcMEM(memInc);
+            memImc = new ImcMEM(memImc);
         }
 
-        ImcGen.exprImc.put(nameExpr, memInc);
+        ImcGen.exprImc.put(nameExpr, memImc);
 
-        return memInc;
+        return memImc;
     }
 
     @Override
@@ -449,18 +449,6 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
     @Override
     public ImcInstr visit(AstAssignStmt assignStmt, AstFunDefn currentFn) {
         var dstExpr = (ImcExpr) assignStmt.dst.accept(this, currentFn);
-        var defn = SemAn.definedAt.get(assignStmt.dst);
-
-        if (defn instanceof AstRefParDefn) {
-            // Destination is a reference, we must get the address
-            if (dstExpr instanceof ImcMEM mem) {
-                dstExpr = mem.addr;
-            } else {
-                // Expected a memory access, got something else
-                throw new Report.InternalError();
-            }
-        }
-
         var srcExpr = (ImcExpr) assignStmt.src.accept(this, currentFn);
 
         // todo - how to handle st2 rule?
