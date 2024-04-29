@@ -27,6 +27,9 @@ import java.util.Vector;
  * ImcCode to MMIX assembly code visitor.
  */
 public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr>> {
+
+    private static final String SP = "$254";
+
     @Override
     public Vector<MemTemp> visit(ImcBINOP binOp, List<AsmInstr> instructions) {
         var fstDefs = binOp.fstExpr.accept(this, instructions);
@@ -40,39 +43,39 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var binopDefs = Vector_of(binopResult);
 
         var instr = switch (binOp.oper) {
-            case OR -> "OR d0, s0, s1";
-            case AND -> "AND d0, s0, s1";
-            case ADD -> "ADD d0, s0, s1";
-            case SUB -> "SUB d0, s0, s1";
-            case MUL -> "MUL d0, s0, s1";
-            case DIV -> "DIV d0, s0, s1";
+            case OR -> "OR `d0,`s0,`s1";
+            case AND -> "AND `d0,`s0,`s1";
+            case ADD -> "ADD `d0,`s0,`s1";
+            case SUB -> "SUB `d0,`s0,`s1";
+            case MUL -> "MUL `d0,`s0,`s1";
+            case DIV -> "DIV `d0,`s0,`s1";
             case MOD -> {
                 var divResTmp = new MemTemp();
                 var divResultVec = Vector_of(divResTmp);
 
-                var divOp = new AsmOPER("DIV d0, s0, s1", binopUses, divResultVec, null);
+                var divOp = new AsmOPER("DIV `d0,`s0,`s1", binopUses, divResultVec, null);
                 instructions.add(divOp);
 
                 binopUses = divResultVec;
 
-                yield "ADD d0, s0, 0";
+                yield "ADD `d0,`s0,0";
             }
             default -> {
                 var newResTmp = new MemTemp();
                 var newResultVec = Vector_of(newResTmp);
-                var cmpOper = new AsmOPER("CMP d0, s0, s1", binopUses, newResultVec, null);
+                var cmpOper = new AsmOPER("CMP `d0,`s0,`s1", binopUses, newResultVec, null);
 
                 instructions.add(cmpOper);
 
                 binopUses = newResultVec;
 
                 yield switch (binOp.oper) {
-                    case EQU -> "ZSZ d0, s0, 1";  // 1 if 0, otherwise 0
-                    case NEQ -> "ZSNZ d0, s0, 1";  // 1 if not 0, otherwise 0
-                    case LTH -> "ZSN d0, s0, 1";  // 1 if negative
-                    case GTH -> "ZSP d0, s0, 1";  // 1 if positive
-                    case LEQ -> "ZSNP d0, s0, 1";  // 1 if non-positive
-                    case GEQ -> "ZSNN d0, s0, 1";  // 1 if non-negative
+                    case EQU -> "ZSZ `d0,`s0,1";  // 1 if 0, otherwise 0
+                    case NEQ -> "ZSNZ `d0,`s0,1";  // 1 if not 0, otherwise 0
+                    case LTH -> "ZSN `d0,`s0,1";  // 1 if negative
+                    case GTH -> "ZSP `d0,`s0,1";  // 1 if positive
+                    case LEQ -> "ZSNP `d0,`s0,1";  // 1 if non-positive
+                    case GEQ -> "ZSNN `d0,`s0,1";  // 1 if non-negative
                     default -> throw new Report.InternalError();
                 };
             }
@@ -90,30 +93,31 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         // todo
 
         // Push arguments to the stack
-        for (int i = call.args.size() - 1; i > 0; --i) {
+        for (int i = call.args.size() - 1; i >= 0; --i) {
             var argExpr = call.args.get(i);
             long offset = call.offs.get(i);
             var temps = argExpr.accept(this, instructions);
 
             // Push the argument to the stack
-            var pushInstr = new AsmOPER("STO s0, $254, " + offset, temps, null, null);
+            var pushInstr = new AsmOPER("STO `s0,%s,%d".formatted(SP, offset), temps, null, null);
             instructions.add(pushInstr);
         }
 
         // Perform the function call
-        String instr = String.format("PUSHJ $255 %s", call.label.name);
+        String instr = String.format("PUSHJ $8,%s", call.label.name);
         var jumps = Vector_of(call.label);
 
         var callOper = new AsmOPER(instr, null, null, jumps);
         instructions.add(callOper);
 
         // Pop registers
+        // todo - wrong
         var resultTemp = new MemTemp();
         var resultDefs = Vector_of(resultTemp);
 
         // Todo - ask about this; also, where do we store return value?
-        var popOper = new AsmOPER("POP d0", null, resultDefs, null);
-        instructions.add(popOper);
+        var loadResult = new AsmOPER("LDO `d0, /*todo*/", null, resultDefs, null);
+        instructions.add(loadResult);
 
         return resultDefs;
     }
@@ -122,7 +126,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
     public Vector<MemTemp> visit(ImcCJUMP cjump, List<AsmInstr> instructions) {
         // Only jump to positive label if condition is true - intentional, as
         // we already sorted the code blocks in the previous phase
-        String instr = "BNZ s0, %s";
+        String instr = "BNZ `s0,%s";
         var jumps = Vector_of(cjump.posLabel);
 
         // Evaluate the condition
@@ -168,7 +172,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var defs = Vector_of(resultTemp);
 
-        var memInstr = new AsmOPER("LDO d0, s0", addrDefs, defs, null);
+        var memInstr = new AsmOPER("LDO `d0,`s0", addrDefs, defs, null);
         instructions.add(memInstr);
 
         return defs;
@@ -189,7 +193,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var srcDefs = move.src.accept(this, instructions);
 
 
-        var instruction = new AsmMOVE("ADD d0, s0, 0", srcDefs, dstDefs);
+        var instruction = new AsmMOVE("ADD `d0,`s0,0", srcDefs, dstDefs);
         instructions.add(instruction);
 
         return dstDefs;
@@ -202,7 +206,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var loadVec = Vector_of(loadDest);
 
         // Generate load
-        var loadInstr = new AsmMOVE("LDO d0, s0, 0", addrDefs, loadVec);
+        var loadInstr = new AsmMOVE("LDO `d0,`s0,0", addrDefs, loadVec);
         instructions.add(loadInstr);
 
         // Move to dst
@@ -221,7 +225,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         uses.addAll(valueDefs);
 
         // Generate store
-        var storeInstr = new AsmOPER("STO s0, s1, 0", uses, null, null);
+        var storeInstr = new AsmOPER("STO `s0,`s1,0", uses, null, null);
         instructions.add(storeInstr);
 
         return null;
@@ -235,7 +239,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var defs = Vector_of(resultTemp);
 
-        var instr = new AsmOPER(String.format("LDO d0, %s", name.label.name), null, defs, null);
+        var instr = new AsmOPER(String.format("LDO `d0,%s", name.label.name), null, defs, null);
         instructions.add(instr);
 
         instructions.add(instr);
@@ -255,20 +259,20 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var defs = Vector_of(resultTemp);
 
         var instr = switch (unOp.oper) {
-            case NEG -> "NEG d0,s0";
+            case NEG -> "NEG `d0,`s0";
             case NOT -> {
                 // XOR 0xFFFFFFFF_FFFFFFFF and the value
                 var xorResult = new MemTemp();
                 var xorDefs = Vector_of(xorResult);
 
-                // Load 0xFFFFFFFF_FFFFFFFF in d0
+                // Load 0xFFFFFFFF_FFFFFFFF in `d0
                 setVarToConstant(instructions, xorDefs, 0xFFFFFFFF_FFFFFFFFL);
 
                 if (subDefs == null) {
                     subDefs = new Vector<>();
                 }
                 subDefs.add(xorResult);
-                yield "XOR d0, s0, s1";
+                yield "XOR `d0,`s0,`s1";
             }
         };
 
@@ -282,9 +286,12 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var setInstrs = List.of("SETL", "SETML", "SETMH", "SETH");
         for (int i = 0; i < setInstrs.size(); i++) {
             var setInstr = setInstrs.get(i);
-            long val = (value >> (i * 16)) & 0xFFFF;
-            // todo - how do we write constants? With 0x prefix or not?
-            var set0xFF = new AsmOPER(String.format("%s d0, 0x%04X", setInstr, val), null, xorDefs, null);
+            long shifted = value >> (i * 16);
+            if (shifted == 0) {
+                continue;
+            }
+            long val = shifted & 0xFFFF;
+            var set0xFF = new AsmOPER(String.format("%s `d0,#%04X", setInstr, val), null, xorDefs, null);
             instructions.add(set0xFF);
         }
     }
