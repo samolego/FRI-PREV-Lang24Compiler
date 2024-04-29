@@ -1,25 +1,22 @@
 package lang24.phase.asmgen;
 
 import lang24.common.report.Report;
-import lang24.common.report.Report.InternalError;
 import lang24.data.asm.AsmInstr;
 import lang24.data.asm.AsmLABEL;
+import lang24.data.asm.AsmMOVE;
 import lang24.data.asm.AsmOPER;
 import lang24.data.imc.code.expr.ImcBINOP;
 import lang24.data.imc.code.expr.ImcCALL;
 import lang24.data.imc.code.expr.ImcCONST;
 import lang24.data.imc.code.expr.ImcMEM;
 import lang24.data.imc.code.expr.ImcNAME;
-import lang24.data.imc.code.expr.ImcSEXPR;
 import lang24.data.imc.code.expr.ImcTEMP;
 import lang24.data.imc.code.expr.ImcUNOP;
 import lang24.data.imc.code.stmt.ImcCJUMP;
-import lang24.data.imc.code.stmt.ImcESTMT;
 import lang24.data.imc.code.stmt.ImcJUMP;
 import lang24.data.imc.code.stmt.ImcLABEL;
 import lang24.data.imc.code.stmt.ImcMOVE;
-import lang24.data.imc.code.stmt.ImcSTMTS;
-import lang24.data.imc.visitor.AbstractImcVisitor;
+import lang24.data.imc.visitor.ImcVisitor;
 import lang24.data.mem.MemTemp;
 
 import java.util.Collections;
@@ -29,7 +26,7 @@ import java.util.Vector;
 /**
  * ImcCode to MMIX assembly code visitor.
  */
-public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<AsmInstr>> {
+public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr>> {
     @Override
     public Vector<MemTemp> visit(ImcBINOP binOp, List<AsmInstr> instructions) {
         var fstDefs = binOp.fstExpr.accept(this, instructions);
@@ -42,11 +39,11 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
         var binopResult = new MemTemp();
         var binopDefs = Vector_of(binopResult);
 
-        var instr = switch(binOp.oper) {
+        var instr = switch (binOp.oper) {
             case OR -> "OR d0, s0, s1";
             case AND -> "AND d0, s0, s1";
             case ADD -> "ADD d0, s0, s1";
-            case SUB, NEQ -> "SUB d0, s0, s1";
+            case SUB -> "SUB d0, s0, s1";
             case MUL -> "MUL d0, s0, s1";
             case DIV -> "DIV d0, s0, s1";
             case MOD -> {
@@ -70,7 +67,8 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
                 binopUses = newResultVec;
 
                 yield switch (binOp.oper) {
-                    case EQU -> "ZSZ d0, s0, 1";  // 1 if 0, otherwise to 0
+                    case EQU -> "ZSZ d0, s0, 1";  // 1 if 0, otherwise 0
+                    case NEQ -> "ZSNZ d0, s0, 1";  // 1 if not 0, otherwise 0
                     case LTH -> "ZSN d0, s0, 1";  // 1 if negative
                     case GTH -> "ZSP d0, s0, 1";  // 1 if positive
                     case LEQ -> "ZSNP d0, s0, 1";  // 1 if non-positive
@@ -90,22 +88,40 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
     @Override
     public Vector<MemTemp> visit(ImcCALL call, List<AsmInstr> instructions) {
         // todo
-        call.args.forEach(argExpr -> argExpr.accept(this, instructions));
+
+        // Push arguments to the stack
+        for (int i = call.args.size() - 1; i > 0; --i) {
+            var argExpr = call.args.get(i);
+            long offset = call.offs.get(i);
+            var temps = argExpr.accept(this, instructions);
+
+            // Push the argument to the stack
+            var pushInstr = new AsmOPER("STO s0, $254, " + offset, temps, null, null);
+            instructions.add(pushInstr);
+        }
 
         // Perform the function call
-        String instr = "PUSHJ %s";
+        String instr = String.format("PUSHJ $255 %s", call.label.name);
         var jumps = Vector_of(call.label);
 
-        var callOper = new AsmOPER(String.format(instr, call.label.name), null, null, jumps);
+        var callOper = new AsmOPER(instr, null, null, jumps);
         instructions.add(callOper);
 
+        // Pop registers
+        var resultTemp = new MemTemp();
+        var resultDefs = Vector_of(resultTemp);
 
-        return null;
+        // Todo - ask about this; also, where do we store return value?
+        var popOper = new AsmOPER("POP d0", null, resultDefs, null);
+        instructions.add(popOper);
+
+        return resultDefs;
     }
 
     @Override
     public Vector<MemTemp> visit(ImcCJUMP cjump, List<AsmInstr> instructions) {
-        // Only jump to positive label if condition is true
+        // Only jump to positive label if condition is true - intentional, as
+        // we already sorted the code blocks in the previous phase
         String instr = "BNZ s0, %s";
         var jumps = Vector_of(cjump.posLabel);
 
@@ -121,28 +137,20 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
     @Override
     public Vector<MemTemp> visit(ImcCONST constant, List<AsmInstr> instructions) {
         // Move the constant to a temporary variable and return the temporary variable
-        var instr = "SET d0, %s";
         var resultDefn = new MemTemp();
         var defs = Vector_of(resultDefn);
-
-        var moveOper = new AsmOPER(String.format(instr, constant.value), null, defs, null);
-        instructions.add(moveOper);
+        setVarToConstant(instructions, defs, constant.value);
 
         return defs;
     }
 
-    @Override
-    public Vector<MemTemp> visit(ImcESTMT eStmt, List<AsmInstr> instructions) {
-        // Shouldn't have eStmt at this point
-        throw new InternalError();
-    }
 
     @Override
     public Vector<MemTemp> visit(ImcJUMP jump, List<AsmInstr> instructions) {
-        String instr = "JMP %s";
+        String instr = String.format("JMP %s", jump.label.name);
         var jumps = Vector_of(jump.label);
 
-        var asmOper = new AsmOPER(String.format(instr, jump.label.name), null, null, jumps);
+        var asmOper = new AsmOPER(instr, null, null, jumps);
         instructions.add(asmOper);
 
         return null;
@@ -181,8 +189,7 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
         var srcDefs = move.src.accept(this, instructions);
 
 
-        // Todo - change to move
-        var instruction = new AsmOPER("ADD d0, s0, 0", srcDefs, dstDefs, null);
+        var instruction = new AsmMOVE("ADD d0, s0, 0", srcDefs, dstDefs);
         instructions.add(instruction);
 
         return dstDefs;
@@ -195,7 +202,7 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
         var loadVec = Vector_of(loadDest);
 
         // Generate load
-        var loadInstr = new AsmOPER("LDO d0, s0, 0", addrDefs, loadVec, null);
+        var loadInstr = new AsmMOVE("LDO d0, s0, 0", addrDefs, loadVec);
         instructions.add(loadInstr);
 
         // Move to dst
@@ -223,26 +230,17 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
     @Override
     public Vector<MemTemp> visit(ImcNAME name, List<AsmInstr> instructions) {
         // Move name to temp and return it
-        var instr = "NAME TODO";  // todo - fix this
-        var resultDefn = new MemTemp();
-        var defs = Vector_of(resultDefn);
+        // todo - check if this is correct
 
-        var moveOper = new AsmOPER(String.format(instr, name.label.name), null, defs, null);
-        instructions.add(moveOper);
+        var resultTemp = new MemTemp();
+        var defs = Vector_of(resultTemp);
+
+        var instr = new AsmOPER(String.format("LDO d0, %s", name.label.name), null, defs, null);
+        instructions.add(instr);
+
+        instructions.add(instr);
 
         return defs;
-    }
-
-    @Override
-    public Vector<MemTemp> visit(ImcSEXPR sExpr, List<AsmInstr> instructions) {
-        // Shouldn't have sExpr at this point
-        throw new InternalError();
-    }
-
-    @Override
-    public Vector<MemTemp> visit(ImcSTMTS stmts, List<AsmInstr> instructions) {
-        // Shouldn't have stmts at this point
-        throw new InternalError();
     }
 
     @Override
@@ -254,24 +252,21 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
     public Vector<MemTemp> visit(ImcUNOP unOp, List<AsmInstr> instructions) {
         var subDefs = unOp.subExpr.accept(this, instructions);
         var resultTemp = new MemTemp();
-        var defs = new Vector<MemTemp>();
-        defs.add(resultTemp);
+        var defs = Vector_of(resultTemp);
 
         var instr = switch (unOp.oper) {
             case NEG -> "NEG d0,s0";
             case NOT -> {
                 // XOR 0xFFFFFFFF_FFFFFFFF and the value
-                var xorDefs = new Vector<MemTemp>();
                 var xorResult = new MemTemp();
-                xorDefs.add(xorResult);
+                var xorDefs = Vector_of(xorResult);
 
-                // Todo - fix
+                // Load 0xFFFFFFFF_FFFFFFFF in d0
+                setVarToConstant(instructions, xorDefs, 0xFFFFFFFF_FFFFFFFFL);
 
-                // s1 <= 0xFFFFFFFF_FFFFFFFF
-                var set0xFF = new AsmOPER("NOT TODO //SET d0, 0xFFFFFFFF_FFFFFFFF", null, xorDefs, null);
-
-                instructions.add(set0xFF);
-
+                if (subDefs == null) {
+                    subDefs = new Vector<>();
+                }
                 subDefs.add(xorResult);
                 yield "XOR d0, s0, s1";
             }
@@ -281,6 +276,17 @@ public class Imc2AsmVisitor implements AbstractImcVisitor<Vector<MemTemp>, List<
         instructions.add(unOpOper);
 
         return defs;
+    }
+
+    private void setVarToConstant(List<AsmInstr> instructions, Vector<MemTemp> xorDefs, long value) {
+        var setInstrs = List.of("SETL", "SETML", "SETMH", "SETH");
+        for (int i = 0; i < setInstrs.size(); i++) {
+            var setInstr = setInstrs.get(i);
+            long val = (value >> (i * 16)) & 0xFFFF;
+            // todo - how do we write constants? With 0x prefix or not?
+            var set0xFF = new AsmOPER(String.format("%s d0, 0x%04X", setInstr, val), null, xorDefs, null);
+            instructions.add(set0xFF);
+        }
     }
 
 
