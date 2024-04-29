@@ -6,6 +6,7 @@ import lang24.data.mem.MemTemp;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
+import java.util.regex.Pattern;
 
 /**
  * A general assembly operation.
@@ -25,6 +26,8 @@ import java.util.Vector;
  * SETML T1,3 => "SETL `d0,3" & uses={T1} & defs={T1}
  */
 public class AsmOPER extends AsmInstr {
+    private static final Pattern SOURCE_PATTERN = Pattern.compile("s\\d+");
+    private static final Pattern DEST_PATTERN = Pattern.compile("d\\d+");
 
     /**
      * The string representation of the instruction.
@@ -75,8 +78,20 @@ public class AsmOPER extends AsmInstr {
         this.out = new HashSet<>();
 
         // Check if `uses` contains temporaries that are not in the instruction
-        assert this.instr.split("s\\d+").length - 1 == this.uses.size() : "Invalid number of uses";
-        assert this.instr.split("d\\d+").length - 1 == this.defs.size() : "Invalid number of defs";
+        int count = 0;
+        var matcher = SOURCE_PATTERN.matcher(instr);
+        while (matcher.find()) {
+            count++;
+        }
+        assert count == this.uses.size() : "Invalid number of uses";
+
+        // Check if `defs` contains temporaries that are not in the instruction
+        count = 0;
+        matcher = DEST_PATTERN.matcher(instr);
+        while (matcher.find()) {
+            count++;
+        }
+        assert count == this.defs.size() : "Invalid number of defs";
     }
 
     /**

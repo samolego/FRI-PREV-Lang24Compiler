@@ -6,6 +6,7 @@ import lang24.data.lin.LinCodeChunk;
 import lang24.phase.Phase;
 import lang24.phase.imclin.ImcLin;
 
+import java.util.LinkedList;
 import java.util.Vector;
 
 /**
@@ -23,11 +24,9 @@ public class AsmGen extends Phase {
 
     public void genAsmCodes() {
         for (LinCodeChunk codeChunk : ImcLin.codeChunks()) {
-            var instrs = codeChunk.stmts()
-                    .stream()
-                    .flatMap(imcStmt -> imcStmt.accept(imc2AsmVisitor, null).stream())
-                    .toList();
-            Code code = new Code(codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel, instrs);
+            var asmInstrs = new LinkedList<AsmInstr>();
+            codeChunk.stmts().forEach(stmt -> stmt.accept(imc2AsmVisitor, asmInstrs));
+            Code code = new Code(codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel, asmInstrs);
             codes.add(code);
         }
     }
