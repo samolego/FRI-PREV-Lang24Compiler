@@ -124,14 +124,14 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
 
     @Override
     public Vector<MemTemp> visit(ImcCJUMP cjump, List<AsmInstr> instructions) {
-        // Only jump to positive label if condition is true - intentional, as
-        // we already sorted the code blocks in the previous phase
         String instr = "BNZ `s0,%s";
-        var jumps = Vector_of(cjump.posLabel);
+        var jumps = Vector_of(cjump.posLabel, cjump.negLabel);
 
         // Evaluate the condition
         var uses = cjump.cond.accept(this, instructions);
 
+        // Only jump to positive label if condition is true - intentional, as
+        // we already sorted the code blocks in the previous phase
         var cjumpOper = new AsmOPER(String.format(instr, cjump.posLabel.name), uses, null, jumps);
         instructions.add(cjumpOper);
 
