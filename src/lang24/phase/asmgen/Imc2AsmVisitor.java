@@ -286,7 +286,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var setInstrs = List.of("SETL", "SETML", "SETMH", "SETH");
         for (int i = 0; i < setInstrs.size(); i++) {
             var setInstr = setInstrs.get(i);
-            long shifted = value >> (i * 16);
+            long shifted = value >>> (i * 16);
             if (shifted == 0) {
                 continue;
             }
