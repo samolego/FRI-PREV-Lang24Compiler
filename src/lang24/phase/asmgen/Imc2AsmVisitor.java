@@ -110,13 +110,12 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var callOper = new AsmOPER(instr, null, null, jumps);
         instructions.add(callOper);
 
-        // Pop registers
         // todo - wrong
         var resultTemp = new MemTemp();
         var resultDefs = Vector_of(resultTemp);
 
         // Todo - ask about this; also, where do we store return value?
-        var loadResult = new AsmOPER("LDO `d0, /*todo*/", null, resultDefs, null);
+        var loadResult = new AsmOPER("LDO `d0," + SP + ",0", null, resultDefs, null);
         instructions.add(loadResult);
 
         return resultDefs;
@@ -172,7 +171,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var defs = Vector_of(resultTemp);
 
-        var memInstr = new AsmOPER("LDO `d0,`s0", addrDefs, defs, null);
+        var memInstr = new AsmOPER("LDO `d0,`s0,0", addrDefs, defs, null);
         instructions.add(memInstr);
 
         return defs;
@@ -239,7 +238,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var defs = Vector_of(resultTemp);
 
-        var instr = new AsmOPER(String.format("LDO `d0,%s", name.label.name), null, defs, null);
+        var instr = new AsmOPER(String.format("LDO `d0,%s,0", name.label.name), null, defs, null);
         instructions.add(instr);
 
         instructions.add(instr);
