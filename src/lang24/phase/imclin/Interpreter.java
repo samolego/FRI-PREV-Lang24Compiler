@@ -77,9 +77,10 @@ public class Interpreter {
             }
             this.dataMemLabels.put(dataChunk.label, tempLD(HP, false));
             if (dataChunk.init != null) {
-                for (int c = 0; c < dataChunk.init.length() - 2; c++)
-                    memST(tempLD(HP, false) + 8L * c, (long) dataChunk.init.charAt(c + 1), false);
-                memST(tempLD(HP, false) + 8L * (dataChunk.init.length() - 2), 0L, false);
+                // Save strings
+                for (int c = 0; c < dataChunk.init.length(); c++)
+                    memST(tempLD(HP, false) + 8L * c, (long) dataChunk.init.charAt(c), false);
+                memST(tempLD(HP, false) + 8L * dataChunk.init.length(), 0L, false);
             }
             tempST(HP, tempLD(HP, false) + dataChunk.size, debug);
         }
