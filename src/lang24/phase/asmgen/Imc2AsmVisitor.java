@@ -42,6 +42,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var binopResult = new MemTemp();
         var binopDefs = Vector_of(binopResult);
 
+        // Get the right instruction
         var instr = switch (binOp.oper) {
             case OR -> "OR `d0,`s0,`s1";
             case AND -> "AND `d0,`s0,`s1";
@@ -50,25 +51,33 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
             case MUL -> "MUL `d0,`s0,`s1";
             case DIV -> "DIV `d0,`s0,`s1";
             case MOD -> {
+                // Modulo is a bit more complex
                 var divResTmp = new MemTemp();
                 var divResultVec = Vector_of(divResTmp);
 
+                // First do the division
                 var divOp = new AsmOPER("DIV `d0,`s0,`s1", binopUses, divResultVec, null);
                 instructions.add(divOp);
 
-                binopUses = divResultVec;
+                // We don't need the source registers anymore
+                binopUses.clear();
 
-                yield "ADD `d0,`s0,0";
+                // Add from the rR register to the result
+                yield "ADD `d0,$rR,0";
             }
             default -> {
+                // Comparison operators
                 var newResTmp = new MemTemp();
                 var newResultVec = Vector_of(newResTmp);
-                var cmpOper = new AsmOPER("CMP `d0,`s0,`s1", binopUses, newResultVec, null);
 
+                // First execute the comparison
+                var cmpOper = new AsmOPER("CMP `d0,`s0,`s1", binopUses, newResultVec, null);
                 instructions.add(cmpOper);
 
+                // New uses are the result of the comparison
                 binopUses = newResultVec;
 
+                // Execute another instruction to get the result
                 yield switch (binOp.oper) {
                     case EQU -> "ZSZ `d0,`s0,1";  // 1 if 0, otherwise 0
                     case NEQ -> "ZSNZ `d0,`s0,1";  // 1 if not 0, otherwise 0
@@ -114,7 +123,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var resultDefs = Vector_of(resultTemp);
 
-        // Todo - ask about this; also, where do we store return value?
+        // Todo - ask about this
         var loadResult = new AsmOPER("LDO `d0," + SP + ",0", null, resultDefs, null);
         instructions.add(loadResult);
 
@@ -139,10 +148,10 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
 
     @Override
     public Vector<MemTemp> visit(ImcCONST constant, List<AsmInstr> instructions) {
-        // Move the constant to a temporary variable and return the temporary variable
+        // Move the constant to a temporary register and return it
         var resultDefn = new MemTemp();
         var defs = Vector_of(resultDefn);
-        setVarToConstant(instructions, defs, constant.value);
+        setRegisterToConstantVal(instructions, defs, constant.value);
 
         return defs;
     }
@@ -186,8 +195,8 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         if (move.src instanceof ImcMEM mem) {
             return this.generateLoadInstruction(move, mem, instructions);
         }
-        // Temp to temp
 
+        // Temp to temp move
         var dstDefs = move.dst.accept(this, instructions);
         var srcDefs = move.src.accept(this, instructions);
 
@@ -201,15 +210,13 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
     private Vector<MemTemp> generateLoadInstruction(ImcMOVE move, ImcMEM mem, List<AsmInstr> instructions) {
         var addrDefs = mem.addr.accept(this, instructions);
 
-        var loadDest = new MemTemp();
-        var loadVec = Vector_of(loadDest);
+        var destRegister = move.dst.accept(this, instructions);
 
         // Generate load
-        var loadInstr = new AsmMOVE("LDO `d0,`s0,0", addrDefs, loadVec);
+        var loadInstr = new AsmMOVE("LDO `d0,`s0,0", addrDefs, destRegister);
         instructions.add(loadInstr);
 
-        // Move to dst
-        return move.dst.accept(this, instructions);
+        return destRegister;
     }
 
     private Vector<MemTemp> generateStoreInstruction(ImcMOVE move, ImcMEM mem, List<AsmInstr> instructions) {
@@ -265,7 +272,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
                 var xorDefs = Vector_of(xorResult);
 
                 // Load 0xFFFFFFFF_FFFFFFFF in `d0
-                setVarToConstant(instructions, xorDefs, 0xFFFFFFFF_FFFFFFFFL);
+                setRegisterToConstantVal(instructions, xorDefs, 0xFFFFFFFF_FFFFFFFFL);
 
                 if (subDefs == null) {
                     subDefs = new Vector<>();
@@ -281,12 +288,13 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         return defs;
     }
 
-    private void setVarToConstant(List<AsmInstr> instructions, Vector<MemTemp> xorDefs, long value) {
+    private void setRegisterToConstantVal(List<AsmInstr> instructions, Vector<MemTemp> xorDefs, long value) {
         var setInstrs = List.of("SETL", "SETML", "SETMH", "SETH");
         for (int i = 0; i < setInstrs.size(); i++) {
             var setInstr = setInstrs.get(i);
             long shifted = value >>> (i * 16);
             if (shifted == 0) {
+                // Not needed, save on instructions
                 continue;
             }
             long val = shifted & 0xFFFF;
@@ -296,6 +304,12 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
     }
 
 
+    /**
+     * Helper method to create a vector of elements
+     * @param elements Elements to add to the vector
+     * @return Vector of elements
+     * @param <E> Type of elements
+     */
     @SafeVarargs
     private static <E> Vector<E> Vector_of(E... elements) {
         var vector = new Vector<E>();
