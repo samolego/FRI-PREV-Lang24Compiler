@@ -108,7 +108,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
             var temps = argExpr.accept(this, instructions);
 
             // Push the argument to the stack
-            var pushInstr = new AsmOPER("STO `s0,%s,%d".formatted(SP, offset), temps, null, null);
+            var pushInstr = new AsmOPER("STOU `s0,%s,%d".formatted(SP, offset), temps, null, null);
             instructions.add(pushInstr);
         }
 
@@ -124,7 +124,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultDefs = Vector_of(resultTemp);
 
         // Todo - ask about this
-        var loadResult = new AsmOPER("LDO `d0," + SP + ",0", null, resultDefs, null);
+        var loadResult = new AsmOPER("LDOU `d0," + SP + ",0", null, resultDefs, null);
         instructions.add(loadResult);
 
         return resultDefs;
@@ -180,7 +180,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var defs = Vector_of(resultTemp);
 
-        var memInstr = new AsmOPER("LDO `d0,`s0,0", addrDefs, defs, null);
+        var memInstr = new AsmOPER("LDOU `d0,`s0,0", addrDefs, defs, null);
         instructions.add(memInstr);
 
         return defs;
@@ -213,7 +213,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var destRegister = move.dst.accept(this, instructions);
 
         // Generate load
-        var loadInstr = new AsmMOVE("LDO `d0,`s0,0", addrDefs, destRegister);
+        var loadInstr = new AsmMOVE("LDOU `d0,`s0,0", addrDefs, destRegister);
         instructions.add(loadInstr);
 
         return destRegister;
@@ -231,7 +231,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         uses.addAll(valueDefs);
 
         // Generate store
-        var storeInstr = new AsmOPER("STO `s0,`s1,0", uses, null, null);
+        var storeInstr = new AsmOPER("STOU `s0,`s1,0", uses, null, null);
         instructions.add(storeInstr);
 
         return null;
@@ -245,7 +245,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var resultTemp = new MemTemp();
         var defs = Vector_of(resultTemp);
 
-        var instr = new AsmOPER(String.format("LDO `d0,%s,0", name.label.name), null, defs, null);
+        var instr = new AsmOPER(String.format("LDOU `d0,%s,0", name.label.name), null, defs, null);
         instructions.add(instr);
 
         instructions.add(instr);
@@ -289,12 +289,23 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
     }
 
     private void setRegisterToConstantVal(List<AsmInstr> instructions, Vector<MemTemp> xorDefs, long value) {
+        boolean needsAnd = value >> (3 * 16) == 0;
+        if (needsAnd) {
+            // First AND register with 0 to reset it
+            // We do that so we can skip setting the register to 0
+            // It helps us below to save on instructions
+            var and0 = new AsmOPER("AND `d0,`s0,0", xorDefs, xorDefs, null);
+            instructions.add(and0);
+        }
+
+
         var setInstrs = List.of("SETL", "SETML", "SETMH", "SETH");
         for (int i = 0; i < setInstrs.size(); i++) {
             var setInstr = setInstrs.get(i);
             long shifted = value >>> (i * 16);
             if (shifted == 0) {
                 // Not needed, save on instructions
+                // Register was cleared before so we don't need to set this part
                 continue;
             }
             long val = shifted & 0xFFFF;
