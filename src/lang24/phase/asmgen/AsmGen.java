@@ -16,7 +16,6 @@ public class AsmGen extends Phase {
 
     public static Vector<Code> codes = new Vector<>();
 
-    private static final Imc2AsmVisitor imc2AsmVisitor = new Imc2AsmVisitor();
 
     public AsmGen() {
         super("asmgen");
@@ -25,6 +24,7 @@ public class AsmGen extends Phase {
     public void genAsmCodes() {
         for (LinCodeChunk codeChunk : ImcLin.codeChunks()) {
             var asmInstrs = new LinkedList<AsmInstr>();
+            final Imc2AsmVisitor imc2AsmVisitor = new Imc2AsmVisitor(codeChunk);
             codeChunk.stmts().forEach(stmt -> stmt.accept(imc2AsmVisitor, asmInstrs));
             Code code = new Code(codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel, asmInstrs);
             codes.add(code);

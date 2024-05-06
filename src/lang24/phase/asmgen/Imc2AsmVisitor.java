@@ -17,30 +17,37 @@ import lang24.data.imc.code.stmt.ImcJUMP;
 import lang24.data.imc.code.stmt.ImcLABEL;
 import lang24.data.imc.code.stmt.ImcMOVE;
 import lang24.data.imc.visitor.ImcVisitor;
+import lang24.data.lin.LinCodeChunk;
+import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemTemp;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
 
 /**
  * ImcCode to MMIX assembly code visitor.
  */
-public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr>> {
+public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
 
     private static final String SP = "$254";
+    private static final String FP = "$253";
+    
+    private final LinCodeChunk codeChunk;
+    
+    public Imc2AsmVisitor(LinCodeChunk codeChunk) {
+        this.codeChunk = codeChunk;
+    }
 
     @Override
-    public Vector<MemTemp> visit(ImcBINOP binOp, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcBINOP binOp, List<AsmInstr> instructions) {
         var fstDefs = binOp.fstExpr.accept(this, instructions);
         var snDefs = binOp.sndExpr.accept(this, instructions);
 
-        var binopUses = new Vector<MemTemp>();
-        binopUses.addAll(fstDefs);
-        binopUses.addAll(snDefs);
+        var binopUses = Vector_of(fstDefs, snDefs);
 
-        var binopResult = new MemTemp();
-        var binopDefs = Vector_of(binopResult);
+        final var binopResult = new MemTemp();
 
         // Get the right instruction
         var instr = switch (binOp.oper) {
@@ -56,7 +63,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
                 var divResultVec = Vector_of(divResTmp);
 
                 // First do the division
-                var divOp = new AsmOPER("DIV `d0,`s0,`s1", binopUses, divResultVec, null);
+                var divOp = genOper("DIV `d0,`s0,`s1", binopUses, divResultVec, null);
                 instructions.add(divOp);
 
                 // We don't need the source registers anymore
@@ -71,7 +78,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
                 var newResultVec = Vector_of(newResTmp);
 
                 // First execute the comparison
-                var cmpOper = new AsmOPER("CMP `d0,`s0,`s1", binopUses, newResultVec, null);
+                var cmpOper = genOper("CMP `d0,`s0,`s1", binopUses, newResultVec, null);
                 instructions.add(cmpOper);
 
                 // New uses are the result of the comparison
@@ -90,15 +97,15 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
             }
         };
 
-        var binOpOper = new AsmOPER(instr, binopUses, binopDefs, null);
+        var binOpOper = genOper(instr, binopUses, Vector_of(binopResult), null);
         instructions.add(binOpOper);
 
 
-        return binopDefs;
+        return binopResult;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcCALL call, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcCALL call, List<AsmInstr> instructions) {
         // todo
 
         // Push arguments to the stack
@@ -108,7 +115,7 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
             var temps = argExpr.accept(this, instructions);
 
             // Push the argument to the stack
-            var pushInstr = new AsmOPER("STOU `s0,%s,%d".formatted(SP, offset), temps, null, null);
+            var pushInstr = genOper("STOU `s0,%s,%d".formatted(SP, offset), Vector_of(temps), null, null);
             instructions.add(pushInstr);
         }
 
@@ -116,22 +123,21 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         String instr = String.format("PUSHJ $8,%s", call.label.name);
         var jumps = Vector_of(call.label);
 
-        var callOper = new AsmOPER(instr, null, null, jumps);
+        var callOper = genOper(instr, null, null, jumps);
         instructions.add(callOper);
 
         // todo - wrong
         var resultTemp = new MemTemp();
-        var resultDefs = Vector_of(resultTemp);
 
         // Todo - ask about this
-        var loadResult = new AsmOPER("LDOU `d0," + SP + ",0", null, resultDefs, null);
+        var loadResult = genOper("LDOU `d0," + SP + ",0", null,  Vector_of(resultTemp), null);
         instructions.add(loadResult);
 
-        return resultDefs;
+        return resultTemp;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcCJUMP cjump, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcCJUMP cjump, List<AsmInstr> instructions) {
         String instr = "BNZ `s0,%s";
         var jumps = Vector_of(cjump.posLabel, cjump.negLabel);
 
@@ -140,54 +146,53 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
 
         // Only jump to positive label if condition is true - intentional, as
         // we already sorted the code blocks in the previous phase
-        var cjumpOper = new AsmOPER(String.format(instr, cjump.posLabel.name), uses, null, jumps);
+        var cjumpOper = genOper(String.format(instr, cjump.posLabel.name), Vector_of(uses), null, jumps);
         instructions.add(cjumpOper);
 
         return null;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcCONST constant, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcCONST constant, List<AsmInstr> instructions) {
         // Move the constant to a temporary register and return it
         var resultDefn = new MemTemp();
-        var defs = Vector_of(resultDefn);
-        setRegisterToConstantVal(instructions, defs, constant.value);
+        setRegisterToConstantVal(instructions, resultDefn, constant.value);
 
-        return defs;
+        return resultDefn;
     }
 
 
     @Override
-    public Vector<MemTemp> visit(ImcJUMP jump, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcJUMP jump, List<AsmInstr> instructions) {
         String instr = String.format("JMP %s", jump.label.name);
         var jumps = Vector_of(jump.label);
 
-        var asmOper = new AsmOPER(instr, null, null, jumps);
+        var asmOper = genOper(instr, null, null, jumps);
         instructions.add(asmOper);
 
         return null;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcLABEL label, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcLABEL label, List<AsmInstr> instructions) {
         instructions.add(new AsmLABEL(label.label));
         return null;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcMEM mem, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcMEM mem, List<AsmInstr> instructions) {
         var addrDefs = mem.addr.accept(this, instructions);
-        var resultTemp = new MemTemp();
-        var defs = Vector_of(resultTemp);
 
-        var memInstr = new AsmOPER("LDOU `d0,`s0,0", addrDefs, defs, null);
+        final var resultTemp = new MemTemp();
+
+        var memInstr = genOper("LDOU `d0,`s0,0", Vector_of(addrDefs), Vector_of(resultTemp), null);
         instructions.add(memInstr);
 
-        return defs;
+        return resultTemp;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcMOVE move, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcMOVE move, List<AsmInstr> instructions) {
         if (move.dst instanceof ImcMEM mem) {
             return this.generateStoreInstruction(move, mem, instructions);
         }
@@ -201,78 +206,73 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
         var srcDefs = move.src.accept(this, instructions);
 
 
-        var instruction = new AsmMOVE("ADD `d0,`s0,0", srcDefs, dstDefs);
+        var instruction = genAsmMove("ADD `d0,`s0,0", Vector_of(srcDefs), Vector_of(dstDefs));
         instructions.add(instruction);
 
         return dstDefs;
     }
 
-    private Vector<MemTemp> generateLoadInstruction(ImcMOVE move, ImcMEM mem, List<AsmInstr> instructions) {
+    private MemTemp generateLoadInstruction(ImcMOVE move, ImcMEM mem, List<AsmInstr> instructions) {
         var addrDefs = mem.addr.accept(this, instructions);
 
         var destRegister = move.dst.accept(this, instructions);
 
         // Generate load
-        var loadInstr = new AsmMOVE("LDOU `d0,`s0,0", addrDefs, destRegister);
+        var loadInstr = genAsmMove("LDOU `d0,`s0,0", Vector_of(addrDefs), Vector_of(destRegister));
         instructions.add(loadInstr);
 
         return destRegister;
     }
 
-    private Vector<MemTemp> generateStoreInstruction(ImcMOVE move, ImcMEM mem, List<AsmInstr> instructions) {
+    private MemTemp generateStoreInstruction(ImcMOVE move, ImcMEM mem, List<AsmInstr> instructions) {
         // Calculate address
         var addrDefs = mem.addr.accept(this, instructions);
 
         // Calculate value to store
         var valueDefs = move.src.accept(this, instructions);
 
-        var uses = new Vector<MemTemp>();
-        uses.addAll(addrDefs);
-        uses.addAll(valueDefs);
+        var uses = Vector_of(addrDefs, valueDefs);
 
         // Generate store
-        var storeInstr = new AsmOPER("STOU `s0,`s1,0", uses, null, null);
+        var storeInstr = genOper("STOU `s0,`s1,0", uses, null, null);
         instructions.add(storeInstr);
 
         return null;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcNAME name, List<AsmInstr> instructions) {
+    public MemTemp visit(ImcNAME name, List<AsmInstr> instructions) {
         // Move name to temp and return it
         // todo - check if this is correct
 
-        var resultTemp = new MemTemp();
-        var defs = Vector_of(resultTemp);
-
-        var instr = new AsmOPER(String.format("LDOU `d0,%s,0", name.label.name), null, defs, null);
+        final var resultTemp = new MemTemp();
+        final var instr = genOper(String.format("LDOU `d0,%s,0", name.label.name), null,  Vector_of(resultTemp), null);
         instructions.add(instr);
 
         instructions.add(instr);
 
-        return defs;
+        return resultTemp;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcTEMP temp, List<AsmInstr> instructions) {
-        return Vector_of(temp.temp);
+    public MemTemp visit(ImcTEMP temp, List<AsmInstr> instructions) {
+        return temp.temp;
     }
 
     @Override
-    public Vector<MemTemp> visit(ImcUNOP unOp, List<AsmInstr> instructions) {
-        var subDefs = unOp.subExpr.accept(this, instructions);
+    public MemTemp visit(ImcUNOP unOp, List<AsmInstr> instructions) {
+        var subDef = unOp.subExpr.accept(this, instructions);
+        var subDefs = subDef == null ? null : Vector_of(subDef);
         var resultTemp = new MemTemp();
-        var defs = Vector_of(resultTemp);
 
         var instr = switch (unOp.oper) {
             case NEG -> "NEG `d0,`s0";
             case NOT -> {
                 // XOR 0xFFFFFFFF_FFFFFFFF and the value
                 var xorResult = new MemTemp();
-                var xorDefs = Vector_of(xorResult);
 
                 // Load 0xFFFFFFFF_FFFFFFFF in `d0
-                setRegisterToConstantVal(instructions, xorDefs, 0xFFFFFFFF_FFFFFFFFL);
+                setRegisterToConstantVal(instructions, xorResult, 0xFFFFFFFF_FFFFFFFFL);
 
                 if (subDefs == null) {
                     subDefs = new Vector<>();
@@ -282,19 +282,30 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
             }
         };
 
-        var unOpOper = new AsmOPER(instr, subDefs, defs, null);
+        var unOpOper = genOper(instr, subDefs, Vector_of(resultTemp), null);
         instructions.add(unOpOper);
 
-        return defs;
+        return resultTemp;
     }
 
-    private void setRegisterToConstantVal(List<AsmInstr> instructions, Vector<MemTemp> xorDefs, long value) {
-        boolean needsAnd = value >> (3 * 16) == 0;
+    private void setRegisterToConstantVal(List<AsmInstr> instructions, MemTemp destinationDefn, final long value) {
+        final var destDefnVec = Vector_of(destinationDefn);
+
+        // Add "AND with 0" instructions to set the register to the value 0
+        boolean needsAnd = false;
+        // All four bytes of value must differ from 0 in order for needsAnd to be false
+        for (long val = value; val != 0L; val >>>= 16) {
+            if ((val & 0xFFFFL) == 0) {
+                needsAnd = true;
+                break;
+            }
+        }
+
         if (needsAnd) {
             // First AND register with 0 to reset it
             // We do that so we can skip setting the register to 0
             // It helps us below to save on instructions
-            var and0 = new AsmOPER("AND `d0,`s0,0", xorDefs, xorDefs, null);
+            var and0 = genOper("AND `d0,`s0,0", destDefnVec, destDefnVec, null);
             instructions.add(and0);
         }
 
@@ -309,9 +320,71 @@ public class Imc2AsmVisitor implements ImcVisitor<Vector<MemTemp>, List<AsmInstr
                 continue;
             }
             long val = shifted & 0xFFFF;
-            var set0xFF = new AsmOPER(String.format("%s `d0,#%04X", setInstr, val), null, xorDefs, null);
+            var set0xFF = genOper(String.format("%s `d0,#%04X", setInstr, val), null, destDefnVec, null);
             instructions.add(set0xFF);
         }
+    }
+
+    private AsmInstr genOper(String instr, Vector<MemTemp> uses, Vector<MemTemp> defs, Vector<MemLabel> jumps) {
+        var newInstr = replaceTempsWithRegisters(instr, uses, defs);
+        return new AsmOPER(newInstr, uses, defs, jumps);
+    }
+    
+    
+    private AsmMOVE genAsmMove(String instr, Vector<MemTemp> uses, Vector<MemTemp> defs) {
+        var newInstr = replaceTempsWithRegisters(instr, uses, defs);
+        return new AsmMOVE(newInstr, uses, defs);
+    }
+
+
+    /**
+     * Replaces occurences of FP temporary with the actual register number.
+     * E.g. if FP = MemTemp(x), then "`si" or "`dj" that correspond to MemTemp(x) will be replaced with {@link #FP}
+     * @param instr Instruction to replace in
+     * @param uses Vector of uses
+     * @param defs Vector of definitions
+     * @return Instruction with replaced values
+     */
+    private String replaceTempsWithRegisters(String instr, Vector<MemTemp> uses, Vector<MemTemp> defs) {
+        // Holds the temps to remove
+        var remove = new LinkedList<MemTemp>();
+
+        // Holds the number of framepointer replacements
+        int minus = 0;
+        // Check if any temps is framepointer and replace it with the actual register
+        for (int i = 0; uses != null && i < uses.size(); i++) {
+            if (uses.get(i) == this.codeChunk.frame.FP) {
+                // Replace "`si" with FP
+                instr = instr.replace("`s" + i, FP);
+                remove.add(uses.get(i));
+                minus += 1;
+            } else {
+                // Replace "`si" with `s(i - minus)
+                instr = instr.replace("`s" + i, "`s" + (i - minus));
+            }
+        }
+        if (uses != null) {
+            uses.removeAll(remove);
+        }
+
+        remove.clear();
+        minus = 0;
+        for (int i = 0; defs != null && i < defs.size(); i++) {
+            if (defs.get(i) == this.codeChunk.frame.FP) {
+                // Replace "`di" with FP
+                instr = instr.replace("`d" + i, FP);
+                remove.add(defs.get(i));
+            } else {
+                // Replace "`di" with `d(i - minus)
+                instr = instr.replace("`d" + i, "`d" + (i - minus));
+            }
+        }
+        if (defs != null) {
+            defs.removeAll(remove);
+        }
+
+
+        return instr;
     }
 
 
