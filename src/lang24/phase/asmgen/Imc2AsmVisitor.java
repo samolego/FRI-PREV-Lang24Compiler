@@ -120,7 +120,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         }
 
         // Perform the function call
-        String instr = String.format("PUSHJ $8,%s", call.label.name);
+        String instr = String.format("PUSHJ $%d,%s", AsmGen.REGISTER_NUMBER, call.label.name);
         var jumps = Vector_of(call.label);
 
         var callOper = genOper(instr, null, null, jumps);
@@ -243,8 +243,6 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
     @Override
     public MemTemp visit(ImcNAME name, List<AsmInstr> instructions) {
         // Move name to temp and return it
-        // todo - check if this is correct
-
         final var resultTemp = new MemTemp();
         final var instr = genOper(String.format("LDA `d0,%s", name.label.name), null,  Vector_of(resultTemp), null);
         instructions.add(instr);

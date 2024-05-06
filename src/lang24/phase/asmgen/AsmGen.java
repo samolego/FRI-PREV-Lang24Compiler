@@ -13,6 +13,7 @@ import java.util.Vector;
  * Machine code generator.
  */
 public class AsmGen extends Phase {
+    public static final int REGISTER_NUMBER = 8;
 
     public static Vector<Code> codes = new Vector<>();
 
