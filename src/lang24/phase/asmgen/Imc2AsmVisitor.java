@@ -246,7 +246,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         // todo - check if this is correct
 
         final var resultTemp = new MemTemp();
-        final var instr = genOper(String.format("LDOU `d0,%s,0", name.label.name), null,  Vector_of(resultTemp), null);
+        final var instr = genOper(String.format("LDA `d0,%s", name.label.name), null,  Vector_of(resultTemp), null);
         instructions.add(instr);
 
         instructions.add(instr);
