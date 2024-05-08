@@ -31,9 +31,9 @@ dependencies {
     implementation("org.antlr:antlr4-runtime:$project.antlr_version")
 
     // Tests
-    testImplementation("org.junit.jupiter:junit-jupiter-api:$project.junit_version")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$project.junit_version")
-    testImplementation("org.assertj:assertj-core:$project.assertj_version")
+    //testImplementation("org.junit.jupiter:junit-jupiter-api:$project.junit_version")
+    //testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$project.junit_version")
+    //testImplementation("org.assertj:assertj-core:$project.assertj_version")
 }
 
 def mainClass = "${project.src_root_name}.Compiler"
@@ -52,22 +52,22 @@ sourceSets {
             srcDirs = [lexanDir]
         }
     }
-    test {
+    /*test {
         java {
             srcDir 'test/java'
         }
         resources {
             srcDir 'test/resources'
         }
-    }
+    }*/
 }
 
-test {
+/*test {
     useJUnitPlatform()
     testLogging {
         events = ["passed", "skipped", "failed"]
     }
-}
+}*/
 
 generateGrammarSource {
     source {

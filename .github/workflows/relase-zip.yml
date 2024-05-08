@@ -1,4 +1,4 @@
-name: Release new compiler version
+name: Release new compiler version source
 
 on:
   release:
