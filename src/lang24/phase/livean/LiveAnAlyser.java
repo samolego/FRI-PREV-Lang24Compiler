@@ -26,8 +26,12 @@ public class LiveAnAlyser {
         }
     }
 
-    // in (n) := use(n) U [out(n) - def(n)]
-    // out(n) := U in(succ)
+
+    /**
+     * Analyze the liveness of the instruction at the given index.
+     * Assumes {@code index + 1} has been already analyzed.
+     * @param index Index of the instruction to analyze.
+     */
     public void analyze(int index) {
         final var instruction = this.instrs.get(index);
 
@@ -53,6 +57,8 @@ public class LiveAnAlyser {
         }
 
         // Fill in and out sets
+        // in (n) := use(n) U [out(n) - def(n)]
+        // out(n) := U in(succ)
         instruction.addOutTemp(outs);
 
         final var in = new HashSet<>(instruction.out());
