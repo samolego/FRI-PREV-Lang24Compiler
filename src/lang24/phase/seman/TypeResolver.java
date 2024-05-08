@@ -695,14 +695,15 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         for (var defn : funDefn.defns) {
             defn.accept(this, arg);
 
-            if (defn instanceof AstFunDefn fnDefn && fnDefn.stmt == null) {
+            // Ask
+            /*if (defn instanceof AstFunDefn fnDefn && fnDefn.stmt == null) {
                 // Inner function has no body, error!
                 var err = new ErrorAtBuilder("Inner function `" + fnDefn.name() + "` has no body.")
                         .addSourceLine(fnDefn)
                         .addUnderlineWrongChar(fnDefn, "Note: Try adding a body to this function.");
 
                 throw new Report.Error(fnDefn, err);
-            }
+            }*/
         }
 
         var previousFn = this.currentReturningFunction;
