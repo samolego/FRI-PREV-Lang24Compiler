@@ -3,21 +3,61 @@ package lang24.phase.seman;
 import lang24.common.StringUtil;
 import lang24.common.report.ErrorAtBuilder;
 import lang24.common.report.Report;
+import lang24.common.report.TextLocation;
 import lang24.data.ast.tree.AstNode;
 import lang24.data.ast.tree.AstNodes;
 import lang24.data.ast.tree.Nameable;
 import lang24.data.ast.tree.defn.AstFunDefn;
 import lang24.data.ast.tree.defn.AstTypDefn;
 import lang24.data.ast.tree.defn.AstVarDefn;
-import lang24.data.ast.tree.expr.*;
-import lang24.data.ast.tree.stmt.*;
-import lang24.data.ast.tree.type.*;
+import lang24.data.ast.tree.expr.AstArrExpr;
+import lang24.data.ast.tree.expr.AstAtomExpr;
+import lang24.data.ast.tree.expr.AstBinExpr;
+import lang24.data.ast.tree.expr.AstCallExpr;
+import lang24.data.ast.tree.expr.AstCastExpr;
+import lang24.data.ast.tree.expr.AstCmpExpr;
+import lang24.data.ast.tree.expr.AstExpr;
+import lang24.data.ast.tree.expr.AstNameExpr;
+import lang24.data.ast.tree.expr.AstPfxExpr;
+import lang24.data.ast.tree.expr.AstSfxExpr;
+import lang24.data.ast.tree.expr.AstSizeofExpr;
+import lang24.data.ast.tree.stmt.AstAssignStmt;
+import lang24.data.ast.tree.stmt.AstBlockStmt;
+import lang24.data.ast.tree.stmt.AstExprStmt;
+import lang24.data.ast.tree.stmt.AstIfStmt;
+import lang24.data.ast.tree.stmt.AstReturnStmt;
+import lang24.data.ast.tree.stmt.AstStmt;
+import lang24.data.ast.tree.stmt.AstWhileStmt;
+import lang24.data.ast.tree.type.AstArrType;
+import lang24.data.ast.tree.type.AstAtomType;
+import lang24.data.ast.tree.type.AstNameType;
+import lang24.data.ast.tree.type.AstPtrType;
+import lang24.data.ast.tree.type.AstRecType;
+import lang24.data.ast.tree.type.AstStrType;
+import lang24.data.ast.tree.type.AstUniType;
 import lang24.data.ast.visitor.AstFullVisitor;
-import lang24.data.type.*;
+import lang24.data.type.SemArrayType;
+import lang24.data.type.SemBoolType;
+import lang24.data.type.SemCharType;
+import lang24.data.type.SemIntType;
+import lang24.data.type.SemNameType;
+import lang24.data.type.SemPointerType;
+import lang24.data.type.SemRecordType;
+import lang24.data.type.SemStructType;
+import lang24.data.type.SemType;
+import lang24.data.type.SemUnionType;
+import lang24.data.type.SemVoidType;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 // todo - if user defines a function, same as prototype, but with different signature, it should be an error!
+
 /**
  * Type checking and type resolution.
  */
@@ -70,8 +110,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 equivs = new HashMap<>();
             }
 
-            equivs.computeIfAbsent(type1, k -> new HashSet<SemType>());
-            equivs.computeIfAbsent(type2, k -> new HashSet<SemType>());
+            equivs.computeIfAbsent(type1, k -> new HashSet<>());
+            equivs.computeIfAbsent(type2, k -> new HashSet<>());
 
             if (equivs.get(type1).contains(type2) && equivs.get(type2).contains(type1)) {
                 return true;
@@ -207,10 +247,27 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             }
 
             if (deref) {
-                err.addOffsetedSquiglyLines(node, "Hint: Try dereferencing this expression using `^" + node.getText() + "`.");
+                err.addUnderlineWrongChar(node, "Hint: Try dereferencing this expression using `^" + node.getText() + "`.");
             } else {
-                err.addOffsetedSquiglyLines(node, "This expression has type `" + actualType + "`, which is wrong.");
+                err.addUnderlineWrongChar(node, "This has type `" + actualType + "`, but should be " + expectedTypeStr + ".");
+
+                if (node instanceof AstExpr) {
+                    // Add type cast help info
+                    //noinspection OptionalGetWithoutIsPresent
+                    var cast = "<" + expectedTypes.stream().findFirst().get().getKind() + ">";
+                    var castText = cast + " (" + node.getText() + ")";
+
+
+                    err.addLine("")
+                            .addLine("Try casting the expression to " + expectedTypeStr + ":")
+                            .addModifiedSourceLine(node, castText);
+                    int endCol = node.location().begColumn + castText.length() - 1;
+                    var loc = new TextLocation(castText, node.location().begLine, node.location().begColumn, node.location().endLine, endCol);
+                    node.relocate(loc);
+                    err.addUnderlineAdditionChar(node, "Hint: Try adding a typecast.");
+                }
             }
+
             throw new Report.Error(node, err);
         }
 
@@ -265,7 +322,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         if (!(type instanceof SemArrayType arrayType)) {
             var err = new ErrorAtBuilder("Type of `" + arrExpr.arr.getText() + "` is not an array type, but `" + type + "`:")
                     .addSourceLine(arrExpr)
-                    .addOffsetedSquiglyLines(arrExpr, "Note: Tried to access element `" + arrExpr.idx.getText() + "` on type `" + type + "`.");
+                    .addUnderlineWrongChar(arrExpr, "Note: Tried to access element `" + arrExpr.idx.getText() + "` on type `" + type + "`.");
 
             throw new Report.Error(arrExpr, err);
         }
@@ -337,7 +394,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 if (!equiv(callParamType, expParamType)) {
                     var err = new ErrorAtBuilder("Type mismatch in function call `" + callExpr.name + "`. Expected `" + expParamType + "`, but got `" + callParamType + "`:")
                             .addSourceLine(callPars.get(i))
-                            .addOffsetedSquiglyLines(callPars.get(i), "This expression has type `" + callParamType + "`.")
+                            .addUnderlineWrongChar(callPars.get(i), "This expression has type `" + callParamType + "`.")
                             .addLine("")
                             .addLine("But function `" + funDefn.name() + "` expects `" + expParamType + "`:")
                             .addUnderlinedSourceNode(expParam);
@@ -347,7 +404,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 // Too few parameters
                 var err = new ErrorAtBuilder("Too few parameters in function call `" + callExpr.name + "`:")
                         .addSourceLine(callExpr)
-                        .addOffsetedSquiglyLines(callExpr, "Hint: try adding " + (funDefn.pars.size() - i) + " more parameter(s).")
+                        .addUnderlineWrongChar(callExpr, "Hint: try adding " + (funDefn.pars.size() - i) + " more parameter(s).")
                         .addLine("")
                         .addLine("Expected `" + expParam.accept(this, null) + "`:")
                         .addUnderlinedSourceNode(expParam);
@@ -359,7 +416,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             // Too many parameters
             var err = new ErrorAtBuilder("Too many parameters in function call `" + callExpr.name + "`:")
                     .addSourceLine(callExpr)
-                    .addOffsetedSquiglyLines(callExpr, "Hint: try removing last " + (callPars.size() - i) + " parameter(s).")
+                    .addUnderlineWrongChar(callExpr, "Hint: try removing last " + (callPars.size() - i) + " parameter(s).")
                     .addLine("")
                     .addLine("Function `" + funDefn.name() + "` accepts " + funDefn.pars.size() + " parameters:")
                     .addSourceLine(funDefn);
@@ -389,7 +446,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         if (!(exprType instanceof SemRecordType rType)) {
             var err = new ErrorAtBuilder("Type of `" + cmpExpr.expr.getText() + "` is not a record type, but `" + exprType + "`:")
                     .addSourceLine(cmpExpr)
-                    .addOffsetedSquiglyLines(cmpExpr, "Note: Tried to access un-existing component `" + cmpExpr.name() + "` on type `" + exprType + "`.");
+                    .addUnderlineWrongChar(cmpExpr, "Note: Tried to access un-existing component `" + cmpExpr.name() + "` on type `" + exprType + "`.");
 
             throw new Report.Error(cmpExpr, err);
         }
@@ -411,9 +468,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             var err = new ErrorAtBuilder("Tried to access invalid component `" + cmpExpr.name + "`:")
                     .addSourceLine(cmpExpr);
             if (similar.isPresent()) {
-                err.addOffsetedSquiglyLines(cmpExpr, "Hint: Did you mean `" + similar.get() + "`?");
+                err.addUnderlineWrongChar(cmpExpr, "Hint: Did you mean `" + similar.get() + "`?");
             } else {
-                err.addOffsetedSquiglyLines(cmpExpr, "");
+                err.addUnderlineWrongChar(cmpExpr, "");
             }
 
             err.addLine("Note: the record is defined with these components:")
@@ -508,7 +565,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             // Not a valid assignment
             var err = new ErrorAtBuilder("The assignment is not valid. Can only assign one of the following: " + ALLOWED_PRIMITIVE_TYPES)
                     .addSourceLine(assignStmt)
-                    .addOffsetedSquiglyLines(assignStmt, "Note: This assignment is of type `" + typeDst + " = " + typeDst + "`, but only above assignments are allowed!");
+                    .addUnderlineWrongChar(assignStmt, "Note: This assignment is of type `" + typeDst + " = " + typeDst + "`, but only above assignments are allowed!");
             throw new Report.Error(assignStmt, err);
         }
 
@@ -528,7 +585,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                     var err = new ErrorAtBuilder("Following expression is not a valid statement.")
                             .addLine("Expected type `void`, but got `" + type + "`:")
                             .addSourceLine(stmt)
-                            .addOffsetedSquiglyLines(stmt, "Hint: Try removing this expression or assigning it to a variable.");
+                            .addUnderlineWrongChar(stmt, "Hint: Try removing this expression or assigning it to a variable.");
                     throw new Report.Error(stmt, err);
                 }
             }
@@ -621,7 +678,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         if (wrongType(fnType.actualType(), PRIMITIVES_WITH_VOID)) {
             var err = new ErrorAtBuilder("Functions cannot return `" + fnType + "`. Available return types are: " + ALLOWED_PRIMITIVE_TYPES + ".")
                     .addSourceLine(funDefn)
-                    .addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
+                    .addUnderlineWrongChar(funDefn.type, "Hint: Try changing this to pointer type, `^" + funDefn.type.getText() + "`.");
 
             throw new Report.Error(funDefn, err);
         }
@@ -634,6 +691,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             // Check if parameters are lvalues
             checkLValueOrThrow(param);
         }
+
+        // Check if same function exists
 
         funDefn.defns.accept(this, arg);
 
@@ -671,19 +730,19 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                 .addSourceLine(funDefn);
         if (foundReturnType != null && foundReturnType.stmt != null) {
             if (equiv(fnType, SemVoidType.type)) {
-                err.addOffsetedSquiglyLines(funDefn.type, "Hint: Try changing the return type to `" + foundReturnType.type + "`.")
+                err.addUnderlineWrongChar(funDefn.type, "Hint: Try changing the return type to `" + foundReturnType.type + "`.")
                         .addBlankSourceLine()
                         .addLine("Actual return type is `" + foundReturnType.type + "`:")
                         .addSourceLine(foundReturnType.stmt);
             } else {
-                err.addOffsetedSquiglyLines(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
+                err.addUnderlineWrongChar(funDefn.type, "Function signature declares`" + fnType + "` return type here.")
                         .addBlankSourceLine()
                         .addLine("But the actual return type is `" + foundReturnType.type + "`:")
                         .addSourceLine(foundReturnType.stmt)
-                        .addOffsetedSquiglyLines(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
+                        .addUnderlineWrongChar(foundReturnType.stmt.expr, "Hint: Try changing this return type to `" + fnType + "`.");
             }
         } else {
-            err.addOffsetedSquiglyLines(funDefn.type, "Note: This function should probably end with returning expression of type `" + fnType + "`.")
+            err.addUnderlineWrongChar(funDefn.type, "Note: This function should probably end with returning expression of type `" + fnType + "`.")
                     .addBlankSourceLine()
                     .addMissingReturnInfo(fnType, "Hint: Try adding `return` statement at the end of the function.")
                     .addSourceLineEnd(funDefn)
@@ -721,9 +780,9 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
                     .addSourceLine(defn.parent.parent);
 
             if (type instanceof SemRecordType) {
-                err.addOffsetedSquiglyLines(defn.type, "Hint: Did you mean to use pointer type, `^" + defn.type.getText() + "`?");
+                err.addUnderlineWrongChar(defn.type, "Hint: Did you mean to use pointer type, `^" + defn.type.getText() + "`?");
             } else {
-                err.addOffsetedSquiglyLines(defn.type, "Allowed reference parameter types are `int`, `char`, `bool`.");
+                err.addUnderlineWrongChar(defn.type, "Allowed reference parameter types are `int`, `char`, `bool`.");
             }
             throw new Report.Error(defn, err);
         }

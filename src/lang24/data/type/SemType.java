@@ -1,7 +1,8 @@
 package lang24.data.type;
 
-import java.util.*;
-import lang24.data.type.visitor.*;
+import lang24.data.type.visitor.SemVisitor;
+
+import java.util.HashSet;
 
 /**
  * A type.
@@ -31,6 +32,12 @@ public abstract class SemType {
 	}
 
 	/**
+	 * Returns string representation of the type.
+	 * @return String representation of the type.
+	 */
+	public abstract String getKind();
+
+	/**
 	 * Returns the actual type, i.e., not the renamed one.
 	 * 
 	 * @param types The types encountered during the evaluation of the actual type.
@@ -39,14 +46,6 @@ public abstract class SemType {
 	public SemType actualType(final HashSet<SemNameType> types) {
 		return this;
 	}
-
-	/**
-	 * Checks whether that type is equivalent to this type.
-	 * 
-	 * @param that The type.
-	 * @return {@code true} if types are equivalent or {@code false} otherwise.
-	 */
-	// public abstract boolean equiv(final SemType that);
 
 	/**
 	 * The acceptor method.

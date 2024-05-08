@@ -34,7 +34,12 @@ public class SemPointerType extends SemSimpleType {
 
 	@Override
 	public String toString() {
-		return "^" + (baseType == null ? "" : baseType.toString());
+		return "^" + baseType;
+	}
+
+	@Override
+	public String getKind() {
+		return "^" + baseType.getKind();
 	}
 
 	@Override

@@ -21,4 +21,19 @@ public abstract class SemRecordType extends SemValueType {
 		this.cmpTypes = compTypes == null ? null : new SemTypes<SemType>(compTypes);
 	}
 
+
+	@Override
+	public String getKind() {
+		var sb = new StringBuilder();
+		char lparen = this instanceof SemStructType ? '(' : '{';
+		char rparen = this instanceof SemStructType ? ')' : '}';
+		sb.append(lparen);
+		for (var cmpType : cmpTypes) {
+			sb.append(cmpType.getKind());
+			sb.append(", ");
+		}
+		sb.append(rparen);
+
+		return sb.toString();
+	}
 }

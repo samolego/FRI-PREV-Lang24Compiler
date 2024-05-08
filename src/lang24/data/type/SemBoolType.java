@@ -17,6 +17,11 @@ public class SemBoolType extends SemAtomType {
 	}
 
 	@Override
+	public String getKind() {
+		return "bool";
+	}
+
+	@Override
 	public String toString() {
 		return "boolean";
 	}

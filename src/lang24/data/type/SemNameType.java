@@ -1,8 +1,9 @@
 package lang24.data.type;
 
-import java.util.*;
-import lang24.common.report.*;
-import lang24.data.type.visitor.*;
+import lang24.common.report.Report;
+import lang24.data.type.visitor.SemVisitor;
+
+import java.util.HashSet;
 
 /**
  * A type name.
@@ -53,6 +54,11 @@ public class SemNameType extends SemType {
 		final HashSet<SemNameType> types = new HashSet<SemNameType>();
 		types.add(this);
 		return this.type.actualType(types);
+	}
+
+	@Override
+	public String getKind() {
+		return this.name;
 	}
 
 	@Override

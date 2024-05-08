@@ -10,5 +10,4 @@ public abstract class SemValueType extends SemType {
 	/** Constructs a new data type with values. */
 	public SemValueType() {
 	}
-
 }

@@ -1,7 +1,8 @@
 package lang24.data.type;
 
-import java.util.*;
-import lang24.data.type.visitor.*;
+import lang24.data.type.visitor.SemVisitor;
+
+import java.util.List;
 
 /**
  * A struct type.
@@ -31,6 +32,8 @@ public class SemStructType extends SemRecordType {
 
 		return str.toString();
 	}
+
+
 
 	@Override
 	public <Result, Argument> Result accept(SemVisitor<Result, Argument> visitor, Argument arg) {

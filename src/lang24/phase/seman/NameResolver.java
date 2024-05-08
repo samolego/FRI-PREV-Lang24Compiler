@@ -65,7 +65,7 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
                     .addUnderlinedSourceNode(location)
                     .addLine("\nBut second definition was found here:")
                     .addSourceLine(node)
-                    .addOffsetedSquiglyLines(node, "Hint: Try using a different name for this definition.")
+                    .addUnderlineWrongChar(node, "Hint: Try using a different name for this definition.")
                     .toString();
             throw new Report.Error(node, err);
         }
@@ -170,10 +170,10 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
             if (existingDefn != null) {
                 var err = new ErrorAtBuilder("Name `" + name + "` was defined at least twice in the struct:")
                         .addSourceLine(parent)
-                        .addOffsetedSquiglyLines(existingDefn, "First definition occurred here.")
+                        .addUnderlineWrongChar(existingDefn, "First definition occurred here.")
                         .addLine("\nBut second definition was found here:")
                         .addSourceLine(parent)
-                        .addOffsetedSquiglyLines(cmpDefn, "Hint: Try using a different name for this definition.")
+                        .addUnderlineWrongChar(cmpDefn, "Hint: Try using a different name for this definition.")
                         .toString();
                 throw new Report.Error(cmpDefn, err);
             } else {
@@ -250,7 +250,7 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
                         .addSourceLine(defn)
                         .addLine("\nBut it was tried to be used as a type here:")
                         .addSourceLine(node)
-                        .addOffsetedSquiglyLines(node, "Hint: Replace this with a type.");
+                        .addUnderlineWrongChar(node, "Hint: Replace this with a type.");
 
                 throw new Report.Error(node, err);
             }
@@ -263,7 +263,7 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
                 var err = new ErrorAtBuilder("Cyclic definition detected:")
                         .addUnderlinedSourceNode(cycle.get().type)
                         .addSourceLine(node)
-                        .addOffsetedSquiglyLines(node, "Hint: Try removing one of the definitions.")
+                        .addUnderlineWrongChar(node, "Hint: Try removing one of the definitions.")
                         .toString();
                 throw new Report.Error(node, err);
             }
@@ -274,9 +274,9 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
             var err = new ErrorAtBuilder("Name `" + name + "` is not defined. Used here:")
                     .addSourceLine(node);
             if (similar.isPresent()) {
-                err.addOffsetedSquiglyLines(node, "Hint: There is a similar definition, did you mean to use `" + similar.get() + "`?");
+                err.addUnderlineWrongChar(node, "Hint: There is a similar definition, did you mean to use `" + similar.get() + "`?");
             } else {
-                err.addOffsetedSquiglyLines(node, "Hint: Try adding a definition named `" + name + "` before using it.");
+                err.addUnderlineWrongChar(node, "Hint: Try adding a definition named `" + name + "` before using it.");
             }
             throw new Report.Error(node, err);
         }

@@ -37,4 +37,8 @@ public class SemArrayType extends SemValueType {
 		return visitor.visit(this, arg);
 	}
 
+	@Override
+	public String getKind() {
+		return String.format("[%d]%s", size, elemType.getKind());
+	}
 }

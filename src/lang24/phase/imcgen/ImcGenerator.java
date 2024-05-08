@@ -152,7 +152,7 @@ public class ImcGenerator implements AstFullVisitor<ImcInstr, AstFunDefn> {
                 } catch (NumberFormatException e) {
                     var err = new ErrorAtBuilder("Number out of range: `" + valueStr + "`.")
                             .addSourceLine(atomExpr)
-                            .addOffsetedSquiglyLines(atomExpr, "Should be between " + Long.MIN_VALUE + " and " + Long.MAX_VALUE + ".");
+                            .addUnderlineWrongChar(atomExpr, "Should be between " + Long.MIN_VALUE + " and " + Long.MAX_VALUE + ".");
                     throw new Report.Error(atomExpr, err);
                 }
             }

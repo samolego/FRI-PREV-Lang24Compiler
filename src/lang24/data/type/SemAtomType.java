@@ -10,5 +10,4 @@ public abstract class SemAtomType extends SemSimpleType {
 	/** Constructs a new data type with atom values. */
 	public SemAtomType() {
 	}
-
 }

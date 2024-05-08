@@ -17,6 +17,11 @@ public class SemCharType extends SemAtomType {
 	}
 
 	@Override
+	public String getKind() {
+		return "char";
+	}
+
+	@Override
 	public String toString() {
 		return "char";
 	}

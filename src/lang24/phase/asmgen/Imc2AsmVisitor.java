@@ -218,7 +218,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         var destRegister = move.dst.accept(this, instructions);
 
         // Generate load
-        var loadInstr = genAsmMove("LDOU `d0,`s0,0", Vector_of(addrDefs), Vector_of(destRegister));
+        var loadInstr = genOper("LDOU `d0,`s0,0", Vector_of(addrDefs), Vector_of(destRegister), null);
         instructions.add(loadInstr);
 
         return destRegister;

@@ -17,6 +17,11 @@ public class SemIntType extends SemAtomType {
 	}
 
 	@Override
+	public String getKind() {
+		return "int";
+	}
+
+	@Override
 	public String toString() {
 		return "integer";
 	}

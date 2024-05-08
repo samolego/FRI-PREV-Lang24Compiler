@@ -63,7 +63,7 @@ public class ErrorAtBuilder {
      */
     public ErrorAtBuilder addUnderlinedSourceNode(AstNode node) {
         this.addSourceLine(node);
-        this.addOffsetedSquiglyLines(node, "");
+        this.addUnderlineWrongChar(node, "");
 
         return this;
     }
@@ -74,16 +74,24 @@ public class ErrorAtBuilder {
      * @param message The message to add under the carets.
      * @return
      */
-    public ErrorAtBuilder addOffsetedSquiglyLines(AstNode node, String message) {
+    public ErrorAtBuilder addUnderlineWrongChar(AstNode node, String message) {
+        return addUnderlineChars(node, message, '^');
+    }
+
+    public ErrorAtBuilder addUnderlineAdditionChar(AstNode node, String message) {
+        return addUnderlineChars(node, message, '+');
+    }
+
+
+    public ErrorAtBuilder addUnderlineChars(AstNode node, String message, char underlineChar) {
         var parent = findStatementNode(node).location();
         int offset = node.location().begColumn - parent.begColumn;
-        int lineOffset = node.location().begLine - parent.begLine;
 
         if (offset < 0) {
             offset = 0;
         }
 
-        return addSquiglyLines(node, offset, message, '^');
+        return addSquiglyLines(node, offset, message, underlineChar);
     }
 
     /**
@@ -129,7 +137,7 @@ public class ErrorAtBuilder {
         //                 ^^^^^^^^^^^
 
         sb.append(ln);
-        var perLines =  parent.getText().split("\n");
+        var perLines = parent.getText().split("\n");
         final String lineText = perLines[lineOffset];
         sb.append(lineText);
         sb.append("\n");
@@ -137,11 +145,61 @@ public class ErrorAtBuilder {
         return this;
     }
 
+
+    /**
+     * Adds a source code line to the error message, while
+     * inserting text before the specified node.
+     * @param node The node to replace
+     * @param insertedText The text to replace the node with.
+     * @return The builder.
+     */
+    public ErrorAtBuilder addModifiedSourceLine(AstNode node, String insertedText) {
+        var parent = findStatementNode(node);
+        int lineOffset = node.location().begLine - parent.location().begLine;
+        var ln = String.format("%4d |    ", node.location().begLine);
+
+        // Make error like this:
+        // <line number> | <line text>
+        //                 ^^^^^^^^^^^
+
+        sb.append(ln);
+        var perLines = parent.getText().split("\n");
+        final String lineText = perLines[lineOffset];
+        int ix = getTextIndex(lineText, node.getText());
+        if (ix == -1) {
+            Report.warning("Internal error: Node text not found in line text. " + node.getText() + " " + lineText);
+            ix = 0;
+        }
+
+        sb.append(lineText, 0, ix);
+        sb.append(insertedText);
+        sb.append(lineText, ix + node.getText().length(), lineText.length());
+        sb.append("\n");
+
+        return this;
+    }
+
+    private static int getTextIndex(String sentence, String searchTerm) {
+        for (int i = 0; i < sentence.length(); i++) {
+            // Check if previous and next characters are not ascii
+            if (i > 0 && Character.isLetterOrDigit(sentence.charAt(i - 1))) {
+                continue;
+            }
+            if (i + searchTerm.length() < sentence.length() - 1 && Character.isLetterOrDigit(sentence.charAt(i + searchTerm.length()))) {
+                continue;
+            }
+            if (sentence.startsWith(searchTerm, i)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /**
      * Adds a source code line to the error message, formatted with line number.
      * @param location The location of the line.
      * @param lineText The text of the line to add.
-     * @return
+     * @return The builder.
      */
     public ErrorAtBuilder addSourceLine(Location location, String lineText) {
         var ln = String.format("%4d |    ", location.location().begLine);

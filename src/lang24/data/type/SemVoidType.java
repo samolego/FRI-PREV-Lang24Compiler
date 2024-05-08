@@ -17,6 +17,11 @@ public class SemVoidType extends SemType {
 	}
 
 	@Override
+	public String getKind() {
+		return "void";
+	}
+
+	@Override
 	public String toString() {
 		return "void";
 	}
