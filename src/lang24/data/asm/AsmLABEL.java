@@ -1,7 +1,9 @@
 package lang24.data.asm;
 
-import java.util.*;
-import lang24.data.mem.*;
+import lang24.data.mem.MemLabel;
+import lang24.data.mem.MemTemp;
+
+import java.util.HashMap;
 
 /**
  * An assembly label.
@@ -9,7 +11,7 @@ import lang24.data.mem.*;
 public class AsmLABEL extends AsmOPER {
 
 	/** The label. */
-	private final MemLabel label;
+	public final MemLabel label;
 
 	public AsmLABEL(MemLabel label) {
 		super("", null, null, null);

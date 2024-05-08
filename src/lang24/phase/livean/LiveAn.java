@@ -15,7 +15,10 @@ public class LiveAn extends Phase {
 	}
 
 	public void analysis() {
-		// TODO
+		for (Code code : AsmGen.codes) {
+			var liveAnAlyser = new LiveAnAlyser(code.instrs);
+			liveAnAlyser.analyzeAll();
+		}
 	}
 
 	public void log() {

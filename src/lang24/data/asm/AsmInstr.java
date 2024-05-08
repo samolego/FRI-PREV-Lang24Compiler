@@ -1,7 +1,12 @@
 package lang24.data.asm;
 
-import java.util.*;
-import lang24.data.mem.*;
+import lang24.data.mem.MemLabel;
+import lang24.data.mem.MemTemp;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Vector;
 
 /**
  * An assembly instruction (operation or label).
@@ -60,7 +65,7 @@ public abstract class AsmInstr {
 	 * 
 	 * @param in A set of temporaries to be added.
 	 */
-	public abstract void addInTemps(HashSet<MemTemp> in);
+	public abstract void addInTemps(Set<MemTemp> in);
 
 	/**
 	 * Adds a set of temporaries to the set of temporaries that are live in the
@@ -68,7 +73,7 @@ public abstract class AsmInstr {
 	 * 
 	 * @param out A set of temporaries to be added.
 	 */
-	public abstract void addOutTemp(HashSet<MemTemp> out);
+	public abstract void addOutTemp(Set<MemTemp> out);
 
 	/**
 	 * Returns a string representing this instruction with registers.

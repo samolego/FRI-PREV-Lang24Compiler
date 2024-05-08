@@ -11,6 +11,7 @@ import lang24.phase.imclin.ChunkGenerator;
 import lang24.phase.imclin.ImcLin;
 import lang24.phase.imclin.Interpreter;
 import lang24.phase.lexan.LexAn;
+import lang24.phase.livean.LiveAn;
 import lang24.phase.memory.MemEvaluator;
 import lang24.phase.memory.MemLogger;
 import lang24.phase.memory.Memory;
@@ -234,6 +235,15 @@ public class Compiler {
 				try (AsmGen asmgen = new AsmGen()) {
 					asmgen.genAsmCodes();
 					asmgen.log();
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("amsgen"))
+					break;
+
+
+				// Liveliness analysis
+				try (var livean = new LiveAn()) {
+					livean.analysis();
+					livean.log();
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("amsgen"))
 					break;

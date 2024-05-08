@@ -5,6 +5,7 @@ import lang24.data.mem.MemTemp;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
@@ -165,12 +166,12 @@ public class AsmOPER extends AsmInstr {
     }
 
     @Override
-    public void addInTemps(HashSet<MemTemp> in) {
+    public void addInTemps(Set<MemTemp> in) {
         this.in.addAll(in);
     }
 
     @Override
-    public void addOutTemp(HashSet<MemTemp> out) {
+    public void addOutTemp(Set<MemTemp> out) {
         this.out.addAll(out);
     }
 
