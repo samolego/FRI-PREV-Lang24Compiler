@@ -322,7 +322,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         if (!(type instanceof SemArrayType arrayType)) {
             var err = new ErrorAtBuilder("Type of `" + arrExpr.arr.getText() + "` is not an array type, but `" + type + "`:")
                     .addSourceLine(arrExpr)
-                    .addUnderlineWrongChar(arrExpr, "Note: Tried to access element `" + arrExpr.idx.getText() + "` on type `" + type + "`.");
+                    .addUnderlineWrongChar(arrExpr.arr, "Note: This should be an array type.");
 
             throw new Report.Error(arrExpr, err);
         }
@@ -692,9 +692,18 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
             checkLValueOrThrow(param);
         }
 
-        // Check if same function exists
+        for (var defn : funDefn.defns) {
+            defn.accept(this, arg);
 
-        funDefn.defns.accept(this, arg);
+            if (defn instanceof AstFunDefn fnDefn && fnDefn.stmt == null) {
+                // Inner function has no body, error!
+                var err = new ErrorAtBuilder("Inner function `" + fnDefn.name() + "` has no body.")
+                        .addSourceLine(fnDefn)
+                        .addUnderlineWrongChar(fnDefn, "Note: Try adding a body to this function.");
+
+                throw new Report.Error(fnDefn, err);
+            }
+        }
 
         var previousFn = this.currentReturningFunction;
         this.currentReturningFunction = funDefn;
