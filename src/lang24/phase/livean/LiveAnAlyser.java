@@ -35,21 +35,21 @@ public class LiveAnAlyser {
     public void analyze(int index) {
         final var instruction = this.instrs.get(index);
 
-        Set<MemTemp> outs;
+        Set<MemTemp> sucIns;
 
         if (instruction.jumps().isEmpty()) {
             // Only successor is next instruction
-            outs = index == this.instrs.size() - 1
+            sucIns = index == this.instrs.size() - 1
                     ? Collections.emptySet()  // out of bounds
                     : this.instrs.get(index + 1).in();  // We assume that the next instruction has been already analyzed
         } else {
             // Possibly multiple successors
-            outs = new HashSet<>();
+            sucIns = new HashSet<>();
             for (AsmInstr instr : this.instrs) {
                 if (instr instanceof AsmLABEL lbl) {
                     for (var jump : instruction.jumps()) {
                         if (lbl.label == jump) {
-                            outs.addAll(instr.in());
+                            sucIns.addAll(instr.in());
                         }
                     }
                 }
@@ -59,7 +59,7 @@ public class LiveAnAlyser {
         // Fill in and out sets
         // in (n) := use(n) U [out(n) - def(n)]
         // out(n) := U in(succ)
-        instruction.addOutTemp(outs);
+        instruction.addOutTemp(sucIns);
 
         final var in = new HashSet<>(instruction.out());
         instruction.defs().forEach(in::remove);
