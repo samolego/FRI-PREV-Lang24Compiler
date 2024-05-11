@@ -1,5 +1,6 @@
 package lang24.phase.imclin;
 
+import lang24.common.report.Report;
 import lang24.data.imc.code.expr.ImcBINOP;
 import lang24.data.imc.code.expr.ImcBINOP.Oper;
 import lang24.data.imc.code.expr.ImcUNOP;
@@ -60,6 +61,7 @@ public class BlockPermuter {
         var blocks = this.createCodeBlocks();
 
         // Greedy permute the blocks
+        // New statements
         var newStmts = new LinkedList<ImcStmt>();
 
         // Add all statements until first label
@@ -136,6 +138,7 @@ public class BlockPermuter {
      * @param cjmp CJUMP statement to negate.
      */
     private void negateCondition(ImcCJUMP cjmp) {
+        // Switch labels
         var tmpLabel = cjmp.posLabel;
         cjmp.posLabel = cjmp.negLabel;
         cjmp.negLabel = tmpLabel;
@@ -150,12 +153,10 @@ public class BlockPermuter {
                 case Oper.GTH -> Oper.LEQ;
                 case Oper.AND -> Oper.OR;
                 case Oper.OR -> Oper.AND;
-                default -> null;
+                default -> throw new Report.InternalError();
             };
 
-            if (switched != null) {
-                cjmp.cond = new ImcBINOP(switched, binop.fstExpr, binop.sndExpr);
-            }
+            cjmp.cond = new ImcBINOP(switched, binop.fstExpr, binop.sndExpr);
         } else if (cjmp.cond instanceof ImcUNOP unop && unop.oper == ImcUNOP.Oper.NOT) {
             cjmp.cond = unop.subExpr;
         } else {

@@ -22,7 +22,10 @@ public class LiveAnAlyser {
     public void analyzeAll() {
         // Backward analysis
         for (int i = this.instrs.size() - 1; i >= 0; --i) {
-            this.analyze(i);
+            //this.analyze(i);
+            var instr = this.instrs.get(i);
+            instr.addOutTemp(this.getOuts(i));
+            instr.addInTemps(this.getIns(i));
         }
     }
 
@@ -32,7 +35,7 @@ public class LiveAnAlyser {
      * Assumes {@code index + 1} has been already analyzed.
      * @param index Index of the instruction to analyze.
      */
-    public void analyze(int index) {
+    private void analyze(int index) {
         final var instruction = this.instrs.get(index);
 
         Set<MemTemp> sucIns;
@@ -49,6 +52,7 @@ public class LiveAnAlyser {
                 if (instr instanceof AsmLABEL lbl) {
                     for (var jump : instruction.jumps()) {
                         if (lbl.label == jump) {
+                            // Problem : we don't know if the instruction has been analyzed
                             sucIns.addAll(instr.in());
                         }
                     }
@@ -66,5 +70,46 @@ public class LiveAnAlyser {
         in.addAll(instruction.uses());
 
         instruction.addInTemps(in);
+    }
+
+    private Set<MemTemp> getIns(int index) {
+        var instr = this.instrs.get(index);
+        var outs = this.getOuts(index);
+
+
+        final var in = new HashSet<>(outs);
+        instr.defs().forEach(in::remove);
+        in.addAll(instr.uses());
+
+        return in;
+    }
+
+    private Set<MemTemp> getOuts(int index) {
+        var instruction = this.instrs.get(index);
+        Set<MemTemp> sucIns;
+
+        if (instruction.jumps().isEmpty()) {
+            // Only successor is next instruction
+            sucIns = index == this.instrs.size() - 1
+                    ? Collections.emptySet()  // out of bounds
+                    : this.getIns(index + 1);  // We assume that the next instruction has been already analyzed
+        } else {
+            // Possibly multiple successors
+            sucIns = new HashSet<>();
+            Vector<AsmInstr> asmInstrs = this.instrs;
+            for (int i = asmInstrs.size() - 1; i >= 0; --i) {
+                AsmInstr instr = asmInstrs.get(i);
+                if (instr instanceof AsmLABEL lbl) {
+                    for (var jump : instruction.jumps()) {
+                        if (lbl.label == jump) {
+                            var ins = this.getIns(i);
+                            sucIns.addAll(ins);
+                        }
+                    }
+                }
+            }
+        }
+
+        return sucIns;
     }
 }

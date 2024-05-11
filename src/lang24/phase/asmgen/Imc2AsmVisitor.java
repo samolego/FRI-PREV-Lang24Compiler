@@ -286,6 +286,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         return resultTemp;
     }
 
+    // potential optimization: if value is negative, we can load the negated value (minus minus) and then negate it again
     private void setRegisterToConstantVal(List<AsmInstr> instructions, MemTemp destinationDefn, final long value) {
         final var destDefnVec = Vector_of(destinationDefn);
 
