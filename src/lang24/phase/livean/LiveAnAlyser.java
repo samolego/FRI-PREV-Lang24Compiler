@@ -21,21 +21,24 @@ public class LiveAnAlyser {
 
     public void analyzeAll() {
         // Backward analysis
-        for (int i = this.instrs.size() - 1; i >= 0; --i) {
-            //this.analyze(i);
-            var instr = this.instrs.get(i);
-            instr.addOutTemp(this.getOuts(i));
-            instr.addInTemps(this.getIns(i));
-        }
+        boolean changed;
+        do {
+            changed = false;
+            for (int i = this.instrs.size() - 1; i >= 0; --i) {
+                changed |= analyze(i);
+            }
+        } while (changed);
     }
 
 
     /**
      * Analyze the liveness of the instruction at the given index.
      * Assumes {@code index + 1} has been already analyzed.
+     *
      * @param index Index of the instruction to analyze.
+     * @return True if the in or out sets have changed (another iteration is needed).
      */
-    private void analyze(int index) {
+    private boolean analyze(int index) {
         final var instruction = this.instrs.get(index);
 
         Set<MemTemp> sucIns;
@@ -52,7 +55,6 @@ public class LiveAnAlyser {
                 if (instr instanceof AsmLABEL lbl) {
                     for (var jump : instruction.jumps()) {
                         if (lbl.label == jump) {
-                            // Problem : we don't know if the instruction has been analyzed
                             sucIns.addAll(instr.in());
                         }
                     }
@@ -63,23 +65,36 @@ public class LiveAnAlyser {
         // Fill in and out sets
         // in (n) := use(n) U [out(n) - def(n)]
         // out(n) := U in(succ)
+        int oldSize = instruction.out().size();
         instruction.addOutTemp(sucIns);
+        boolean changedOuts = oldSize != instruction.out().size();
 
         final var in = new HashSet<>(instruction.out());
         instruction.defs().forEach(in::remove);
         in.addAll(instruction.uses());
 
+        oldSize = instruction.in().size();
         instruction.addInTemps(in);
+        boolean changedIns = oldSize != instruction.in().size();
+
+        return changedOuts || changedIns;
     }
 
     private Set<MemTemp> getIns(int index) {
         var instr = this.instrs.get(index);
-        var outs = this.getOuts(index);
+
+        if (!instr.in().isEmpty()) {
+            return instr.in();
+        }
+
+        var outs = instr.out().isEmpty() ? this.getOuts(index) : instr.out();
 
 
         final var in = new HashSet<>(outs);
         instr.defs().forEach(in::remove);
         in.addAll(instr.uses());
+
+        instr.addInTemps(in);
 
         return in;
     }
@@ -109,6 +124,8 @@ public class LiveAnAlyser {
                 }
             }
         }
+
+        instruction.addOutTemp(sucIns);
 
         return sucIns;
     }

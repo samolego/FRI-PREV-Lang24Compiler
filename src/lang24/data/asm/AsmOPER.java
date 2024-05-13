@@ -3,8 +3,8 @@ package lang24.data.asm;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemTemp;
 
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Pattern;
@@ -186,7 +186,7 @@ public class AsmOPER extends AsmInstr {
     }
 
     @Override
-    public String toString(HashMap<MemTemp, Integer> regs) {
+    public String toString(Map<MemTemp, Integer> regs) {
         String instruction = this.instr;
         for (int i = 0; i < uses.size(); i++)
             instruction = instruction.replace("`s" + i, "$" + regs.get(uses.get(i)));

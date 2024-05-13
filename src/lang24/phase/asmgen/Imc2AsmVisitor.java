@@ -20,6 +20,7 @@ import lang24.data.imc.visitor.ImcVisitor;
 import lang24.data.lin.LinCodeChunk;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemTemp;
+import lang24.phase.regall.RegAlloc;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -120,7 +121,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         }
 
         // Perform the function call
-        String instr = String.format("PUSHJ $%d,%s", AsmGen.REGISTER_NUMBER, call.label.name);
+        String instr = String.format("PUSHJ $%d,%s", RegAlloc.MAX_REGISTERS, call.label.name);
         var jumps = Vector_of(call.label);
 
         var callOper = genOper(instr, null, null, jumps);

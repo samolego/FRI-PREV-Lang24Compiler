@@ -3,7 +3,7 @@ package lang24.data.asm;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemTemp;
 
-import java.util.HashMap;
+import java.util.Map;
 
 /**
  * An assembly label.
@@ -24,7 +24,7 @@ public class AsmLABEL extends AsmOPER {
 	}
 
 	@Override
-	public String toString(HashMap<MemTemp, Integer> regs) {
+	public String toString(Map<MemTemp, Integer> regs) {
 		return label.name;
 	}
 

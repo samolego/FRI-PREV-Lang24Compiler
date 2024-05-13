@@ -1,11 +1,12 @@
 package lang24.phase.regall;
 
-import java.util.*;
+import lang24.data.asm.AsmInstr;
+import lang24.data.asm.Code;
+import lang24.data.mem.MemTemp;
+import lang24.phase.Phase;
+import lang24.phase.asmgen.AsmGen;
 
-import lang24.data.mem.*;
-import lang24.data.asm.*;
-import lang24.phase.*;
-import lang24.phase.asmgen.*;
+import java.util.HashMap;
 
 /**
  * Register allocation.
@@ -13,14 +14,17 @@ import lang24.phase.asmgen.*;
 public class RegAll extends Phase {
 
 	/** Mapping of temporary variables to registers. */
-	public final HashMap<MemTemp, Integer> tempToReg = new HashMap<MemTemp, Integer>();
+	public final HashMap<MemTemp, Integer> tempToReg = new HashMap<>();
 
 	public RegAll() {
 		super("regall");
 	}
 
 	public void allocate() {
-		// TODO
+		for (Code code : AsmGen.codes) {
+			var regAlloc = new RegAlloc(code);
+			regAlloc.allocate(tempToReg);
+		}
 	}
 
 	public void log() {

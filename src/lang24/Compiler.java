@@ -15,6 +15,7 @@ import lang24.phase.livean.LiveAn;
 import lang24.phase.memory.MemEvaluator;
 import lang24.phase.memory.MemLogger;
 import lang24.phase.memory.Memory;
+import lang24.phase.regall.RegAll;
 import lang24.phase.seman.LValResolver;
 import lang24.phase.seman.NameResolver;
 import lang24.phase.seman.SemAn;
@@ -46,8 +47,8 @@ public class Compiler {
 	}
 
 	/** All valid phases name of the compiler. */
-	private static final Vector<String> phaseNames = new Vector<String>(Arrays.asList("none", "all", "lexan", "synan",
-			"abstr", "seman", "memory", "imcgen", "imclin", "asmgen", "livean", "regall"));
+	private static final Vector<String> phaseNames = new Vector<>(Arrays.asList("none", "all", "lexan", "synan",
+            "abstr", "seman", "memory", "imcgen", "imclin", "asmgen", "livean", "regall"));
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
@@ -245,7 +246,17 @@ public class Compiler {
 					livean.analysis();
 					livean.log();
 				}
-				if (cmdLineOptValues.get("--target-phase").equals("amsgen"))
+				if (cmdLineOptValues.get("--target-phase").equals("livean"))
+					break;
+
+
+
+				// Register allocation
+				try (var regalloc = new RegAll()) {
+					regalloc.allocate();
+					regalloc.log();
+				}
+				if (cmdLineOptValues.get("--target-phase").equals("regall"))
 					break;
 
 				break;

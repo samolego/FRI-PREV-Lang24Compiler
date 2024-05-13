@@ -3,8 +3,8 @@ package lang24.data.asm;
 import lang24.data.mem.MemLabel;
 import lang24.data.mem.MemTemp;
 
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
@@ -81,6 +81,6 @@ public abstract class AsmInstr {
 	 * @param regs A mapping of temporaries to registers.
 	 * @return A a string representing this instruction with registers.
 	 */
-	public abstract String toString(HashMap<MemTemp, Integer> regs);
+	public abstract String toString(Map<MemTemp, Integer> regs);
 
 }
