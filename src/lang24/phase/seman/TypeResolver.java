@@ -945,7 +945,7 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         return type.actualType();
     }
 
-    public static class FoundReturnType {
+    private static class FoundReturnType {
         private final SemType type;
         private AstReturnStmt stmt;
 
