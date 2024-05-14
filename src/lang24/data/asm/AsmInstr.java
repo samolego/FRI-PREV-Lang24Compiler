@@ -83,4 +83,5 @@ public abstract class AsmInstr {
 	 */
 	public abstract String toString(Map<MemTemp, Integer> regs);
 
+	public abstract void clearIO();
 }

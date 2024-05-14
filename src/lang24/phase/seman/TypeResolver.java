@@ -463,7 +463,8 @@ public class TypeResolver implements AstFullVisitor<SemType, Object> {
         // Error - programmer tried to access invalid component
         if (childDefn == null) {
             // Loop through all nodes and try to find similar names
-            var similar = StringUtil.findSimilar(cmpExpr.name, astRecType.cmpTypes.values().stream().map(Nameable::name).iterator());
+            var compIter = astRecType.cmpTypes.values().stream().map(Nameable::name).iterator();
+            var similar = StringUtil.findSimilar(cmpExpr.name, compIter, 2);
 
             var err = new ErrorAtBuilder("Tried to access invalid component `" + cmpExpr.name + "`:")
                     .addSourceLine(cmpExpr);

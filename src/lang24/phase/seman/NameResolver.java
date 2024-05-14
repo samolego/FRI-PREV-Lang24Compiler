@@ -269,7 +269,7 @@ public class NameResolver implements AstFullVisitor<Void, PassType> {
             }
         } catch (SymbTable.CannotFndNameException e) {
             // Try to find similar name
-            var similar = StringUtil.findSimilar(name, this.symbTable.iterator());
+            var similar = StringUtil.findSimilar(name, this.symbTable.iterator(), 2);
 
             var err = new ErrorAtBuilder("Name `" + name + "` is not defined. Used here:")
                     .addSourceLine(node);

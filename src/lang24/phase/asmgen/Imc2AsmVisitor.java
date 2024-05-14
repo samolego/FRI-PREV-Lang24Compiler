@@ -32,8 +32,8 @@ import java.util.Vector;
  */
 public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
 
-    private static final String SP = "$254";
-    private static final String FP = "$253";
+    public static final String SP = "$254";
+    public static final String FP = "$253";
     
     private final LinCodeChunk codeChunk;
     
@@ -288,11 +288,16 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
     }
 
     // potential optimization: if value is negative, we can load the negated value (minus minus) and then negate it again
-    private void setRegisterToConstantVal(List<AsmInstr> instructions, MemTemp destinationDefn, final long value) {
+    private void setRegisterToConstantVal(List<AsmInstr> instructions, MemTemp destinationDefn, long value) {
         final var destDefnVec = Vector_of(destinationDefn);
 
+        boolean negate = value < 0;
+        if (negate) {
+            value = -value;
+        }
+
         // Add "AND with 0" instructions to set the register to the value 0
-        boolean needsAnd = false;
+        boolean needsAnd = value == 0;
         // All four bytes of value must differ from 0 in order for needsAnd to be false
         for (long val = value; val != 0L; val >>>= 16) {
             if ((val & 0xFFFFL) == 0) {
@@ -316,12 +321,16 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
             long shifted = value >>> (i * 16);
             if (shifted == 0) {
                 // Not needed, save on instructions
-                // Register was cleared before so we don't need to set this part
+                // Register was cleared before, so we don't need to set this part
                 continue;
             }
             long val = shifted & 0xFFFF;
             var set0xFF = genOper(String.format("%s `d0,#%04X", setInstr, val), null, destDefnVec, null);
             instructions.add(set0xFF);
+        }
+
+        if (negate) {
+            instructions.add(genOper("NEG `d0,`s0", destDefnVec, destDefnVec, null));
         }
     }
 
@@ -395,7 +404,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
      * @param <E> Type of elements
      */
     @SafeVarargs
-    private static <E> Vector<E> Vector_of(E... elements) {
+    public static <E> Vector<E> Vector_of(E... elements) {
         var vector = new Vector<E>();
         Collections.addAll(vector, elements);
         return vector;

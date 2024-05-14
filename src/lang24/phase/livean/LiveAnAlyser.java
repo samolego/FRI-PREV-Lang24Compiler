@@ -20,6 +20,11 @@ public class LiveAnAlyser {
     }
 
     public void analyzeAll() {
+        // Clear all ins and outs first
+        for (var instr : this.instrs) {
+            instr.clearIO();
+        }
+
         // Backward analysis
         boolean changed;
         do {
@@ -80,6 +85,7 @@ public class LiveAnAlyser {
         return changedOuts || changedIns;
     }
 
+    /*
     private Set<MemTemp> getIns(int index) {
         var instr = this.instrs.get(index);
 
@@ -129,4 +135,5 @@ public class LiveAnAlyser {
 
         return sucIns;
     }
+    */
 }

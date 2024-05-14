@@ -195,4 +195,10 @@ public class AsmOPER extends AsmInstr {
         return instruction;
     }
 
+    @Override
+    public void clearIO() {
+        this.in.clear();
+        this.out.clear();
+    }
+
 }

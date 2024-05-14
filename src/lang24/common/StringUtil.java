@@ -46,7 +46,7 @@ public class StringUtil {
         return a == b ? 0 : 1;
     }
 
-    public static Optional<String> findSimilar(String original, Iterator<String> defns) {
+    public static Optional<String> findSimilar(String original, Iterator<String> defns, int threshold) {
         int minDist = Integer.MAX_VALUE;
         String similar = null;
         while (defns.hasNext()) {
@@ -65,7 +65,7 @@ public class StringUtil {
             }
         }
 
-        if (minDist < 3) {
+        if (minDist < threshold) {
             return Optional.of(similar);
         } else {
             return Optional.empty();

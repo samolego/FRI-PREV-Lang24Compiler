@@ -15,6 +15,7 @@ import lang24.phase.livean.LiveAn;
 import lang24.phase.memory.MemEvaluator;
 import lang24.phase.memory.MemLogger;
 import lang24.phase.memory.Memory;
+import lang24.phase.regall.RegAll;
 import lang24.phase.seman.LValResolver;
 import lang24.phase.seman.NameResolver;
 import lang24.phase.seman.SemAn;
@@ -251,12 +252,12 @@ public class Compiler {
 
 
 				// Register allocation
-				/*try (var regalloc = new RegAll()) {
+				try (var regalloc = new RegAll()) {
 					regalloc.allocate();
 					regalloc.log();
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("regall"))
-					break;*/
+					break;
 
 				break;
 			}
