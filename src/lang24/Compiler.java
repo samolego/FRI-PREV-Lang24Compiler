@@ -4,6 +4,7 @@ import lang24.common.report.Report;
 import lang24.phase.abstr.Abstr;
 import lang24.phase.abstr.AbstrLogger;
 import lang24.phase.asmgen.AsmGen;
+import lang24.phase.finall.FinAll;
 import lang24.phase.imcgen.IG2;
 import lang24.phase.imcgen.ImcGen;
 import lang24.phase.imcgen.ImcLogger;
@@ -254,13 +255,19 @@ public class Compiler {
 
 
 				// Register allocation
-				MAX_REGISTERS = Integer.parseInt(cmdLineOptValues.get("--num-regs"));
+				var reg = cmdLineOptValues.get("--num-regs");
+				if (reg != null) {
+                    MAX_REGISTERS = Integer.parseInt(reg);
+                }
 				try (var regalloc = new RegAll()) {
 					regalloc.allocate();
 					regalloc.log();
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("regall"))
 					break;
+
+				var finall = new FinAll(cmdLineOptValues.get("--dst-file-name"));
+				finall.genAsmFile();
 
 				break;
 			}
