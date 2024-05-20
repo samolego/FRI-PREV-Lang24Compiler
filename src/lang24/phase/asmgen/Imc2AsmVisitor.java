@@ -311,7 +311,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
             // First AND register with 0 to reset it
             // We do that so we can skip setting the register to 0
             // It helps us below to save on instructions
-            var and0 = genOper("AND `d0,`s0,0", destDefnVec, destDefnVec, null);
+            var and0 = genOper("SETL `d0,#0", null, destDefnVec, null);
             instructions.add(and0);
         }
 

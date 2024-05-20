@@ -78,7 +78,7 @@ public class LiveAnAlyser {
         instruction.addOutTemp(sucIns);
         boolean changedOuts = !oldOut.equals(instruction.out());
 
-        final var in = new HashSet<>(instruction.out());
+        final var in = instruction.out();
         instruction.defs().forEach(in::remove);
         in.addAll(instruction.uses());
 
