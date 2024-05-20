@@ -82,6 +82,4 @@ public abstract class AsmInstr {
 	 * @return A a string representing this instruction with registers.
 	 */
 	public abstract String toString(Map<MemTemp, Integer> regs);
-
-	public abstract void clearIO();
 }

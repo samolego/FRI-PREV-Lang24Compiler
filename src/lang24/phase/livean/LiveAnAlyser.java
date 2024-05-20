@@ -2,6 +2,7 @@ package lang24.phase.livean;
 
 import lang24.data.asm.AsmInstr;
 import lang24.data.asm.AsmLABEL;
+import lang24.data.asm.AsmOPER;
 import lang24.data.mem.MemTemp;
 
 import java.util.Collections;
@@ -22,7 +23,10 @@ public class LiveAnAlyser {
     public void analyzeAll() {
         // Clear all ins and outs first
         for (var instr : this.instrs) {
-            instr.clearIO();
+            if (instr instanceof AsmOPER oper) {
+                oper.removeAllFromIn();
+                oper.removeAllFromOut();
+            }
         }
 
         // Backward analysis
@@ -70,17 +74,17 @@ public class LiveAnAlyser {
         // Fill in and out sets
         // in (n) := use(n) U [out(n) - def(n)]
         // out(n) := U in(succ)
-        int oldSize = instruction.out().size();
+        var oldOut = instruction.out();
         instruction.addOutTemp(sucIns);
-        boolean changedOuts = oldSize != instruction.out().size();
+        boolean changedOuts = !oldOut.equals(instruction.out());
 
         final var in = new HashSet<>(instruction.out());
         instruction.defs().forEach(in::remove);
         in.addAll(instruction.uses());
 
-        oldSize = instruction.in().size();
+        var oldIn = instruction.in();
         instruction.addInTemps(in);
-        boolean changedIns = oldSize != instruction.in().size();
+        boolean changedIns = !oldIn.equals(instruction.in());
 
         return changedOuts || changedIns;
     }

@@ -194,11 +194,4 @@ public class AsmOPER extends AsmInstr {
             instruction = instruction.replace("`d" + i, "$" + regs.get(defs.get(i)));
         return instruction;
     }
-
-    @Override
-    public void clearIO() {
-        this.in.clear();
-        this.out.clear();
-    }
-
 }

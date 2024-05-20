@@ -64,11 +64,12 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
                 var divResultVec = Vector_of(divResTmp);
 
                 // First do the division
+                // TODO - FIXME - Something happens later, somewhere uses are cleared!!
                 var divOp = genOper("DIV `d0,`s0,`s1", binopUses, divResultVec, null);
                 instructions.add(divOp);
 
                 // We don't need the source registers anymore
-                binopUses.clear();
+                binopUses = new Vector<>();
 
                 // Add from the rR register to the result
                 yield "ADD `d0,$rR,0";
