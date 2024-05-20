@@ -16,7 +16,7 @@ import java.util.Vector;
 import static lang24.phase.asmgen.Imc2AsmVisitor.Vector_of;
 
 public class RegAlloc {
-    public static final int MAX_REGISTERS = 3;
+    public static int MAX_REGISTERS = 8;
     private final Code code;
 
     public RegAlloc(Code code) {

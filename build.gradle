@@ -148,6 +148,7 @@ run {
     var srcFileName = getPropertyOrDefault("srcFileName", null)
 
     List<Object> argList = ["--xsl=$xsl", "--logged-phase=$loggedPhase", "--target-phase=$targetPhase"]
+    argList.add("--num-regs=4")
 
     if (srcFileName != null) {
         argList.add("--src-file-name=prg/${srcFileName}.lang24")

@@ -34,6 +34,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
 
+import static lang24.phase.regall.RegAlloc.MAX_REGISTERS;
+
 /**
  * The LANG'24 compiler.
  * 
@@ -52,7 +54,7 @@ public class Compiler {
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
-			Arrays.asList("--src-file-name", "--dst-file-name", "--target-phase", "--logged-phase", "--xml", "--xsl"));
+			Arrays.asList("--src-file-name", "--dst-file-name", "--target-phase", "--logged-phase", "--xml", "--xsl", "--num-regs"));
 
 	/** Values of command line options indexed by their command line option name. */
 	private static final HashMap<String, String> cmdLineOptValues = new HashMap<String, String>();
@@ -77,42 +79,42 @@ public class Compiler {
 			Report.info("This is LANG'24 compiler:");
 
 			// Scan the command line.
-			for (int optc = 0; optc < opts.length; optc++) {
-				if (opts[optc].startsWith("--")) {
-					// Command line option.
-					final String cmdLineOptName = opts[optc].replaceFirst("=.*", "");
-					final String cmdLineOptValue = opts[optc].replaceFirst("^[^=]*=", "");
-					if (!cmdLineOptNames.contains(cmdLineOptName)) {
-						Report.warning("Unknown command line option '" + cmdLineOptName + "'.");
-						continue;
-					}
-					if (cmdLineOptValues.get(cmdLineOptName) == null) {
-						// Not yet successfully specified command line option.
+            for (String opt : opts) {
+                if (opt.startsWith("--")) {
+                    // Command line option.
+                    final String cmdLineOptName = opt.replaceFirst("=.*", "");
+                    final String cmdLineOptValue = opt.replaceFirst("^[^=]*=", "");
+                    if (!cmdLineOptNames.contains(cmdLineOptName)) {
+                        Report.warning("Unknown command line option '" + cmdLineOptName + "'.");
+                        continue;
+                    }
+                    if (cmdLineOptValues.get(cmdLineOptName) == null) {
+                        // Not yet successfully specified command line option.
 
-						// Check the value of the command line option.
-						if ((cmdLineOptName.equals("--target-phase") && (!phaseNames.contains(cmdLineOptValue)))
-								|| (cmdLineOptName.equals("--logged-phase")
-										&& (!phaseNames.contains(cmdLineOptValue)))) {
-							Report.warning("Illegal phase specification in '" + opts[optc] + "' ignored.");
-							continue;
-						}
+                        // Check the value of the command line option.
+                        if ((cmdLineOptName.equals("--target-phase") && (!phaseNames.contains(cmdLineOptValue)))
+                                || (cmdLineOptName.equals("--logged-phase")
+                                && (!phaseNames.contains(cmdLineOptValue)))) {
+                            Report.warning("Illegal phase specification in '" + opt + "' ignored.");
+                            continue;
+                        }
 
-						cmdLineOptValues.put(cmdLineOptName, cmdLineOptValue);
-					} else {
-						// Repeated specification of a command line option.
-						Report.warning("Command line option '" + opts[optc] + "' ignored.");
-						continue;
-					}
-				} else {
-					// Source file name.
-					if (cmdLineOptValues.get("--src-file-name") == null) {
-						cmdLineOptValues.put("--src-file-name", opts[optc]);
-					} else {
-						Report.warning("Source file '" + opts[optc] + "' ignored.");
-						continue;
-					}
-				}
-			}
+                        cmdLineOptValues.put(cmdLineOptName, cmdLineOptValue);
+                    } else {
+                        // Repeated specification of a command line option.
+                        Report.warning("Command line option '" + opt + "' ignored.");
+                        continue;
+                    }
+                } else {
+                    // Source file name.
+                    if (cmdLineOptValues.get("--src-file-name") == null) {
+                        cmdLineOptValues.put("--src-file-name", opt);
+                    } else {
+                        Report.warning("Source file '" + opt + "' ignored.");
+                        continue;
+                    }
+                }
+            }
 			// Check the command line option values.
 			if (cmdLineOptValues.get("--src-file-name") == null) {
 				try {
@@ -252,6 +254,7 @@ public class Compiler {
 
 
 				// Register allocation
+				MAX_REGISTERS = Integer.parseInt(cmdLineOptValues.get("--num-regs"));
 				try (var regalloc = new RegAll()) {
 					regalloc.allocate();
 					regalloc.log();
