@@ -72,7 +72,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
                 binopUses = new Vector<>();
 
                 // Add from the rR register to the result
-                yield "ADD `d0,$rR,0";
+                yield "GET `d0,rR";
             }
             default -> {
                 // Comparison operators

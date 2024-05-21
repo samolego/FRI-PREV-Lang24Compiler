@@ -26,9 +26,14 @@ public record FinAll(String filename) {
     public void genAsmFile() {
         var instructions = new LinkedList<>(genEntryCode());
         for (var code : AsmGen.codes) {
+            instructions.add(AsmLine.EMPTY);
+            instructions.add(AsmLine.EMPTY);
             instructions.addAll(genPrologue(code));
+            instructions.add(AsmLine.EMPTY);
             instructions.addAll(AsmLine.of(code.instrs));
+            instructions.add(AsmLine.EMPTY);
             instructions.addAll(genEpilogue(code));
+            instructions.add(AsmLine.EMPTY);
         }
 
         // Add stdlib
@@ -88,26 +93,34 @@ public record FinAll(String filename) {
         instructions.add(AsmLine.comment("Prologue " + code.frame.label.name + ", locals: " + code.frame.localSize + ", args: " + code.frame.argsSize + ", temps: " + code.tempCount));
 
         // Save current SP
+        instructions.add(AsmLine.comment("Save current SP"));
         instructions.add(AsmLine.labeled(code.frame.label.name, "SET $0,SP"));
 
+        // Subtract current SP by size of locals + 2 * pointer size
+        instructions.add(AsmLine.comment("Subtract current sp by size locals + 2 * pointer size"));
         long size = code.frame.localSize + 2 * POINTER_SIZE;
-        // Subtract current sp by size of frame
         instructions.add(AsmLine.instr("SUB SP,SP," + size));
+
         // Store old FP
+        instructions.add(AsmLine.comment("Store old FP"));
         instructions.add(AsmLine.instr("STO FP,SP,#" + POINTER_SIZE));
 
         // Store return address
+        instructions.add(AsmLine.comment("Store return address"));
         instructions.add(AsmLine.instr("GET FP,rJ"));  // get return address
         instructions.add(AsmLine.instr("STO FP,SP,#0"));  // store it
 
         // Set frame pointer to old sp
+        instructions.add(AsmLine.comment("Set frame pointer to old SP"));
         instructions.add(AsmLine.instr("SET FP,$0"));
 
         // Set new sp
+        instructions.add(AsmLine.comment("Set new SP"));
         long otherSize = code.tempCount * POINTER_SIZE + code.frame.argsSize;
-        instructions.add(AsmLine.instr("ADD SP,SP," + otherSize));
+        instructions.add(AsmLine.instr("SUB SP,SP," + otherSize));
 
         // Jump to function body
+        instructions.add(AsmLine.comment("Jump to function body"));
         instructions.add(AsmLine.instr("JMP " + code.entryLabel));
 
         instructions.add(AsmLine.comment("End prologue"));
@@ -119,29 +132,36 @@ public record FinAll(String filename) {
     public List<AsmLine> genEpilogue(Code code) {
         // Save current frame pointer and program counter
         var instructions = new LinkedList<AsmLine>();
+
         instructions.add(AsmLine.comment("Epilogue"));
 
         // Store return value
+        instructions.add(AsmLine.comment("Store return value on stack"));
         var returnReg = RegAll.tempToReg.get(code.frame.RV);
         instructions.add(AsmLine.labeled(code.exitLabel.toString(), "STO $" + returnReg + ",FP,#0"));
 
         // Add to SP in order to then restore old FP and return address
+        instructions.add(AsmLine.comment("Add to SP in order to then restore old FP and return address"));
         long size = code.frame.argsSize + code.tempCount * POINTER_SIZE;
         instructions.add(AsmLine.instr("ADD SP,SP," + size));
 
 
         // Load return address
+        instructions.add(AsmLine.comment("Load & restore return address"));
         instructions.add(AsmLine.instr("LDO $0,SP,#0"));
         // Restore it
         instructions.add(AsmLine.instr("PUT rJ,$0"));
 
         // Load old FP
+        instructions.add(AsmLine.comment("Load old FP"));
         instructions.add(AsmLine.instr("LDO $0,SP,#8"));
 
         // Resore SP
+        instructions.add(AsmLine.comment("Restore SP"));
         instructions.add(AsmLine.instr("SET SP,FP"));
 
         // Restore FP
+        instructions.add(AsmLine.comment("Restore FP"));
         instructions.add(AsmLine.instr("SET FP,$0"));
 
         instructions.add(AsmLine.instr("POP 0,0"));

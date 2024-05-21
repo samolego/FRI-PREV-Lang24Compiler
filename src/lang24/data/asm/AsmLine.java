@@ -7,15 +7,16 @@ import java.util.List;
 
 public class AsmLine {
     public static final char TAB = '\t';
+    public static final AsmLine EMPTY = new AsmLine("");
+
     private final String str;
 
     private AsmLine(String str) {
         this.str = str;
     }
 
-
     public static AsmLine comment(String instr) {
-        return new AsmLine("// " + instr);
+        return new AsmLine(TAB + "// " + instr);
     }
 
     public static AsmLine instr(String instr) {
