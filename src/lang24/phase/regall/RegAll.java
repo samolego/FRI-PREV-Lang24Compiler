@@ -14,7 +14,7 @@ import java.util.HashMap;
 public class RegAll extends Phase {
 
 	/** Mapping of temporary variables to registers. */
-	public final HashMap<MemTemp, Integer> tempToReg = new HashMap<>();
+	public static final HashMap<MemTemp, Integer> tempToReg = new HashMap<>();
 
 	public RegAll() {
 		super("regall");
@@ -34,7 +34,7 @@ public class RegAll extends Phase {
 			logger.begElement("code");
 			logger.addAttribute("body", code.entryLabel.name);
 			logger.addAttribute("epilogue", code.exitLabel.name);
-			logger.addAttribute("tempsize", Long.toString(code.tempSize));
+			logger.addAttribute("tempsize", Long.toString(code.tempCount));
 			code.frame.log(logger);
 			logger.begElement("instructions");
 			for (AsmInstr instr : code.instrs) {

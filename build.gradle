@@ -146,12 +146,19 @@ run {
     var loggedPhase = getPropertyOrDefault("loggedPhase", "all")
     var targetPhase = getPropertyOrDefault("targetPhase", "all")
     var srcFileName = getPropertyOrDefault("srcFileName", null)
+    var dstFileName = getPropertyOrDefault("dstFileName", null)
 
-    List<Object> argList = ["--xsl=$xsl", "--logged-phase=$loggedPhase", "--target-phase=$targetPhase"]
-    argList.add("--num-regs=4")
+    List<Object> argList = ["--xsl=$xsl", "--logged-phase=$loggedPhase", "--target-phase=$targetPhase", "--num-regs=4"]
+
 
     if (srcFileName != null) {
         argList.add("--src-file-name=prg/${srcFileName}.lang24")
+    }
+
+    if (dstFileName != null) {
+        argList.add("--dst-file-name=out/${dstFileName}.mms")
+    } else if (srcFileName != null) {
+        argList.add("--dst-file-name=out/${srcFileName}.mms")
     }
 
     args = argList

@@ -27,7 +27,7 @@ public class MemFrame implements Loggable {
     /**
      * The size of the block of local variables within a frame.
      */
-    public final long blockSize;
+    public final long localSize;
 
     /**
      * The size of the block of (call, i.e., outgoing) arguments within a frame.
@@ -49,15 +49,15 @@ public class MemFrame implements Loggable {
      *
      * @param label     The function's entry label.
      * @param depth     The function's static depth.
-     * @param blockSize The size of the block of local variables within a frame.
+     * @param localSize The size of the block of local variables within a frame.
      * @param argsSize  The size of the block of (call, i.e., outgoing) arguments
      *                  within a frame.
      * @param size      The size of the frame.
      */
-    public MemFrame(MemLabel label, long depth, long blockSize, long argsSize, long size) {
+    public MemFrame(MemLabel label, long depth, long localSize, long argsSize, long size) {
         this.label = label;
         this.depth = depth;
-        this.blockSize = blockSize;
+        this.localSize = localSize;
         this.argsSize = argsSize;
         this.size = size;
         this.FP = new MemTemp();
@@ -71,7 +71,7 @@ public class MemFrame implements Loggable {
         logger.begElement("frame");
         logger.addAttribute("label", label.name);
         logger.addAttribute("depth", Long.toString(depth));
-        logger.addAttribute("locssize", Long.toString(blockSize));
+        logger.addAttribute("locssize", Long.toString(localSize));
         logger.addAttribute("argssize", Long.toString(argsSize));
         logger.addAttribute("size", Long.toString(size));
         logger.addAttribute("FP", FP.toString());
@@ -81,6 +81,6 @@ public class MemFrame implements Loggable {
 
     @Override
     public String toString() {
-        return label + "(depth=" + depth + ", size=" + size + ", locssize=" + blockSize + ", argssize=" + argsSize + ", FP=" + FP + ", RV=" + RV + ")";
+        return label + "(depth=" + depth + ", size=" + size + ", locssize=" + localSize + ", argssize=" + argsSize + ", FP=" + FP + ", RV=" + RV + ")";
     }
 }

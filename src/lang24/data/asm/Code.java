@@ -36,7 +36,7 @@ public class Code {
 	 * does not succeed and requires some temporary variables to be stored in the
 	 * frame.
 	 */
-	public long tempSize = 0;
+	public long tempCount = 0;
 
 	/**
 	 * Creates a new fragment of code.

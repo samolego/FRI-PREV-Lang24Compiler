@@ -54,10 +54,10 @@ public class RegAlloc {
      */
     private void generateSpillCode(MemTemp memTemp) {
         // automatic vars + old FP, return address + other temporaries
-        long offset = this.code.frame.blockSize + MemEvaluator.getSizeInBytes(SemPointerType.type) * 2 + this.code.tempSize * 8;
+        long offset = this.code.frame.localSize + MemEvaluator.getSizeInBytes(SemPointerType.type) * 2 + this.code.tempCount * 8;
         var storeInstr = new AsmOPER("STOU `s0,%s,%d".formatted(Imc2AsmVisitor.FP, offset), Vector_of(memTemp), null, null);
 
-        ++this.code.tempSize;
+        ++this.code.tempCount;
 
         boolean added = false;
         // Find the instruction that uses the spilled variable

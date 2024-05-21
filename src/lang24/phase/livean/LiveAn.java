@@ -29,7 +29,7 @@ public class LiveAn extends Phase {
 			logger.addAttribute("prologue", code.entryLabel.name);
 			logger.addAttribute("body", code.entryLabel.name);
 			logger.addAttribute("epilogue", code.exitLabel.name);
-			logger.addAttribute("tempsize", Long.toString(code.tempSize));
+			logger.addAttribute("tempsize", Long.toString(code.tempCount));
 			code.frame.log(logger);
 			logger.begElement("instructions");
 			for (AsmInstr instr : code.instrs) {

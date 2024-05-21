@@ -6,7 +6,7 @@ build
 prg/*.lang24
 prg/*.html
 prg/*.xml
-
+out
 
 src/lang24/phase/lexan/Lang24Lexer.java
 src/lang24/phase/lexan/Lang24Lexer.interp

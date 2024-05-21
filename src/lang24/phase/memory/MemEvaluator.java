@@ -40,7 +40,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
     /**
      * Size of static link in bytes.
      */
-    private final long SL_SIZE = getSizeInBytes(SemPointerType.type);
+    public static final long POINTER_SIZE = getSizeInBytes(SemPointerType.type);
     /**
      * Regex pattern for matching hex numbers (\ hex hex).
      */
@@ -50,7 +50,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
     /**
      * The maximum size of latest function call (max of arguments + SL, return value).
      */
-    private long maxCallSize = SL_SIZE;  // Static link always included
+    private long maxCallSize = POINTER_SIZE;  // Static link always included
 
     /**
      * Gets the size of a type in bytes.
@@ -138,7 +138,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
 
     @Override
     public Void visit(AstFunDefn funDefn, Integer depth) {
-        this.maxCallSize = SL_SIZE;
+        this.maxCallSize = POINTER_SIZE;
 
         long paramSize = 0;
         for (var par : funDefn.pars) {
@@ -148,13 +148,13 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             // Round parameters & arguments
             long size = getSizeInBytes(type);
 
-            var memAcc = new MemRelAccess(size, paramSize + SL_SIZE, depth);
+            var memAcc = new MemRelAccess(size, paramSize + POINTER_SIZE, depth);
             Memory.parAccesses.put(par, memAcc);
 
             paramSize += ceilTo8(size);
         }
 
-        long blockSize = 0;
+        long localSize = 0;
         for (var defn : funDefn.defns) {
             if (defn instanceof AstFunDefn) {
                 defn.accept(this, depth + 1);
@@ -166,10 +166,10 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             if (defn instanceof AstVarDefn varDefn) {
                 var type = SemAn.ofType.get(defn);
                 long size = getSizeInBytes(type);
-                blockSize += ceilTo8(size);
+                localSize += ceilTo8(size);
 
                 // Automatic variable definition
-                var memAcc = new MemRelAccess(size, -blockSize, depth);
+                var memAcc = new MemRelAccess(size, -localSize, depth);
 
                 Memory.varAccesses.put(varDefn, memAcc);
             }
@@ -180,12 +180,12 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             funDefn.stmt.accept(this, depth + 1);
             long maxOfArgsAndReturn = this.maxCallSize;
 
-            long size = blockSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
+            long size = localSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
 
             boolean isNested = depth > 0;
             MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
 
-            var frame = new MemFrame(label, depth, blockSize, maxOfArgsAndReturn, size);
+            var frame = new MemFrame(label, depth, localSize, maxOfArgsAndReturn, size);
             Memory.frames.put(funDefn, frame);
         }
 
@@ -215,7 +215,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
                 }
 
                 // Add null terminator
-                parsedStr = parsedStr + "\0";
+                parsedStr = parsedStr + "\\0";
             }
             long length = parsedStr.length();
             Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemCharType.type) * length, new MemLabel(), parsedStr));
@@ -226,7 +226,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
 
     @Override
     public Void visit(AstCallExpr callExpr, Integer depth) {
-        long argSize = SL_SIZE; // We need at least static link for each function
+        long argSize = POINTER_SIZE; // We need at least static link for each function
         for (var arg : callExpr.args) {
             arg.accept(this, depth);
 
