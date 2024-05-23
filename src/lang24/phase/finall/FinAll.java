@@ -4,12 +4,14 @@ import lang24.common.report.Report;
 import lang24.data.asm.AsmLine;
 import lang24.data.asm.Code;
 import lang24.phase.asmgen.AsmGen;
+import lang24.phase.imclin.ImcLin;
 import lang24.phase.regall.RegAll;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static lang24.phase.memory.MemEvaluator.POINTER_SIZE;
 import static lang24.phase.regall.RegAlloc.MAX_REGISTERS;
@@ -65,6 +67,8 @@ public record FinAll(String filename) {
         // Data segment
         instructions.add(AsmLine.instr("LOC Data_Segment"));
         // todo - add data segment
+        this.addGlobalData(instructions);
+
 
         // Text segment
         instructions.add(AsmLine.instr("LOC #100"));
@@ -85,6 +89,36 @@ public record FinAll(String filename) {
         instructions.add(AsmLine.instr("TRAP 0,Halt,0"));
 
         return instructions;
+    }
+
+    private void addGlobalData(LinkedList<AsmLine> instructions) {
+        var chunks = ImcLin.dataChunks();
+
+        for (var chunk : chunks) {
+            var label = chunk.label;
+            if (chunk.init != null) {
+                var value = chunk.init.chars()
+                        .mapToObj(String::valueOf)
+                        .collect(Collectors.joining(","));
+                instructions.add(AsmLine.labeled(label.name, "OCTA " + value + ",0"));  // Add null terminator
+            } else {
+                boolean isCustomSize = false;
+                var size = switch ((int) chunk.size) {
+                    case 1 -> "BYTE";
+                    case 2 -> "WYDE";
+                    case 4 -> "TETRA";
+                    case 8 -> "OCTA";
+                    default -> {
+                        isCustomSize = true;
+                        yield "BYTE";
+                    }
+                };
+                instructions.add(AsmLine.labeled(label.name, size));
+                if (isCustomSize) {
+                    instructions.add(AsmLine.instr("LOC @a#" + (chunk.size - 1)));
+                }
+            }
+        }
     }
 
 

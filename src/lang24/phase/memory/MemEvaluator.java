@@ -213,9 +213,6 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
                     char charValue = (char) Integer.parseInt(hex, 16);
                     parsedStr = parsedStr.replace(hexMatcher.group(), String.valueOf(charValue));
                 }
-
-                // Add null terminator
-                parsedStr = parsedStr + "\\0";
             }
             long length = parsedStr.length();
             Memory.strings.put(atomExpr, new MemAbsAccess(getSizeInBytes(SemCharType.type) * length, new MemLabel(), parsedStr));

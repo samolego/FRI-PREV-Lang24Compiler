@@ -5,6 +5,7 @@ import lang24.data.asm.AsmLine;
 import java.util.LinkedList;
 import java.util.List;
 
+
 import static lang24.data.asm.AsmLine.TAB;
 
 public class StdLib {
@@ -24,9 +25,9 @@ public class StdLib {
         var getchar = List.of(
                 "FgetsBuf    BYTE  0,0",
                 "FgetsArgs    OCTA  FgetsBuf,2",
-                "_getchar    ADD  $255,SP,8",
+                "_getchar    LDA  $255,FgetsArgs",  // Clear the space for the character
                 "TRAP  0,Fgets,StdIn",
-                "ADD  $255,SP,0",
+                "LDA  $255,FgetsBuf",
                 "LDB  $255,$255,0",
                 "STB  $255,SP,7",  // Skip 7 bytes as characters are 8 bytes long in our lang
                 "POP  0,0"
