@@ -6,7 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class AsmLine {
-    public static final char TAB = '\t';
+    public static final String TAB = "\t";
     public static final AsmLine EMPTY = new AsmLine("");
 
     private final String str;
@@ -16,11 +16,11 @@ public class AsmLine {
     }
 
     public static AsmLine comment(String instr) {
-        return new AsmLine(TAB + "// " + instr);
+        return new AsmLine(TAB + TAB + "// " + instr);
     }
 
     public static AsmLine instr(String instr) {
-        return new AsmLine(TAB + instr);
+        return new AsmLine(TAB + TAB + instr);
     }
 
     public static AsmLine labeled(String label, String instruction) {
@@ -28,7 +28,7 @@ public class AsmLine {
     }
 
     public static AsmLine of(AsmInstr instr) {
-        return new AsmLine(TAB + instr.toString(RegAll.tempToReg));
+        return new AsmLine(TAB + TAB + instr.toString(RegAll.tempToReg));
     }
 
     public static List<AsmLine> of(List<AsmInstr> instrs) {

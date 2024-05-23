@@ -25,6 +25,9 @@ public record FinAll(String filename) {
 
     public void genAsmFile() {
         var instructions = new LinkedList<>(genEntryCode());
+        // Add stdlib
+        instructions.addAll(StdLib.STD_LIB_INSTRS);
+
         for (var code : AsmGen.codes) {
             instructions.add(AsmLine.EMPTY);
             instructions.add(AsmLine.EMPTY);
@@ -35,9 +38,6 @@ public record FinAll(String filename) {
             instructions.addAll(genEpilogue(code));
             instructions.add(AsmLine.EMPTY);
         }
-
-        // Add stdlib
-        StdLib.addAll(instructions);
 
         // Write to file
         try (var writer = new PrintWriter(filename)) {
@@ -64,6 +64,7 @@ public record FinAll(String filename) {
 
         // Data segment
         instructions.add(AsmLine.instr("LOC Data_Segment"));
+        // todo - add data segment
 
         // Text segment
         instructions.add(AsmLine.instr("LOC #100"));
