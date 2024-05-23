@@ -64,7 +64,6 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
                 var divResultVec = Vector_of(divResTmp);
 
                 // First do the division
-                // TODO - FIXME - Something happens later, somewhere uses are cleared!!
                 var divOp = genOper("DIV `d0,`s0,`s1", binopUses, divResultVec, null);
                 instructions.add(divOp);
 
@@ -88,14 +87,14 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
 
                 // Execute another instruction to get the result
                 yield switch (binOp.oper) {
-                    case EQU -> "ZSZ `d0,`s0,1";  // 1 if 0, otherwise 0
-                    case NEQ -> "ZSNZ `d0,`s0,1";  // 1 if not 0, otherwise 0
-                    case LTH -> "ZSN `d0,`s0,1";  // 1 if negative
-                    case GTH -> "ZSP `d0,`s0,1";  // 1 if positive
-                    case LEQ -> "ZSNP `d0,`s0,1";  // 1 if non-positive
-                    case GEQ -> "ZSNN `d0,`s0,1";  // 1 if non-negative
+                    case EQU -> "ZSZ";  // 1 if 0, otherwise 0
+                    case NEQ -> "ZSNZ";  // 1 if not 0, otherwise 0
+                    case LTH -> "ZSN";  // 1 if negative
+                    case GTH -> "ZSP";  // 1 if positive
+                    case LEQ -> "ZSNP";  // 1 if non-positive
+                    case GEQ -> "ZSNN";  // 1 if non-negative
                     default -> throw new Report.InternalError();
-                };
+                } + " `d0,`s0,1";
             }
         };
 
@@ -233,7 +232,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         // Calculate value to store
         var valueDefs = move.src.accept(this, instructions);
 
-        var uses = Vector_of(addrDefs, valueDefs);
+        var uses = Vector_of(valueDefs, addrDefs);
 
         // Generate store
         var storeInstr = genOper("STOU `s0,`s1,0", uses, null, null);

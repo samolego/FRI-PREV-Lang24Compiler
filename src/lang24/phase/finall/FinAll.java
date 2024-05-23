@@ -37,7 +37,7 @@ public record FinAll(String filename) {
         }
 
         // Add stdlib
-        instructions.addAll(StdLib.PUTCHAR);
+        StdLib.addAll(instructions);
 
         // Write to file
         try (var writer = new PrintWriter(filename)) {

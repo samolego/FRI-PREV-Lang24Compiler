@@ -2,6 +2,7 @@ package lang24.phase.finall;
 
 import lang24.data.asm.AsmLine;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import static lang24.data.asm.AsmLine.TAB;
@@ -9,6 +10,7 @@ import static lang24.data.asm.AsmLine.TAB;
 public class StdLib {
     private static final String STR_TAB = String.valueOf(TAB);
     public static final List<AsmLine> PUTCHAR;
+    //public static final List<AsmLine> PUTINT;
 
     static {
         var putchar = List.of(
@@ -29,5 +31,9 @@ public class StdLib {
                     return AsmLine.instr(split[0]);
                 })
                 .toList();
+    }
+
+    public static void addAll(LinkedList<AsmLine> instructions) {
+        instructions.addAll(StdLib.PUTCHAR);
     }
 }
