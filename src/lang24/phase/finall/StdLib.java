@@ -25,9 +25,11 @@ public class StdLib {
         var getchar = List.of(
                 "FgetsBuf    BYTE  0,0",
                 "FgetsArgs    OCTA  FgetsBuf,2",
-                "_getchar    LDA  $255,FgetsArgs",  // Clear the space for the character
+                "_getchar    LDA  $255,FgetsArgs",
                 "TRAP  0,Fgets,StdIn",
                 "LDA  $255,FgetsBuf",
+                "SETL  $0,#0",
+                "STO  $0,SP,0",
                 "LDB  $255,$255,0",
                 "STB  $255,SP,7",  // Skip 7 bytes as characters are 8 bytes long in our lang
                 "POP  0,0"
