@@ -115,7 +115,7 @@ public record FinAll(String filename) {
                 };
                 instructions.add(AsmLine.labeled(label.name, size + " 0"));
                 if (isCustomSize) {
-                    instructions.add(AsmLine.instr("LOC @a#" + (chunk.size - 1)));
+                    instructions.add(AsmLine.instr(String.format("LOC @+#%x", (chunk.size - 1))));
                 }
             }
         }
