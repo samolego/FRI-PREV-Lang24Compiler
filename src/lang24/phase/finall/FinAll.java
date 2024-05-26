@@ -173,7 +173,7 @@ public record FinAll(String filename) {
         // Store return value
         instructions.add(AsmLine.comment("Store return value on stack"));
         var returnReg = RegAll.tempToReg.get(code.frame.RV);
-        instructions.add(AsmLine.labeled(code.exitLabel.toString(), "STO $" + returnReg + ",FP,#0"));
+        instructions.add(AsmLine.instr("STO $" + returnReg + ",FP,0"));
 
         // Add to SP in order to then restore old FP and return address
         instructions.add(AsmLine.comment("Add to SP in order to then restore old FP and return address"));

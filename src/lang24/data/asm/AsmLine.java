@@ -33,14 +33,11 @@ public class AsmLine {
 
     public static List<AsmLine> of(List<AsmInstr> instrs) {
         var instructionLines = new LinkedList<AsmLine>();
-        AsmLABEL label = null;
 
         for (var instr : instrs) {
             if (instr instanceof AsmLABEL lbl) {
-                label = lbl;
-            } else if (label != null) {
-                instructionLines.add(new AsmLine(label.toString() + TAB + instr.toString(RegAll.tempToReg)));
-                label = null;
+                // Label + noop (can be done better but blocks are not sorted, therefore two labels can appear one after another)
+                instructionLines.add(new AsmLine(lbl + TAB + "ADDU $0,$0,0"));
             } else {
                 instructionLines.add(of(instr));
             }
