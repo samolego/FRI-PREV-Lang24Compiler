@@ -490,6 +490,10 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
     private List<ImcStmt> convertBinop(ImcBINOP bnpOper, MemLabel thenLable, MemLabel exitLabel) {
         // Make short-circuit AND and OR
         var stmts = new LinkedList<ImcStmt>();
+        if (bnpOper.fstExpr instanceof ImcBINOP bnpChd) {
+            stmts.addAll(convertBinop(bnpChd, thenLable, exitLabel));
+        }
+
 
         if (bnpOper.oper == Oper.AND) {
             // Short-circuit AND
@@ -511,6 +515,10 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
             var cjump2 = new ImcCJUMP(bnpOper.sndExpr, thenLable, exitLabel);
             stmts.add(cjump2);
+        }
+
+        if (bnpOper.sndExpr instanceof ImcBINOP bnpChd) {
+            stmts.addAll(convertBinop(bnpChd, thenLable, exitLabel));
         }
 
         return stmts;
