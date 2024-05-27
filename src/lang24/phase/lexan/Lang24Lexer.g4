@@ -60,7 +60,7 @@ STR_LIT
 
 // Keywords
 // and bool char else if int nil none not or sizeof then return void while
-AND : 'and' ;
+AND : ' and' ;
 BOOL : 'bool' ;
 CHAR : 'char' ;
 ELSE : 'else' ;

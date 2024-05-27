@@ -490,6 +490,8 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
     @Override
     public ImcInstr visit(AstIfStmt ifStmt, AstFunDefn currentFn) {
         var cond = (ImcExpr) ifStmt.cond.accept(this, currentFn);
+        // Check if condition is binary expression - if so, make it short-circuit
+
         var thenStmt = (ImcStmt) ifStmt.thenStmt.accept(this, currentFn);
 
         // Whether it has else part
@@ -512,8 +514,39 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var jumpToExit = new ImcJUMP(exitLabel);
 
         // If no else part, jump to exit directly
-        var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
-        stmts.add(cjump);
+
+        if (cond instanceof ImcBINOP bnp) {
+            var left = (ImcExpr) bnp.fstExpr;
+            var right = (ImcExpr) bnp.sndExpr;
+
+            // Short circuit and
+            if (bnp.oper == Oper.AND) {
+                // Short-circuit AND
+                // Labels
+                var andLabel = new MemLabel();
+
+                // If no else part, jump to exit directly
+                var cjump = new ImcCJUMP(left, andLabel, exitLabel);
+                stmts.add(cjump);
+
+                // And part
+                stmts.add(new ImcLABEL(andLabel));
+                stmts.add(new ImcCJUMP(right, thenLabel, hasElseStatements ? elseLabel : exitLabel));
+            } else if (bnp.oper == Oper.OR) {
+                var orLbl = new MemLabel();
+                var orLblInstr = new ImcLABEL(orLbl);
+                // Short circuit OR
+                var orJump1 = new ImcCJUMP(left, thenLabel, orLbl);
+                stmts.add(orJump1);
+                stmts.add(orLblInstr);
+
+                var orJump2 = new ImcCJUMP(right, thenLabel, hasElseStatements ? elseLabel : exitLabel);
+                stmts.add(orJump2);
+            }
+        } else {
+            var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
+            stmts.add(cjump);
+        }
 
         // Else part
         if (hasElseStatements) {
