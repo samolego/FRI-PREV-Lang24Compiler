@@ -546,7 +546,7 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
 
         if (cond instanceof ImcBINOP bnp) {
             // Short circuit and
-            stmts.addAll(convertBinop(bnp, thenLabel, exitLabel));
+            stmts.addAll(convertBinop(bnp, thenLabel, hasElseStatements ? elseLabel : exitLabel));
         } else {
             var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
             stmts.add(cjump);
