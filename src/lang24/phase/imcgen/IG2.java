@@ -487,6 +487,35 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
         return imcStmt;
     }
 
+    private List<ImcStmt> convertBinop(ImcBINOP bnpOper, MemLabel thenLable, MemLabel exitLabel) {
+        // Make short-circuit AND and OR
+        var stmts = new LinkedList<ImcStmt>();
+
+        if (bnpOper.oper == Oper.AND) {
+            // Short-circuit AND
+            // Labels
+            var andLabel = new MemLabel();
+            var cjump = new ImcCJUMP(bnpOper.fstExpr, andLabel, exitLabel);
+            stmts.add(cjump);
+            stmts.add(new ImcLABEL(andLabel));
+
+            // Other part
+            var cjump2 = new ImcCJUMP(bnpOper.sndExpr, thenLable, exitLabel);
+            stmts.add(cjump2);
+        } else if (bnpOper.oper == Oper.OR) {
+            // Short-circuit OR
+            var orLbl = new MemLabel();
+            var cjump = new ImcCJUMP(bnpOper.fstExpr, thenLable, orLbl);
+            stmts.add(cjump);
+            stmts.add(new ImcLABEL(orLbl));
+
+            var cjump2 = new ImcCJUMP(bnpOper.sndExpr, thenLable, exitLabel);
+            stmts.add(cjump2);
+        }
+
+        return stmts;
+    }
+
     @Override
     public ImcInstr visit(AstIfStmt ifStmt, AstFunDefn currentFn) {
         var cond = (ImcExpr) ifStmt.cond.accept(this, currentFn);
@@ -516,33 +545,8 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
         // If no else part, jump to exit directly
 
         if (cond instanceof ImcBINOP bnp) {
-            var left = (ImcExpr) bnp.fstExpr;
-            var right = (ImcExpr) bnp.sndExpr;
-
             // Short circuit and
-            if (bnp.oper == Oper.AND) {
-                // Short-circuit AND
-                // Labels
-                var andLabel = new MemLabel();
-
-                // If no else part, jump to exit directly
-                var cjump = new ImcCJUMP(left, andLabel, exitLabel);
-                stmts.add(cjump);
-
-                // And part
-                stmts.add(new ImcLABEL(andLabel));
-                stmts.add(new ImcCJUMP(right, thenLabel, hasElseStatements ? elseLabel : exitLabel));
-            } else if (bnp.oper == Oper.OR) {
-                var orLbl = new MemLabel();
-                var orLblInstr = new ImcLABEL(orLbl);
-                // Short circuit OR
-                var orJump1 = new ImcCJUMP(left, thenLabel, orLbl);
-                stmts.add(orJump1);
-                stmts.add(orLblInstr);
-
-                var orJump2 = new ImcCJUMP(right, thenLabel, hasElseStatements ? elseLabel : exitLabel);
-                stmts.add(orJump2);
-            }
+            stmts.addAll(convertBinop(bnp, thenLabel, exitLabel));
         } else {
             var cjump = new ImcCJUMP(cond, thenLabel, hasElseStatements ? elseLabel : exitLabel);
             stmts.add(cjump);
@@ -603,15 +607,19 @@ public class IG2 implements AstFullVisitor<ImcInstr, AstFunDefn> {
         var stmtExpr = (ImcStmt) whileStmt.stmt.accept(this, currentFn);
 
         var stmts = new LinkedList<ImcStmt>();
-        var loopLabel = new MemLabel();
+        var condLabel = new MemLabel();
         var bodyLabel = new MemLabel();
         var exitLabel = new MemLabel();
 
-        stmts.add(new ImcLABEL(loopLabel));
-        stmts.add(new ImcCJUMP(condExpr, bodyLabel, exitLabel));
+        stmts.add(new ImcLABEL(condLabel));
+        if (condExpr instanceof ImcBINOP bnp) {
+            stmts.addAll(convertBinop(bnp, bodyLabel, exitLabel));
+        } else {
+            stmts.add(new ImcCJUMP(condExpr, bodyLabel, exitLabel));
+        }
         stmts.add(new ImcLABEL(bodyLabel));
         stmts.add(stmtExpr);
-        stmts.add(new ImcJUMP(loopLabel));
+        stmts.add(new ImcJUMP(condLabel));
         stmts.add(new ImcLABEL(exitLabel));
 
         var imcStmt = new ImcSTMTS(stmts);
