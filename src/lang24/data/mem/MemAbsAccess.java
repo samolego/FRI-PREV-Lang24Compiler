@@ -48,7 +48,7 @@ public class MemAbsAccess extends MemAccess {
 			return;
 		logger.begElement("access");
 		logger.addAttribute("size", Long.toString(size));
-		logger.addAttribute("label", label.name);
+		logger.addAttribute("label", label.name());
 		if (init != null)
 			logger.addAttribute("init", init);
 		logger.endElement();

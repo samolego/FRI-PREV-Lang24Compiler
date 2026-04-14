@@ -43,14 +43,14 @@ public class ImcCJUMP extends ImcStmt {
 	@Override
 	public void log(Logger logger) {
 		logger.begElement("imc");
-		logger.addAttribute("instruction", "CJUMP(" + posLabel.name + "," + negLabel.name + ")");
+		logger.addAttribute("instruction", "CJUMP(" + posLabel.name() + "," + negLabel.name() + ")");
 		cond.log(logger);
 		logger.endElement();
 	}
 
 	@Override
 	public String toString() {
-		return "CJUMP(" + cond.toString() + "," + posLabel.name + "," + negLabel.name + ")";
+		return "CJUMP(" + cond.toString() + "," + posLabel.name() + "," + negLabel.name() + ")";
 	}
 
 }

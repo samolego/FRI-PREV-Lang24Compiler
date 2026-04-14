@@ -1,9 +1,7 @@
 import proguard.gradle.ProGuardTask
 
 buildscript {
-    repositories {
-        mavenCentral()
-    }
+    repositories { mavenCentral() }
     dependencies {
         classpath 'com.guardsquare:proguard-gradle:7.4.2'
     }
@@ -19,179 +17,144 @@ java {
     sourceCompatibility = JavaVersion.VERSION_21
 }
 
-version = project.project_version
+version = project.project_version ?: "1.0"
 group = ""
 
-repositories {
-    mavenCentral()
-}
+repositories { mavenCentral() }
 
 dependencies {
-    antlr("org.antlr:antlr4:$project.antlr_version")
-    implementation("org.antlr:antlr4-runtime:$project.antlr_version")
-
-    // Tests
-    //testImplementation("org.junit.jupiter:junit-jupiter-api:$project.junit_version")
-    //testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$project.junit_version")
-    //testImplementation("org.assertj:assertj-core:$project.assertj_version")
+    antlr "org.antlr:antlr4:${project.antlr_version}"
+    implementation "org.antlr:antlr4-runtime:${project.antlr_version}"
 }
 
-def mainClass = "${project.src_root_name}.Compiler"
-def phaseDir = "src/${project.src_root_name}/phase"
-def lexanDir = "$phaseDir/lexan"
-def synanDir = "$phaseDir/synan"
+// Variables from gradle.properties
+def appMainClass = "${project.src_root_name}.Compiler"
 def lexerName = project.lexer_file_name
 def parserName = project.parser_file_name
+
+// 1. Where the .g4 files live
+def lexanSrcDir = file("src/${project.src_root_name}/phase/lexan")
+def synanSrcDir = file("src/${project.src_root_name}/phase/synan")
+
+// 2. Where the .java files will be generated (idiomatic: inside build/ folder)
+def genBaseDir = file("build/generated-src/antlr/main")
+def genLexanDest = file("$genBaseDir/${project.src_root_name}/phase/lexan")
+def genSynanDest = file("$genBaseDir/${project.src_root_name}/phase/synan")
 
 sourceSets {
     main {
         java {
             srcDirs = ['src']
         }
-        antlr {
-            srcDirs = [lexanDir]
-        }
-    }
-    /*test {
-        java {
-            srcDir 'test/java'
-        }
-        resources {
-            srcDir 'test/resources'
-        }
-    }*/
-}
-
-/*test {
-    useJUnitPlatform()
-    testLogging {
-        events = ["passed", "skipped", "failed"]
-    }
-}*/
-
-generateGrammarSource {
-    source {
-        include("${lexerName}.g4")
-        outputDirectory = file(lexanDir)
-    }
-    source {
-        include("${parserName}.g4")
-        outputDirectory = file(synanDir)
-    }
-
-    // For some reason, the generated lexer is placed in the synan directory
-    doLast {
-        // Move generated lexer to the phase directory
-        copy {
-            from fileTree(synanDir)
-            into file(lexanDir)
-            include "${lexerName}.java"
-            include "${lexerName}.interp"
-            include "${lexerName}.tokens"
-            include "${lexerName}.java-orig"
-        }
-        // Delete generated lexer from the synan directory
-        delete fileTree(synanDir) {
-            include "${lexerName}.java"
-            include "${lexerName}.interp"
-            include "${lexerName}.tokens"
-            include "${lexerName}.java-orig"
-        }
     }
 }
+
+tasks.register('generateAntlrLexer', JavaExec) {
+    description = 'Generates Lexer from .g4'
+    classpath = configurations.antlr
+    mainClass = 'org.antlr.v4.Tool'
+
+    // Create directory before running
+    doFirst { genLexanDest.mkdirs() }
+
+    args = [
+            "-o", genLexanDest.absolutePath,
+            "-visitor",
+            "-no-listener",
+            file("${lexanSrcDir}/${lexerName}.g4").absolutePath
+    ]
+
+    inputs.dir(lexanSrcDir)
+    outputs.dir(genLexanDest)
+}
+
+tasks.register('generateAntlrParser', JavaExec) {
+    description = 'Generates Parser from .g4'
+    dependsOn generateAntlrLexer
+    classpath = configurations.antlr
+    mainClass = 'org.antlr.v4.Tool'
+
+    doFirst { genSynanDest.mkdirs() }
+
+    args = [
+            "-o", genSynanDest.absolutePath,
+            "-lib", genLexanDest.absolutePath, // This tells ANTLR where the Lexer's .tokens file is
+            "-no-listener",
+            "-no-visitor",
+            file("${synanSrcDir}/${parserName}.g4").absolutePath
+    ]
+
+    inputs.dir(synanSrcDir)
+    inputs.dir(genLexanDest) // Important: Depends on lexer output for .tokens file
+    outputs.dir(genSynanDest)
+}
+
+// Ensure ANTLR runs before compilation
+generateGrammarSource.enabled = false
+compileJava.dependsOn generateAntlrParser
 
 application {
-    mainClassName = mainClass
+    mainClass = appMainClass
 }
 
 jar {
-    // Fat jar (include all dependencies)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
-
-    // Specify the main class when launching the jar
     manifest {
-        attributes(
-                'Main-Class': mainClass
-        )
+        attributes('Main-Class': appMainClass)
+    }
+}
+
+// --- Proguard and Run tasks remain largely the same ---
+
+tasks.register('proguard', ProGuardTask) {
+    dependsOn jar
+    injars tasks.named('jar')
+    outjars(layout.buildDirectory.file("libs/${project.name}-${project.version}-minified.jar"))
+
+    verbose
+    overloadaggressively
+    allowaccessmodification
+    keep "public class ${appMainClass} { public static void main(java.lang.String[]); }"
+
+    if (System.getProperty('java.version').startsWith('1.')) {
+        libraryjars "${System.getProperty('java.home')}/lib/rt.jar"
+    } else {
+        libraryjars "${System.getProperty('java.home')}/jmods/java.base.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
     }
 }
 
 clean {
-    delete file("$lexanDir/${lexerName}.java")
-    delete file("$lexanDir/${lexerName}.java-orig")
-    delete file("$lexanDir/${lexerName}.interp")
-    delete file("$lexanDir/${lexerName}.tokens")
-
-    delete file("$synanDir/${parserName}.java")
-    delete file("$synanDir/${parserName}.java-orig")
-    delete file("$synanDir/${parserName}.interp")
-    delete file("$synanDir/${parserName}.tokens")
-
-    // Remove generated program xml and html files
-    delete fileTree("prg", {
-        it.include("*.xml", "*.html")
-    })
+    delete "out"
+    // Also delete any old generated files in src if they exist to prevent conflicts
+    delete fileTree(lexanSrcDir) { include "${lexerName}*.java", "*.tokens", "*.interp" }
+    delete fileTree(synanSrcDir) { include "${parserName}*.java", "*.tokens", "*.interp" }
 }
 
 run {
     enableAssertions = true
     def isDebug = System.getenv("IDEA_RUNNER") == "debugger"
-    // Set `INTP_DEBUG=true` environment variable to true to enable debug mode
     System.setProperty("INTP_DEBUG", isDebug.toString())
 
-    // Default args
-    var xsl = getPropertyOrDefault("xsl", "lib/xsl")
-    var loggedPhase = getPropertyOrDefault("loggedPhase", "all")
-    var targetPhase = getPropertyOrDefault("targetPhase", "all")
-    var srcFileName = getPropertyOrDefault("srcFileName", null)
-    var dstFileName = getPropertyOrDefault("dstFileName", null)
+    def xsl = getPropertyOrDefault("xsl", "lib/xsl")
+    def loggedPhase = getPropertyOrDefault("loggedPhase", "all")
+    def targetPhase = getPropertyOrDefault("targetPhase", "all")
+    def srcFileName = getPropertyOrDefault("srcFileName", "prg/heapsort.lang24")
+    def dstFileName = getPropertyOrDefault("dstFileName", null)
 
-    List<Object> argList = ["--xsl=$xsl", "--logged-phase=$loggedPhase", "--target-phase=$targetPhase", "--num-regs=4"]
+    List<String> argList = ["--xsl=$xsl", "--logged-phase=$loggedPhase", "--target-phase=$targetPhase", "--num-regs=4"]
 
-
-    if (srcFileName != null) {
-        argList.add("--src-file-name=prg/${srcFileName}.lang24")
-    }
-
+    if (srcFileName != null) argList.add("--src-file-name=${srcFileName}")
     if (dstFileName != null) {
-        argList.add("--dst-file-name=out/${dstFileName}.mms")
+        argList.add("--dst-file-name=${dstFileName}")
     } else if (srcFileName != null) {
-        argList.add("--dst-file-name=out/${srcFileName}.mms")
+        argList.add("--dst-file-name=${srcFileName}")
     }
-
     args = argList
 }
 
 def getPropertyOrDefault(String propertyName, String defaultValue) {
     return project.hasProperty(propertyName) ? project.properties[propertyName] : defaultValue
-}
-
-tasks.register('proguard', ProGuardTask) {
-    verbose
-    overloadaggressively
-    allowaccessmodification
-
-    keep "public class ${src_root_name}.Compiler { \
-        public static void main(java.lang.String[]); \
-    }"
-
-    // Injars from build task
-    // injars(layout.buildDirectory.file("libs/${project.name}-${project.version}.jar"))
-    // injars(tasks.named('jar', Jar).flatMap { it.archiveFile })
-    injars "build/libs/${project.name}-${project.version}.jar"
-
-    // Automatically handle the Java version of this build.
-    if (System.getProperty('java.version').startsWith('1.')) {
-        // Before Java 9, the runtime classes were packaged in a single jar file.
-        libraryjars "${System.getProperty('java.home')}/lib/rt.jar"
-    } else {
-        // As of Java 9, the runtime classes are packaged in modular jmod files.
-        libraryjars "${System.getProperty('java.home')}/jmods/java.base.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
-        //libraryjars "${System.getProperty('java.home')}/jmods/....."
-    }
-
-
-    outjars(layout.buildDirectory.file("libs/${project.name}-${project.version}-minified.jar"))
 }

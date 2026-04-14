@@ -100,7 +100,7 @@ public record FinAll(String filename) {
                 var value = chunk.init.chars()
                         .mapToObj(String::valueOf)
                         .collect(Collectors.joining(","));
-                instructions.add(AsmLine.labeled(label.name, "OCTA " + value + ",0"));  // Add null terminator
+                instructions.add(AsmLine.labeled(label.name(), "OCTA " + value + ",0"));  // Add null terminator
             } else {
                 boolean isCustomSize = false;
                 var size = switch ((int) chunk.size) {
@@ -113,7 +113,7 @@ public record FinAll(String filename) {
                         yield "BYTE";
                     }
                 };
-                instructions.add(AsmLine.labeled(label.name, size + " 0"));
+                instructions.add(AsmLine.labeled(label.name(), size + " 0"));
                 if (isCustomSize) {
                     instructions.add(AsmLine.instr(String.format("LOC @+#%x", (chunk.size - 1))));
                 }
@@ -125,11 +125,11 @@ public record FinAll(String filename) {
     public List<AsmLine> genPrologue(Code code) {
         // Save current frame pointer and program counter
         var instructions = new LinkedList<AsmLine>();
-        instructions.add(AsmLine.comment("Prologue " + code.frame.label.name + ", locals: " + code.frame.localSize + ", args: " + code.frame.argsSize + ", temps: " + code.tempCount));
+        instructions.add(AsmLine.comment("Prologue " + code.frame.label.name() + ", locals: " + code.frame.localSize + ", args: " + code.frame.argsSize + ", temps: " + code.tempCount));
 
         // Save current SP
         instructions.add(AsmLine.comment("Save current SP"));
-        instructions.add(AsmLine.labeled(code.frame.label.name, "SET $0,SP"));
+        instructions.add(AsmLine.labeled(code.frame.label.name(), "SET $0,SP"));
 
         // Subtract current SP by size of locals + 2 * pointer size
         instructions.add(AsmLine.comment("Subtract current sp by size locals + 2 * pointer size"));

@@ -6,7 +6,7 @@ import lang24.data.imc.visitor.*;
 
 /**
  * Memory access.
- * 
+ * <p>
  * Evaluates the address, reads the value from this address in the memory and
  * returns the value read (but see {@link ImcMOVE} as well.)
  */

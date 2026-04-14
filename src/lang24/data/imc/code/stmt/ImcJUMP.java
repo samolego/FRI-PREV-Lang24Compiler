@@ -31,13 +31,13 @@ public class ImcJUMP extends ImcStmt {
 	@Override
 	public void log(Logger logger) {
 		logger.begElement("imc");
-		logger.addAttribute("instruction", "JUMP(" + label.name + ")");
+		logger.addAttribute("instruction", "JUMP(" + label.name() + ")");
 		logger.endElement();
 	}
 
 	@Override
 	public String toString() {
-		return "JUMP(" + label.name + ")";
+		return "JUMP(" + label.name() + ")";
 	}
 
 }

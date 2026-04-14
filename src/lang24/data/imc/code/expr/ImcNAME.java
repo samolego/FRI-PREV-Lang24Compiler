@@ -31,13 +31,13 @@ public class ImcNAME extends ImcExpr {
 	@Override
 	public void log(Logger logger) {
 		logger.begElement("imc");
-		logger.addAttribute("instruction", "NAME(" + label.name + ")");
+		logger.addAttribute("instruction", "NAME(" + label.name() + ")");
 		logger.endElement();
 	}
 
 	@Override
 	public String toString() {
-		return "NAME(" + label.name + ")";
+		return "NAME(" + label.name() + ")";
 	}
 
 }

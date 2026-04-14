@@ -3,7 +3,7 @@
 A project for university course "Compilers"
 
 ## About Lang24 language
-See [language specification](lang24_specs.md).
+See [language specification](lang24.pdf).
 
 ## Building
 

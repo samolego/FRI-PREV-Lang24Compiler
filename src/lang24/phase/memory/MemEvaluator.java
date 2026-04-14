@@ -185,7 +185,9 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             boolean isNested = depth > 0;
             MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
 
-            var frame = new MemFrame(label, depth, localSize, maxOfArgsAndReturn, size);
+
+            var returnType = SemAn.ofType.get(funDefn.type);
+            var frame = new MemFrame(label, depth, localSize, maxOfArgsAndReturn, size, returnType);
             Memory.frames.put(funDefn, frame);
         }
 

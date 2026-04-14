@@ -25,7 +25,7 @@ public class LinLogger implements AstNullVisitor<Object, String> {
 		if (logger == null)
 			return;
 		logger.begElement("datachunk");
-		logger.addAttribute("label", dataChunk.label.name);
+		logger.addAttribute("label", dataChunk.label.name());
 		logger.addAttribute("size", Long.toString(dataChunk.size));
 		logger.addAttribute("init", dataChunk.init);
 		logger.endElement();
@@ -35,10 +35,10 @@ public class LinLogger implements AstNullVisitor<Object, String> {
 		if (logger == null)
 			return;
 		logger.begElement("codechunk");
-		logger.addAttribute("prologuelabel", codeChunk.frame.label.name);
-		logger.addAttribute("bodylabel", codeChunk.entryLabel.name);
-		logger.addAttribute("epiloguelabel", codeChunk.exitLabel.name);
-		codeChunk.frame.log(logger);
+		logger.addAttribute("prologuelabel", codeChunk.frame().label.name());
+		logger.addAttribute("bodylabel", codeChunk.entryLabel().name());
+		logger.addAttribute("epiloguelabel", codeChunk.exitLabel().name());
+		codeChunk.frame().log(logger);
 		for (ImcStmt stmt : codeChunk.stmts()) {
 			logger.begElement("stmt");
 			stmt.log(logger);

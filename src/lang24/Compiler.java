@@ -23,6 +23,7 @@ import lang24.phase.seman.SemAn;
 import lang24.phase.seman.SemAnLogger;
 import lang24.phase.seman.TypeResolver;
 import lang24.phase.synan.SynAn;
+import lang24.phase.watgen.WatGen;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,7 +52,7 @@ public class Compiler {
 
 	/** All valid phases name of the compiler. */
 	private static final Vector<String> phaseNames = new Vector<>(Arrays.asList("none", "all", "lexan", "synan",
-            "abstr", "seman", "memory", "imcgen", "imclin", "asmgen", "livean", "regall"));
+            "abstr", "seman", "memory", "imcgen", "imclin", "asmgen", "livean", "regall", "watgen"));
 
 	/** Names of command line options. */
 	private static final HashSet<String> cmdLineOptNames = new HashSet<String>(
@@ -112,7 +113,6 @@ public class Compiler {
                         cmdLineOptValues.put("--src-file-name", opt);
                     } else {
                         Report.warning("Source file '" + opt + "' ignored.");
-                        continue;
                     }
                 }
             }
@@ -124,7 +124,7 @@ public class Compiler {
 					final String currWorkDir = new File(".").getCanonicalPath();
 					FileTime latestTime = FileTime.fromMillis(0);
 					Path latestPath = null;
-					for (final Path path : java.nio.file.Files.walk(Paths.get(currWorkDir))
+					for (final Path path : Files.walk(Paths.get(currWorkDir))
 							.filter(path -> path.toString().endsWith(".lang24")).toArray(Path[]::new)) {
 						final FileTime time = Files.getLastModifiedTime(path);
 						if (time.compareTo(latestTime) > 0) {
@@ -147,12 +147,13 @@ public class Compiler {
 			if (cmdLineOptValues.get("--dst-file-name") == null) {
 				cmdLineOptValues.put("--dst-file-name",
 						// TODO: Insert the appropriate file suffix.
-						cmdLineOptValues.get("--src-file-name").replaceFirst("\\.[^./]*$", "") + "");
+                        cmdLineOptValues.get("--src-file-name").replaceFirst("\\.[^./]*$", ""));
 			}
-			if (cmdLineOptValues.get("--target-phase") == null)
-				cmdLineOptValues.put("--target-phase", "all");
-			if (cmdLineOptValues.get("--logged-phase") == null)
-				cmdLineOptValues.put("--logged-phase", "none");
+            cmdLineOptValues.putIfAbsent("--target-phase", "all");
+            cmdLineOptValues.putIfAbsent("--logged-phase", "none");
+
+
+			Report.info("Compiling file: " + cmdLineOptValues.get("--src-file-name") + " to " + cmdLineOptValues.get("--dst-file-name"));
 
 			// Carry out the compilation phase by phase.
 			while (true) {
@@ -163,8 +164,7 @@ public class Compiler {
 				// Lexical analysis.
 				if (cmdLineOptValues.get("--target-phase").equals("lexan")) {
 					try (final LexAn lexan = new LexAn()) {
-						while (lexan.lexer.nextToken().getType() != lang24.data.token.LocLogToken.EOF) {
-						}
+						while (lexan.lexer.nextToken().getType() != lang24.data.token.LocLogToken.EOF) { }
 					}
 					break;
 				}
@@ -235,6 +235,14 @@ public class Compiler {
 				if (cmdLineOptValues.get("--target-phase").equals("imclin"))
 					break;
 
+				// WebAssembly code generation.
+				if (cmdLineOptValues.get("--target-phase").equals("watgen")) {
+					try (var watgen = new WatGen(cmdLineOptValues.get("--dst-file-name"))) {
+						watgen.genWatFile();
+					}
+					break;
+				}
+
 				// Machine code generation.
 				try (AsmGen asmgen = new AsmGen()) {
 					asmgen.genAsmCodes();
@@ -251,8 +259,6 @@ public class Compiler {
 				}
 				if (cmdLineOptValues.get("--target-phase").equals("livean"))
 					break;
-
-
 
 				// Register allocation
 				var reg = cmdLineOptValues.get("--num-regs");

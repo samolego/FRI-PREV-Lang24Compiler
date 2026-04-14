@@ -9,28 +9,18 @@ import java.util.Vector;
 
 /**
  * A chuck of code.
+ * @param frame  A frame of a function. 
+ * @param stmts  The statements of a function body. 
+ * @param entryLabel
+The function's body entry label, i.e., the label the prologue jumps to.
+ * @param exitLabel
+The function's body exit label, i.e., the label at which the epilogue starts.
  */
-public class LinCodeChunk {
-
-	/** A frame of a function. */
-	public final MemFrame frame;
-
-	/** The statements of a function body. */
-	private final Vector<ImcStmt> stmts;
-
-	/**
-	 * The function's body entry label, i.e., the label the prologue jumps to.
-	 */
-	public final MemLabel entryLabel;
-
-	/**
-	 * The function's body exit label, i.e., the label at which the epilogue starts.
-	 */
-	public final MemLabel exitLabel;
+public record LinCodeChunk(MemFrame frame, Vector<ImcStmt> stmts, MemLabel entryLabel, MemLabel exitLabel) {
 
 	/**
 	 * Constructs a new code chunk.
-	 * 
+	 *
 	 * @param frame      A frame of a function.
 	 * @param stmts      The statements of a function body.
 	 * @param entryLabel The function's body entry label, i.e., the label the
@@ -39,17 +29,15 @@ public class LinCodeChunk {
 	 *                   the epilogue starts.
 	 */
 	public LinCodeChunk(MemFrame frame, List<ImcStmt> stmts, MemLabel entryLabel, MemLabel exitLabel) {
-		this.frame = frame;
-		this.stmts = new Vector<>(stmts);
-		this.entryLabel = entryLabel;
-		this.exitLabel = exitLabel;
-	}
+        this(frame, new Vector<>(stmts), entryLabel, exitLabel);
+    }
 
 	/**
 	 * Returns the statements of a function body.
-	 * 
+	 *
 	 * @return The statements of a function body.
 	 */
+	@Override
 	public Vector<ImcStmt> stmts() {
 		return new Vector<>(stmts);
 	}

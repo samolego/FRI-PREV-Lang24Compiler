@@ -31,13 +31,13 @@ public class ImcLABEL extends ImcStmt {
 	@Override
 	public void log(Logger logger) {
 		logger.begElement("imc");
-		logger.addAttribute("instruction", "LABEL(" + label.name + ")");
+		logger.addAttribute("instruction", "LABEL(" + label.name() + ")");
 		logger.endElement();
 	}
 
 	@Override
 	public String toString() {
-		return "LABEL(" + label.name + ")";
+		return "LABEL(" + label.name() + ")";
 	}
 
 }

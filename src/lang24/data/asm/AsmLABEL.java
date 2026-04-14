@@ -20,12 +20,12 @@ public class AsmLABEL extends AsmOPER {
 
 	@Override
 	public String toString() {
-		return label.name;
+		return label.name();
 	}
 
 	@Override
 	public String toString(Map<MemTemp, Integer> regs) {
-		return label.name;
+		return label.name();
 	}
 
 }

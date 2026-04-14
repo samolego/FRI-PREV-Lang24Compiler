@@ -1,6 +1,7 @@
 package lang24.data.mem;
 
 import lang24.common.logger.*;
+import lang24.data.type.SemType;
 
 /**
  * A stack frame.
@@ -44,6 +45,12 @@ public class MemFrame implements Loggable {
      */
     public final MemTemp RV;
 
+
+    /**
+     * The function return type.
+     */
+    public final SemType resultType;
+
     /**
      * Constructs a new frame with no temporary variables and no saved registers.
      *
@@ -54,7 +61,7 @@ public class MemFrame implements Loggable {
      *                  within a frame.
      * @param size      The size of the frame.
      */
-    public MemFrame(MemLabel label, long depth, long localSize, long argsSize, long size) {
+    public MemFrame(MemLabel label, long depth, long localSize, long argsSize, long size, SemType returnType) {
         this.label = label;
         this.depth = depth;
         this.localSize = localSize;
@@ -62,6 +69,7 @@ public class MemFrame implements Loggable {
         this.size = size;
         this.FP = new MemTemp();
         this.RV = new MemTemp();
+        this.resultType = returnType;
     }
 
     @Override
@@ -69,7 +77,7 @@ public class MemFrame implements Loggable {
         if (logger == null)
             return;
         logger.begElement("frame");
-        logger.addAttribute("label", label.name);
+        logger.addAttribute("label", label.name());
         logger.addAttribute("depth", Long.toString(depth));
         logger.addAttribute("locssize", Long.toString(localSize));
         logger.addAttribute("argssize", Long.toString(argsSize));

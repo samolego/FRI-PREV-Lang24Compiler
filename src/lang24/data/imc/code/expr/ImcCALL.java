@@ -46,7 +46,7 @@ public class ImcCALL extends ImcExpr {
 	@Override
 	public void log(Logger logger) {
 		logger.begElement("imc");
-		logger.addAttribute("instruction", "CALL(" + label.name + ")");
+		logger.addAttribute("instruction", "CALL(" + label.name() + ")");
 		for (int a = 0; a < args.size(); a++)
 			args.get(a).log(logger);
 		logger.endElement();
@@ -56,7 +56,7 @@ public class ImcCALL extends ImcExpr {
 	public String toString() {
 		StringBuffer buffer = new StringBuffer();
 		buffer.append("CALL(");
-		buffer.append(label.name);
+		buffer.append(label.name());
 		for (int a = 0; a < args.size(); a++) {
 			buffer.append(",");
 			buffer.append(offs.get(a).toString());

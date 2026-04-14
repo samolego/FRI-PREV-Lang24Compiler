@@ -82,11 +82,11 @@ public class ImcLogger implements AstNullVisitor<Object, Object> {
 		MemLabel bodyLabel = ImcGen.entryLabel.get(funcDefn);
 		MemLabel epilogueLabel = ImcGen.exitLabel.get(funcDefn);
 		if (prologueLabel != null)
-			logger.addAttribute("prologue", prologueLabel.name);
+			logger.addAttribute("prologue", prologueLabel.name());
 		if (bodyLabel != null)
-			logger.addAttribute("body", bodyLabel.name);
+			logger.addAttribute("body", bodyLabel.name());
 		if (epilogueLabel != null)
-			logger.addAttribute("epilogue", epilogueLabel.name);
+			logger.addAttribute("epilogue", epilogueLabel.name());
 		logger.endElement();
 		logAttributes(funcDefn);
 		return null;

@@ -121,7 +121,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         }
 
         // Perform the function call
-        String instr = String.format("PUSHJ $%d,%s", RegAlloc.MAX_REGISTERS, call.label.name);
+        String instr = String.format("PUSHJ $%d,%s", RegAlloc.MAX_REGISTERS, call.label.name());
         var jumps = Vector_of(call.label);
 
         var callOper = genOper(instr, null, null, jumps);
@@ -147,7 +147,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
 
         // Only jump to positive label if condition is true - intentional, as
         // we already sorted the code blocks in the previous phase
-        var cjumpOper = genOper(String.format(instr, cjump.posLabel.name), Vector_of(uses), null, jumps);
+        var cjumpOper = genOper(String.format(instr, cjump.posLabel.name()), Vector_of(uses), null, jumps);
         instructions.add(cjumpOper);
 
         return null;
@@ -165,7 +165,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
 
     @Override
     public MemTemp visit(ImcJUMP jump, List<AsmInstr> instructions) {
-        String instr = String.format("JMP %s", jump.label.name);
+        String instr = String.format("JMP %s", jump.label.name());
         var jumps = Vector_of(jump.label);
 
         var asmOper = genOper(instr, null, null, jumps);
@@ -245,7 +245,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
     public MemTemp visit(ImcNAME name, List<AsmInstr> instructions) {
         // Move name to temp and return it
         final var resultTemp = new MemTemp();
-        final var instr = genOper(String.format("LDA `d0,%s", name.label.name), null,  Vector_of(resultTemp), null);
+        final var instr = genOper(String.format("LDA `d0,%s", name.label.name()), null,  Vector_of(resultTemp), null);
         instructions.add(instr);
 
         instructions.add(instr);
@@ -362,7 +362,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         int minus = 0;
         // Check if any temps is framepointer and replace it with the actual register
         for (int i = 0; uses != null && i < uses.size(); i++) {
-            if (uses.get(i) == this.codeChunk.frame.FP) {
+            if (uses.get(i) == this.codeChunk.frame().FP) {
                 // Replace "`si" with FP
                 instr = instr.replace("`s" + i, FP);
                 remove.add(uses.get(i));
@@ -379,7 +379,7 @@ public class Imc2AsmVisitor implements ImcVisitor<MemTemp, List<AsmInstr>> {
         remove.clear();
         minus = 0;
         for (int i = 0; defs != null && i < defs.size(); i++) {
-            if (defs.get(i) == this.codeChunk.frame.FP) {
+            if (defs.get(i) == this.codeChunk.frame().FP) {
                 // Replace "`di" with FP
                 instr = instr.replace("`d" + i, FP);
                 remove.add(defs.get(i));

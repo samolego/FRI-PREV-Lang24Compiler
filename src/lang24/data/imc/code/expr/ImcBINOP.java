@@ -5,7 +5,7 @@ import lang24.data.imc.visitor.*;
 
 /**
  * Binary operation (logical, relational, and arithmetic).
- * 
+ * <p>
  * Evaluates the first subexpression, evaluates the second expression, performs
  * the selected binary operation and returns its result.
  */

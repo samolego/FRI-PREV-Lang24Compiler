@@ -26,9 +26,9 @@ public class LiveAn extends Phase {
 			return;
 		for (Code code : AsmGen.codes) {
 			logger.begElement("code");
-			logger.addAttribute("prologue", code.entryLabel.name);
-			logger.addAttribute("body", code.entryLabel.name);
-			logger.addAttribute("epilogue", code.exitLabel.name);
+			logger.addAttribute("prologue", code.entryLabel.name());
+			logger.addAttribute("body", code.entryLabel.name());
+			logger.addAttribute("epilogue", code.exitLabel.name());
 			logger.addAttribute("tempsize", Long.toString(code.tempCount));
 			code.frame.log(logger);
 			logger.begElement("instructions");

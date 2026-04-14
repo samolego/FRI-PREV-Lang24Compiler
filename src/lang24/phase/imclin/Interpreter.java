@@ -73,7 +73,7 @@ public class Interpreter {
         this.dataMemLabels = new TreeMap<MemLabel, Long>();
         for (LinDataChunk dataChunk : dataChunks) {
             if (debug) {
-                System.out.printf("### %s @ %s\n", dataChunk.label.name, toHex(tempLD(HP, false)));
+                System.out.printf("### %s @ %s\n", dataChunk.label.name(), toHex(tempLD(HP, false)));
             }
             this.dataMemLabels.put(dataChunk.label, tempLD(HP, false));
             if (dataChunk.init != null) {
@@ -90,7 +90,7 @@ public class Interpreter {
         this.jumpMemLabels = new TreeMap<>();
         this.callMemLabels = new TreeMap<>();
         for (LinCodeChunk codeChunk : codeChunks) {
-            this.callMemLabels.put(codeChunk.frame.label, codeChunk);
+            this.callMemLabels.put(codeChunk.frame().label, codeChunk);
             Vector<ImcStmt> stmts = codeChunk.stmts();
             for (int stmtOffset = 0; stmtOffset < stmts.size(); stmtOffset++) {
                 if (stmts.get(stmtOffset) instanceof ImcLABEL)
@@ -360,7 +360,7 @@ public class Interpreter {
                 memST(tempLD(SP) + offset, callValue);
                 offset += 8;
             }
-            switch (imcCall.label.name) {
+            switch (imcCall.label.name()) {
                 case "_new" -> {
                     Long size = memLD(tempLD(SP, false) + 8, false);
                     Long addr = tempLD(HP);
@@ -410,14 +410,14 @@ public class Interpreter {
         MemTemp storedRV = null;
 
         LinCodeChunk chunk = callMemLabels.get(entryMemLabel);
-        MemFrame frame = chunk.frame;
+        MemFrame frame = chunk.frame();
         Vector<ImcStmt> stmts = chunk.stmts();
         int stmtOffset;
 
         /* PROLOGUE */
         {
             if (debug)
-                System.out.printf("###\n### CALL: %s\n", entryMemLabel.name);
+                System.out.printf("###\n### CALL: %s\n", entryMemLabel.name());
 
             // Store registers and FP.
             storedMemTemps = temps;
@@ -429,7 +429,7 @@ public class Interpreter {
             tempST(frame.FP, tempLD(SP));
             tempST(SP, tempLD(SP) - frame.size);
             // Jump to the body.
-            stmtOffset = jumpMemLabels.get(chunk.entryLabel);
+            stmtOffset = jumpMemLabels.get(chunk.entryLabel());
         }
 
         /* BODY */
@@ -437,10 +437,10 @@ public class Interpreter {
             int pc = 0;
             MemLabel label = null;
 
-            while (label != chunk.exitLabel) {
+            while (label != chunk.exitLabel()) {
                 if (debug) {
                     pc++;
-                    System.out.printf("### %s (%s):\n", chunk.frame.label.name, toHex(pc));
+                    System.out.printf("### %s (%s):\n", chunk.frame().label.name(), toHex(pc));
                     if (pc == 1000000)
                         break;
                 }
@@ -475,14 +475,14 @@ public class Interpreter {
             // Return.
 
             if (debug)
-                System.out.printf("### RETURN: %s\n###\n", entryMemLabel.name);
+                System.out.printf("### RETURN: %s\n###\n", entryMemLabel.name());
         }
 
     }
 
     public long run(String entryMemLabel) {
         for (MemLabel label : callMemLabels.keySet()) {
-            if (label.name.equals(entryMemLabel)) {
+            if (label.name().equals(entryMemLabel)) {
                 funCall(label);
                 return memLD(tempLD(SP));
             }

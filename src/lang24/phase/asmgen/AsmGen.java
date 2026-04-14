@@ -26,7 +26,7 @@ public class AsmGen extends Phase {
             var asmInstrs = new LinkedList<AsmInstr>();
             final Imc2AsmVisitor imc2AsmVisitor = new Imc2AsmVisitor(codeChunk);
             codeChunk.stmts().forEach(stmt -> stmt.accept(imc2AsmVisitor, asmInstrs));
-            Code code = new Code(codeChunk.frame, codeChunk.entryLabel, codeChunk.exitLabel, asmInstrs);
+            Code code = new Code(codeChunk.frame(), codeChunk.entryLabel(), codeChunk.exitLabel(), asmInstrs);
             codes.add(code);
         }
     }
@@ -36,9 +36,9 @@ public class AsmGen extends Phase {
             return;
         for (Code code : AsmGen.codes) {
             logger.begElement("code");
-            logger.addAttribute("prologue", code.entryLabel.name);
-            logger.addAttribute("body", code.entryLabel.name);
-            logger.addAttribute("epilogue", code.exitLabel.name);
+            logger.addAttribute("prologue", code.entryLabel.name());
+            logger.addAttribute("body", code.entryLabel.name());
+            logger.addAttribute("epilogue", code.exitLabel.name());
             logger.addAttribute("tempsize", Long.toString(code.tempCount));
             code.frame.log(logger);
             logger.begElement("instructions");
