@@ -7,6 +7,9 @@ import lang24.data.ast.tree.type.*;
 import lang24.data.mem.*;
 import lang24.phase.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Memory layout phase: stack frames and variable accesses.
  * 
@@ -16,6 +19,9 @@ public class Memory extends Phase {
 
 	/** Maps function declarations to frames. */
 	public static final Attribute<AstFunDefn, MemFrame> frames = new Attribute<>();
+
+	/** Maps labels to whether their corresponding function is external. */
+	public static final Set<MemLabel> internalFns = new HashSet<>();
 
 	/** Maps variable declarations to accesses. */
 	public static final Attribute<AstVarDefn, MemAccess> varAccesses = new Attribute<>();

@@ -30,7 +30,7 @@ public abstract class AsmInstr {
 	/**
 	 * Returns the list of labels this instruction can jump to.
 	 * 
-	 * @returnThe list of labels this instruction can jump to.
+	 * @return The list of labels this instruction can jump to.
 	 */
 	public abstract Vector<MemLabel> jumps();
 

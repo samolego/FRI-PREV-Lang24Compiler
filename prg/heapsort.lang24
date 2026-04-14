@@ -2,7 +2,8 @@ putint(i:int):void
 putchar(c:char):void
 
 seed:int
-random():int={seed=(seed*281474976710656)%44485709377909;return seed;}
+#random():int={seed=(seed*281474976710656)%44485709377909;return seed;}
+random(): int
 
 abs(i:int):int=if i<0 then return -i; else return i;
 

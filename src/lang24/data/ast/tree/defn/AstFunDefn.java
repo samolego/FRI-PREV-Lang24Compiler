@@ -19,6 +19,7 @@ public class AstFunDefn extends AstDefn {
 	/** The code. */
 	public final AstStmt stmt;
 
+	/** Whether this fn has "return" */
 	public boolean hasReturnStmt = false;
 
 	/** The local definitions in this function. */

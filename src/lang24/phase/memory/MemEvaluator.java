@@ -189,6 +189,7 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             var returnType = SemAn.ofType.get(funDefn.type);
             var frame = new MemFrame(label, depth, localSize, maxOfArgsAndReturn, size, returnType);
             Memory.frames.put(funDefn, frame);
+            Memory.internalFns.add(label);
         }
 
 

@@ -4,6 +4,7 @@ import lang24.data.imc.code.expr.*;
 import lang24.data.imc.code.stmt.*;
 import lang24.data.imc.visitor.ImcFullVisitor;
 import lang24.data.mem.MemLabel;
+import lang24.phase.memory.Memory;
 
 import java.util.Map;
 
@@ -114,28 +115,21 @@ public class WatVisitor implements ImcFullVisitor<Void, Void> {
     @Override
     public Void visit(ImcCALL call, Void arg) {
         String name = call.label.name();
-        boolean isStdLib = name.startsWith("_put") || name.equals("_new") || name.equals("_exit") || name.equals("_getchar");
+        boolean definedFn = Memory.internalFns.contains(call.label);
 
-        if (isStdLib) {
-            // StdLib is special: they ARE Wasm-native functions with (param i64)
-            int firstArg = name.equals("_getchar") ? 0 : 1;
-            for (int i = firstArg; i < call.args.size(); i++) {
+        if (!definedFn) {
+            // ABI: Wasm Stack (Skip Static Link)
+            for (int i = 1; i < call.args.size(); i++) {
                 call.args.get(i).accept(this, arg);
             }
         } else {
-            // USER FUNCTIONS: Store arguments into Linear Memory
-            // The space is already reserved in the current frame (argsSize)
+            // ABI: RAM Stack (Keep Static Link)
             for (int i = 0; i < call.args.size(); i++) {
-                // 1. Calculate destination address: $SP + (i * 8)
                 out.println("(global.get $SP)");
                 out.println("(i64.const %d)", i * 8);
                 out.println("i64.add");
                 out.println("i32.wrap_i64");
-
-                // 2. Push the argument value
                 call.args.get(i).accept(this, arg);
-
-                // 3. Store it
                 out.println("i64.store");
             }
         }

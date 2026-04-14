@@ -21,7 +21,6 @@ import java.util.*;
 
 public class WatGen extends Phase {
 
-    private final String filename;
     private final WatWriter writer;
 
     private static final long HEAP_START = 0x10000;
@@ -29,7 +28,6 @@ public class WatGen extends Phase {
 
     public WatGen(String filename) {
         super("watgen");
-        this.filename = filename;
         try {
             // Note: WatWriter should wrap the PrintWriter
             this.writer = new WatWriter(new PrintWriter(filename));
@@ -63,24 +61,20 @@ public class WatGen extends Phase {
         for (LinDataChunk dataChunk : ImcLin.dataChunks()) {
             dataLabels.put(dataChunk.label, currentDataOffset);
             if (dataChunk.init != null) {
-                // We must space characters out to 8 bytes each to match
-                // the 8-byte size defined in MemEvaluator.java
-                for (int i = 0; i < dataChunk.init.length(); i++) {
-                    char c = dataChunk.init.charAt(i);
-                    // Store char (1 byte) + 7 bytes of padding
-                    writer.println("(data (i32.const %d) \"\\%02x\\00\\00\\00\\00\\00\\00\\00\")",
-                            currentDataOffset + (i * 8L), (int) c);
+                // Our char is defined as 8 BITS,
+                // so we must add padding with 0
+                StringBuilder hex = new StringBuilder();
+                for (char c : dataChunk.init.toCharArray()) {
+                    hex.append(String.format("\\%02x\\00\\00\\00\\00\\00\\00\\00", (int) c));
                 }
-                // Null terminator (8 bytes of zeros)
-                writer.println("(data (i32.const %d) \"\\00\\00\\00\\00\\00\\00\\00\\00\")",
-                        currentDataOffset + (dataChunk.init.length() * 8L));
-
+                hex.append("\\00\\00\\00\\00\\00\\00\\00\\00"); // Null terminator
+                writer.println("(data (i32.const %d) \"%s\")", currentDataOffset, hex.toString());
             }
             currentDataOffset += dataChunk.size;
-            currentDataOffset = (currentDataOffset + 7) & ~7;
+            currentDataOffset = (currentDataOffset + 0b0111) & ~0b0111;
         }
 
-        genStdLib();
+        WatStdLib.genStdLib(writer);
 
         for (LinCodeChunk codeChunk : ImcLin.codeChunks()) {
             genFunction(codeChunk, dataLabels);
@@ -92,48 +86,6 @@ public class WatGen extends Phase {
         writer.groupEnd();
 
         writer.groupEnd(); // End module
-    }
-
-    private void genStdLib() {
-        // Use groupStart to let WatWriter handle formatting
-        writer.groupStart("(func $_putchar (param $c i64) (result i64)");
-        writer.println("(call $putchar (i32.wrap_i64 (local.get $c)))");
-        writer.println("(i64.const 0)");
-        writer.groupEnd();
-
-        writer.groupStart("(func $_getchar (result i64)");
-        writer.println("(i64.extend_i32_s (call $getchar))");
-        writer.groupEnd();
-
-        writer.groupStart("(func $_putint (param $n i64) (result i64)");
-        writer.println("(local $val i64)");
-        writer.println("(local.set $val (local.get $n))");
-        writer.groupStart("(if (i64.lt_s (local.get $val) (i64.const 0))");
-        writer.groupStart("(then");
-        writer.println("(call $putchar (i32.const 45))");
-        writer.println("(local.set $val (i64.sub (i64.const 0) (local.get $val)))");
-        writer.groupEnd();
-        writer.groupEnd();
-        writer.groupStart("(if (i64.ge_s (local.get $val) (i64.const 10))");
-        writer.groupStart("(then");
-        writer.println("(drop (call $_putint (i64.div_s (local.get $val) (i64.const 10))))");
-        writer.groupEnd();
-        writer.groupEnd();
-        writer.println("(call $putchar (i32.wrap_i64 (i64.add (i64.rem_s (local.get $val) (i64.const 10)) (i64.const 48))))");
-        writer.println("(i64.const 0)");
-        writer.groupEnd();
-
-        writer.groupStart("(func $_new (param $size i64) (result i64)");
-        writer.println("(local $addr i64)");
-        writer.println("(local.set $addr (global.get $HP))");
-        writer.println("(global.set $HP (i64.add (global.get $HP) (local.get $size)))");
-        writer.println("(local.get $addr)");
-        writer.groupEnd();
-
-        writer.groupStart("(func $_exit (param $code i64) (result i64)");
-        writer.println("(call $exit (i32.wrap_i64 (local.get $code)))");
-        writer.println("(i64.const 0)");
-        writer.groupEnd();
     }
 
     /**
@@ -196,13 +148,13 @@ public class WatGen extends Phase {
         brTable.append("(local.get $target))");
         writer.println(brTable.toString());
 
-        for (int i = 0; i < labels.size(); i++) {
+        for (MemLabel label : labels) {
             writer.groupEnd(); // Close block $B_i
-            writer.println(";; Label: %s", labels.get(i).name());
+            writer.println(";; Label: %s", label.name());
 
             int stmtIdx = -1;
             for (int j = 0; j < stmts.size(); j++) {
-                if (stmts.get(j) instanceof ImcLABEL l && l.label.equals(labels.get(i))) {
+                if (stmts.get(j) instanceof ImcLABEL l && l.label.equals(label)) {
                     stmtIdx = j + 1;
                     break;
                 }
