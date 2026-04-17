@@ -108,8 +108,10 @@ public class WatGen extends Phase {
                 }
                 hex.append("\\00\\00\\00\\00\\00\\00\\00\\00"); // Null terminator
                 writer.println("(data (i32.const %d) \"%s\")", currentDataOffset, hex.toString());
+                currentDataOffset += (dataChunk.init.length() + 1) * 8L;
+            } else {
+                currentDataOffset += dataChunk.size;
             }
-            currentDataOffset += dataChunk.size;
             currentDataOffset = (currentDataOffset + 0b0111) & ~0b0111;
         }
 

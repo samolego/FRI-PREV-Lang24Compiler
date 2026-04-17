@@ -1,0 +1,10 @@
+# External bridge provided by the JS host
+dom_set_content(id : ^char, content : ^char) : void
+
+main() : int = {
+    # 'id' and 'content' are pointers to 8-byte padded chars in Wasm memory
+    dom_set_content("status-pill", "System Status: INJECTED");
+    dom_set_content("target-title", "Hello from WebAssembly!");
+    dom_set_content("target-desc", "This entire section was modified by LANG'24 logic.");
+    return 0;
+}

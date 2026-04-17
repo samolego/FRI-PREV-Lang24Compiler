@@ -1,0 +1,177 @@
+<!doctype html<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>LANG'24 Language Showcase</title>
+        <style>
+            :root {
+                --bg: #1e1e1e;
+                --win: #252526;
+                --border: #444;
+                --text: #d4d4d4;
+            }
+            body {
+                font-family: "Segoe UI", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                padding: 40px;
+                line-height: 1.6;
+            }
+
+            .showcase-header {
+                text-align: center;
+                margin-bottom: 50px;
+            }
+            h1 {
+                color: #fff;
+                margin-bottom: 10px;
+            }
+
+            .window {
+                background: var(--win);
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                margin-bottom: 40px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            }
+            .title-bar {
+                background: #323233;
+                padding: 8px 15px;
+                display: flex;
+                align-items: center;
+                border-bottom: 1px solid var(--border);
+            }
+            .dot {
+                height: 12px;
+                width: 12px;
+                border-radius: 50%;
+                margin-right: 6px;
+            }
+            .dot.red {
+                background: #ff5f56;
+            }
+            .dot.yellow {
+                background: #ffbd2e;
+            }
+            .dot.green {
+                background: #27c93f;
+            }
+            .title {
+                flex-grow: 1;
+                text-align: center;
+                font-size: 13px;
+                color: #888;
+                font-weight: bold;
+            }
+
+            .code-area {
+                position: relative;
+                padding: 0;
+                margin: 0;
+            }
+            pre {
+                font-family: "Fira Code", "Consolas", monospace;
+                padding: 20px;
+                font-size: 14px;
+                margin: 0;
+                overflow-x: auto;
+                tab-size: 4;
+            }
+
+            .run-btn {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                background: #2ea043;
+                color: #fff;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                z-index: 10;
+            }
+            .run-btn:hover {
+                background: #3fb950;
+            }
+            .run-btn:disabled {
+                background: #444;
+                cursor: wait;
+            }
+
+            .console {
+                background: #000;
+                color: #33ff33;
+                padding: 15px;
+                font-family: "Consolas", monospace;
+                font-size: 13px;
+                border-top: 1px solid var(--border);
+                min-height: 40px;
+                white-space: pre-wrap;
+            }
+
+            /* Syntax Highlighting */
+            .hl-kw {
+                color: #569cd6;
+                font-weight: bold;
+            } /* Keywords */
+            .hl-type {
+                color: #4ec9b0;
+            } /* Built-in Types */
+            .hl-st {
+                color: #ce9178;
+            } /* Strings */
+            .hl-cm {
+                color: #6a9955;
+                font-style: italic;
+            } /* Comments */
+            .hl-nm {
+                color: #b5cea8;
+            } /* Numbers */
+            .hl-sym {
+                color: #ffd700;
+            } /* Symbols */
+
+            /* Target area for the DOM manipulation program */
+            #dom-target {
+                margin-top: 20px;
+                padding: 30px;
+                border: 2px dashed #569cd6;
+                border-radius: 8px;
+                text-align: center;
+                background: #252526;
+            }
+            #status-pill {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 20px;
+                background: #444;
+                font-size: 12px;
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="showcase-header">
+            <h1>LANG'24 Language Showcase</h1>
+            <p>
+                A strictly 64-bit language compiled to WebAssembly with 8-byte
+                memory alignment.
+            </p>
+        </div>
+
+        <!-- Programs will be injected here -->
+        <div id="programs-container"></div>
+
+        <div id="dom-target">
+            <div id="status-pill">System Status: Idle</div>
+            <h2 id="target-title">Interactive DOM Area</h2>
+            <p id="target-desc">
+                The "dom" program will rewrite this section using raw pointers
+                and linear memory.
+            </p>
+        </div>
+
+        <script src="showcase.js"></script>
+    </body>
+</html>

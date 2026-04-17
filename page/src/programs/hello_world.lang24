@@ -1,0 +1,21 @@
+putchar(c : char) : void
+
+# Main function - entry point for the compiler
+main() : int =
+{
+    helloStr = "Hello, World!\n";
+    printStr(helloStr);
+    return 0;
+} {
+	helloStr : ^char
+}
+
+# Helper function to print a null-terminated string
+printStr(s : ^char) : void = {
+    while s^ != '\00' :
+    {
+        putchar(s^);
+        s = <^char>(<int>s + sizeof(char));
+    }
+
+}
