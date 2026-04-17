@@ -9,10 +9,10 @@ math_abs(i:int):int=if i<0 then return -i; else return i;
 
 tab:[10]int
 
-heapsort(nums:^[100]int,^cmps:int):void=
+heapsort(nums:^[10]int,^cmps:int):void=
 	{
-		heapify(100);
-		n=99;
+		heapify(10);
+		n=9;
 		while n>0:{
 			t=nums^[0];nums^[0]=nums^[n];nums^[n]=t;
 			siftdown(0,n);
@@ -54,24 +54,24 @@ main(): int = {
 	seed=2024;
 	i=0;
 
-	while i<100: {
+	while i<10: {
 	    tab[i] = math_abs(math_random()) % 100;
 	    i=i+1;
         }
 
 	i=0;
-	while i<100: {
+	while i<10: {
 	    putint(tab[i]);
-	    if i < 99 then
+	    if i < 9 then
 		putchar(',');
             i=i+1;
         }
         putchar('\n');
 	cmps=0;
 	heapsort(^tab, cmps);
-	i=0; while i<100 : {
+	i=0; while i<10 : {
 	    putint(tab[i]);
-	    if i < 99 then
+	    if i < 9 then
 		putchar(',');
             i=i+1;
         }

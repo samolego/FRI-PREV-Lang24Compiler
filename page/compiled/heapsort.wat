@@ -652,14 +652,14 @@
                   (i64.const 8)
                   i64.add
                   i32.wrap_i64
-                  (i64.const 100)
+                  (i64.const 10)
                   i64.store
                   (call $_L0)
                   (local.get $T6)
                   (i64.const -8)
                   i64.add
                   i32.wrap_i64
-                  (i64.const 99)
+                  (i64.const 9)
                   i64.store
                   (local.set $target (i32.const 1))
                   (br $L)
@@ -870,7 +870,7 @@
                                             i64.add
                                             i32.wrap_i64
                                             i64.load
-                                            (i64.const 100)
+                                            (i64.const 10)
                                             i64.lt_s
                                             i64.extend_i32_u
                                             i32.wrap_i64
@@ -953,7 +953,7 @@
                                     i64.add
                                     i32.wrap_i64
                                     i64.load
-                                    (i64.const 100)
+                                    (i64.const 10)
                                     i64.lt_s
                                     i64.extend_i32_u
                                     i32.wrap_i64
@@ -992,7 +992,7 @@
                                 i64.add
                                 i32.wrap_i64
                                 i64.load
-                                (i64.const 99)
+                                (i64.const 9)
                                 i64.lt_s
                                 i64.extend_i32_u
                                 i32.wrap_i64
@@ -1078,7 +1078,7 @@
                       i64.add
                       i32.wrap_i64
                       i64.load
-                      (i64.const 100)
+                      (i64.const 10)
                       i64.lt_s
                       i64.extend_i32_u
                       i32.wrap_i64
@@ -1117,7 +1117,7 @@
                   i64.add
                   i32.wrap_i64
                   i64.load
-                  (i64.const 99)
+                  (i64.const 9)
                   i64.lt_s
                   i64.extend_i32_u
                   i32.wrap_i64
