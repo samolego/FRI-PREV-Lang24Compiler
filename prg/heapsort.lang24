@@ -2,10 +2,11 @@ putint(i:int):void
 putchar(c:char):void
 
 seed:int
-#random():int={seed=(seed*281474976710656)%44485709377909;return seed;}
-random(): int
 
-abs(i:int):int=if i<0 then return -i; else return i;
+math_random(): int
+#math_random():int={seed=(seed*281474976710656)%44485709377909;return seed;}
+
+math_abs(i:int):int=if i<0 then return -i; else return i;
 
 tab:[100]int
 
@@ -51,30 +52,31 @@ heapsort(nums:^[100]int,^cmps:int):void=
 	}
 
 main(): int = {
-		seed=2024;
-		i=0;
-		while i<100: {
-		    tab[i] = abs(random()) % 50;
-		    i=i+1;
+	seed=2024;
+	i=0;
+
+	while i<100: {
+	    tab[i] = math_abs(math_random()) % 100;
+	    i=i+1;
         }
 
-		i=0;
-		while i<100: {
-		    putint(tab[i]);
-		    if i < 99 then
-		        putchar(',');
+	i=0;
+	while i<100: {
+	    putint(tab[i]);
+	    if i < 99 then
+		putchar(',');
             i=i+1;
         }
         putchar('\n');
-		cmps=0;
-		heapsort(^tab, cmps);
-		i=0; while i<100 : {
-		    putint(tab[i]);
-		    if i < 99 then
-		        putchar(',');
+	cmps=0;
+	heapsort(^tab, cmps);
+	i=0; while i<100 : {
+	    putint(tab[i]);
+	    if i < 99 then
+		putchar(',');
             i=i+1;
         }
         putchar('\n');
-		return cmps;
+	return cmps;
 }
 { i:int cmps:int }

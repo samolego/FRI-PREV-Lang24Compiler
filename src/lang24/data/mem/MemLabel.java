@@ -28,7 +28,7 @@ public record MemLabel(String name) implements Comparable<MemLabel> {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj instanceof MemLabel mlb && name.equals(mlb.name);
+		return obj instanceof MemLabel(String othrName) && name.equals(othrName);
 	}
 
 	@Override

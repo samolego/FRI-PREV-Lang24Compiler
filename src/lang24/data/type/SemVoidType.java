@@ -7,7 +7,7 @@ import lang24.data.type.visitor.SemVisitor;
  * 
  * @author bostjan.slivnik@fri.uni-lj.si
  */
-public class SemVoidType extends SemType {
+public class SemVoidType extends SemType implements WatType {
 
 	/** An object of {@code SemVoidType} class. */
 	public static final SemVoidType type = new SemVoidType();
@@ -31,4 +31,8 @@ public class SemVoidType extends SemType {
 		return visitor.visit(this, arg);
 	}
 
+	@Override
+	public Type watType() {
+		return Type.VOID;
+	}
 }

@@ -175,23 +175,25 @@ public class MemEvaluator implements AstFullVisitor<Void, Integer> {
             }
         }
 
-        if (funDefn.stmt != null) {
+        boolean isNested = depth > 0;
+        MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
 
+        if (funDefn.stmt != null) {
             funDefn.stmt.accept(this, depth + 1);
             long maxOfArgsAndReturn = this.maxCallSize;
 
             long size = localSize + maxOfArgsAndReturn + 2 * getSizeInBytes(SemPointerType.type); // one for return address, one for old frame pointer
 
-            boolean isNested = depth > 0;
-            MemLabel label = isNested ? new MemLabel() : new MemLabel(funDefn.name());
-
 
             var returnType = SemAn.ofType.get(funDefn.type);
             var frame = new MemFrame(label, depth, localSize, maxOfArgsAndReturn, size, returnType);
             Memory.frames.put(funDefn, frame);
-            Memory.internalFns.add(label);
+        } else {
+            // External-provided function
+            Memory.externalFns.put(label, funDefn);
         }
 
+        Memory.resultTypes.put(label, SemAn.ofType.get(funDefn.type.parent));
 
         return null;
     }

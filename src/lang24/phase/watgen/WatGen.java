@@ -1,6 +1,7 @@
 package lang24.phase.watgen;
 
 import lang24.common.report.Report;
+import lang24.data.ast.tree.defn.AstFunDefn.AstParDefn;
 import lang24.data.imc.code.stmt.*;
 import lang24.data.lin.LinCodeChunk;
 import lang24.data.lin.LinDataChunk;
@@ -9,11 +10,15 @@ import lang24.data.mem.MemTemp;
 import lang24.data.mem.MemFrame;
 import lang24.data.type.SemType;
 import lang24.data.type.SemVoidType;
+import lang24.data.type.WatType;
+import lang24.data.type.WatType.Type;
 import lang24.data.wat.TempVisitor;
 import lang24.data.wat.WatVisitor;
 import lang24.data.wat.WatWriter;
 import lang24.phase.Phase;
 import lang24.phase.imclin.ImcLin;
+import lang24.phase.memory.Memory;
+import lang24.phase.seman.SemAn;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -45,10 +50,44 @@ public class WatGen extends Phase {
     public void genWatFile() {
         writer.groupStart("(module");
 
-        // Imports
-        writer.println("(import \"env\" \"putchar\" (func $putchar (param i32)))");
-        writer.println("(import \"env\" \"getchar\" (func $getchar (result i32)))");
-        writer.println("(import \"env\" \"exit\" (func $exit (param i32)))");
+        // External imports
+        for (var fn : Memory.externalFns.entrySet()) {
+            var functionName = fn.getKey().name();
+            var astFnDefn = fn.getValue();
+            var wt = (WatType) SemAn.ofType.get(astFnDefn.type.parent);
+            var watType = wt.watType();
+
+            StringBuilder paramsBuilder = new StringBuilder(" (param");
+            for (AstParDefn par : astFnDefn.pars) {
+                var p = (WatType) SemAn.ofType.get(par);
+                paramsBuilder.append(" ").append(p.watType().toString());
+            }
+            String paramsStr;
+            if (astFnDefn.pars.size() > 0) {
+                paramsStr = paramsBuilder.append(")").toString();
+            } else {
+                paramsStr = "";
+            }
+
+            var result = "";
+            if (watType != Type.VOID) {
+                result = " (result %s)".formatted(watType.toString());
+            }
+
+            // Module-imports (split by _)
+            // Defaulting to env
+            String moduleName = "env";
+            String cleanName = functionName.substring(1);
+            String fieldName = cleanName;
+            if (cleanName.contains("_")) {
+                int idx = cleanName.indexOf("_");
+                moduleName = cleanName.substring(0, idx);
+                fieldName = cleanName.substring(idx + 1);
+            }
+
+            // Import external function
+            writer.println("(import \"%s\" \"%s\" (func $%s%s%s))", moduleName, fieldName, functionName, paramsStr, result);
+        }
 
         writer.println("(memory (export \"memory\") 200)");
 
@@ -74,14 +113,14 @@ public class WatGen extends Phase {
             currentDataOffset = (currentDataOffset + 0b0111) & ~0b0111;
         }
 
-        WatStdLib.genStdLib(writer);
+        //WatStdLib.genStdLib(writer);
 
         for (LinCodeChunk codeChunk : ImcLin.codeChunks()) {
             genFunction(codeChunk, dataLabels);
         }
 
         // Main entry point
-        writer.groupStart("(func (export \"_start\") (result i64)");
+        writer.groupStart("(func (export \"main\") (result i64)");
         writer.println("(call $_main)");
         writer.groupEnd();
 

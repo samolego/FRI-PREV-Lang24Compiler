@@ -5,9 +5,12 @@ import lang24.data.ast.tree.defn.*;
 import lang24.data.ast.tree.expr.*;
 import lang24.data.ast.tree.type.*;
 import lang24.data.mem.*;
+import lang24.data.type.SemType;
 import lang24.phase.*;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -21,7 +24,10 @@ public class Memory extends Phase {
 	public static final Attribute<AstFunDefn, MemFrame> frames = new Attribute<>();
 
 	/** Maps labels to whether their corresponding function is external. */
-	public static final Set<MemLabel> internalFns = new HashSet<>();
+	public static final Map<MemLabel, AstFunDefn> externalFns = new HashMap<>();
+
+	/** Maps every function label to its semantic result type. */
+	public static final Map<MemLabel, SemType> resultTypes = new HashMap<>();
 
 	/** Maps variable declarations to accesses. */
 	public static final Attribute<AstVarDefn, MemAccess> varAccesses = new Attribute<>();
